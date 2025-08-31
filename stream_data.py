@@ -54,4 +54,4 @@ time.sleep(100) # stream duration
 
 streamer.stop()
 
-df.to_csv(f"{symbol}_streamed_data.csv", index=False)
+df.to_csv(f"data/{symbol}_streamed_data.csv", index=False)

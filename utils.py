@@ -6,7 +6,7 @@ import pandas as pd
 
 symbol = "TSLA"
 
-df = pd.read_csv(f"{symbol}_historical_data.csv")
+df = pd.read_csv(f"data/{symbol}_historical_data.csv")
 df['datetime'] = pd.to_datetime(df['datetime'])
 df.set_index('datetime', inplace=True)
 

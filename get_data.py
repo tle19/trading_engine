@@ -44,4 +44,4 @@ for _, row in df.iterrows():
           f"Close: {row['close']}, "
           f"Volume: {row['volume']}")
     
-df.to_csv(f"{symbol}_historical_data.csv", index=False)
+df.to_csv(f"data/{symbol}_historical_data.csv", index=False)
