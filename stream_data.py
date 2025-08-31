@@ -4,28 +4,51 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import json
+import pandas as pd
 
-est = ZoneInfo("America/New_York")
+app_key = "REMOVED"
+app_secret = "REMOVED"
 
-client = schwabdev.Client("REMOVED", 
-                          "REMOVED")
-
+client = schwabdev.Client(app_key, app_secret)
 streamer = client.stream
+symbol = "TSLA"
+
+timezone = ZoneInfo("America/New_York")
+df = pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume' ,'datetime'])
 
 def response_handler(response):
-    o = response.get("open")
-    h = response.get("high")
-    l = response.get("low")
-    c = response.get("close")
-    v = response.get("volume")
-    ts = response.get("datetime")
+    data = json.loads(response)
+    data = data.get("data", [])
 
-    ts = datetime.fromtimestamp(ts / 1000)
+    global df
+
+    if not data:
+        return 
+    for item in data:
+        content = item["content"][0]
+        row = {
+            "open": content.get("17"),
+            "high": content.get("10"),
+            "low": content.get("11"),
+            "close": content.get("12"),
+            "volume": content.get("8"),
+            "datetime": pd.to_datetime(item["timestamp"], unit='ms').tz_localize('UTC').tz_convert(timezone)
+        }
+        df.loc[len(df)] = row
     
-    print(f"Open: {o}, High: {h}, Low: {l}, Close: {c}, Volume: {v}, Time: {ts}")
+    curr = df.iloc[-1]
+    print(f"Datetime: {curr['datetime']}, "
+          f"Open: {curr['open']}, "
+          f"High: {curr['high']}, "
+          f"Low: {curr['low']}, "
+          f"Close: {curr['close']}, "
+          f"Volume: {curr['volume']}")
 
 streamer.start(response_handler)
 
-streamer.send(streamer.level_one_equities("AMD, INTC", "0,1,2,3"))
+streamer.send(streamer.level_one_equities(symbol, "0,8,10,11,12,17", command="ADD"))
+time.sleep(100) # stream duration
 
-time.sleep(100) #duration of stream
+streamer.stop()
+
+df.to_csv(f"{symbol}_streamed_data.csv", index=False)

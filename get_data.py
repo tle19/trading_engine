@@ -6,12 +6,12 @@ from zoneinfo import ZoneInfo
 import json
 import pandas as pd
 
-client = schwabdev.Client("REMOVED", 
-                          "REMOVED")
+app_key = "REMOVED"
+app_secret = "REMOVED"
 
+client = schwabdev.Client(app_key, app_secret)
 streamer = client.stream
-
-symbol = "AMD"
+symbol = "TSLA"
 
 historical_data = client.price_history(
     symbol=symbol, 
@@ -27,22 +27,19 @@ historical_data = client.price_history(
 
 full_str = b"".join(historical_data).decode("utf-8")
 data = json.loads(full_str)
-
-candles = data.get("candles", [])
-
-df = pd.DataFrame(candles)
-
 df = pd.DataFrame(data.get("candles", []))
-est = ZoneInfo("America/New_York")
-df['datetime'] = pd.to_datetime(df['datetime'], unit='ms').dt.tz_localize('UTC').dt.tz_convert(est)
-df.to_csv(f"{symbol}_historical_data.csv", index=False)
+
+timezone = ZoneInfo("America/New_York")
+df['datetime'] = pd.to_datetime(df['datetime'], unit='ms').dt.tz_localize('UTC').dt.tz_convert(timezone)
 
 for _, row in df.iterrows():
 
-    print(f"Time: {row['datetime']}, "
+    print(f"Datetime: {row['datetime']}, "
           f"Open: {row['open']}, "
           f"High: {row['high']}, "
           f"Low: {row['low']}, "
           f"Close: {row['close']}, "
           f"Volume: {row['volume']}")
+    
+df.to_csv(f"{symbol}_historical_data.csv", index=False)
 
