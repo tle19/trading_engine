@@ -57,3 +57,4 @@ mpf.plot(df, type='candle', style='charles', volume=True, title='AMD Minute Cand
 
 # print(train_df)
 # print(test_df)
+
