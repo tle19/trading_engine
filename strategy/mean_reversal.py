@@ -1,23 +1,33 @@
-import os
-
 import pandas as pd
 
-def strategy1(df):
-    # High/Low breakout strategy
-    df['prev_high'] = df['high'].shift(1)
-    df['prev_low'] = df['low'].shift(1)
-    df.dropna(subset=['prev_high', 'prev_low'], inplace=True)
+class MeanReversionIndicator:
+    def __init__(self, window=20, threshold=0.01):
+        self.window = window
+        self.threshold = threshold
+        self.history = []
+        self.in_position = False  # track if we are long
 
-    df['signal'] = 0
-    df.loc[df['close'] > df['prev_high'], 'signal'] = 1   # buy
-    df.loc[df['close'] < df['prev_low'], 'signal'] = -1   # sell
+    def update(self, row):
+        close = row['close']
+        self.history.append(close)
 
-    # Calculate returns
-    df['returns'] = df['close'].pct_change().fillna(0)
-    df['strategy_returns'] = df['returns'] * df['signal'].shift(1)  # assume enter next minute
+        if len(self.history) > 1000:
+            self.history.pop(0)
 
-    # Cumulative profits
-    df['cum_strategy'] = (1 + df['strategy_returns']).cumprod()
-    df['cum_market'] = (1 + df['returns']).cumprod()  # buy-and-hold baseline
-    
-    return df
+        if len(self.history) < self.window:
+            return 0  # not enough data
+
+        ma = sum(self.history[-self.window:]) / self.window
+
+        # Buy signal only if not already long
+        if close < ma * (1 - self.threshold) and not self.in_position:
+            self.in_position = True
+            return 1  # buy
+
+        # Exit signal only if in position
+        elif close >= ma and self.in_position:
+            self.in_position = False
+            return 0  # exit
+
+        return 0  # hold / no action
+
