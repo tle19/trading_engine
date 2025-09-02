@@ -2,42 +2,32 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from utils import *
 
-def run_backtest(strategy, symbol, date="2025-08-22", initial_cash=30_000):
-
+def run_backtest(strategy, symbol, date="", initial_cash=30_000):
     df = open_data(symbol, date)
 
     cash = initial_cash
     position = 0
-    position_price = 0
+    entry_price = 0
     equity_curve = []
 
     strat = strategy()
 
-    for i, row in df.iterrows():
+    for _, row in df.iterrows():
+        signal = strat.update(row)
         close = row['close']
 
-        # Get signal from strategy
-        signal = strat.update(row)
-
-        # Enter long
         if signal == 1 and position == 0:
             position = 1
-            position_price = close
-            cash -= close
+            entry_price = close
+            cash -= entry_price
 
-        # Exit long
-        elif signal == 0 and position == 1:
-            cash += close
+        elif signal == -1 and position == 1:
             position = 0
-            position_price = 0
+            cash += close
 
-        # Update equity
         equity = cash + position * close
         equity_curve.append(equity)
 
-    df['cum_strategy'] = equity_curve
-    df['cum_market'] = (df['close'] / df['close'].iloc[0]) * initial_cash
-
-    # Call utils functions for summary and plots
-    summary(df)
+    df['equity'] = equity_curve
+    summary(df, initial_cash)
     profits(df, symbol, date)

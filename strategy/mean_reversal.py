@@ -1,33 +1,34 @@
-import pandas as pd
+import numpy as np
 
 class MeanReversionIndicator:
-    def __init__(self, window=20, threshold=0.01):
+    def __init__(self, window=20, risk_pct=0.01, rr_ratio=3):
         self.window = window
-        self.threshold = threshold
+        self.risk_pct = risk_pct
+        self.rr_ratio = rr_ratio
         self.history = []
-        self.in_position = False  # track if we are long
+        self.in_position = False
+        self.entry_price = 0
 
     def update(self, row):
         close = row['close']
         self.history.append(close)
 
-        if len(self.history) > 1000:
-            self.history.pop(0)
-
         if len(self.history) < self.window:
-            return 0  # not enough data
+            return 0
 
-        ma = sum(self.history[-self.window:]) / self.window
+        ma = np.mean(self.history[-self.window:])
+        diff = ma - close
 
-        # Buy signal only if not already long
-        if close < ma * (1 - self.threshold) and not self.in_position:
+        if not self.in_position and diff > 0:
             self.in_position = True
-            return 1  # buy
+            self.entry_price = close
+            return 1
 
-        # Exit signal only if in position
-        elif close >= ma and self.in_position:
-            self.in_position = False
-            return 0  # exit
+        if self.in_position:
+            take_profit = self.entry_price * (1 + self.risk_pct * self.rr_ratio)
+            stop_loss = self.entry_price * (1 - self.risk_pct)
+            if close >= take_profit or close <= stop_loss:
+                self.in_position = False
+                return -1
 
-        return 0  # hold / no action
-
+        return 0
