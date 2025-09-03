@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class MeanReversionIndicator:
     def __init__(self, window=20, risk_pct=0.01, rr_ratio=3):
         self.window = window

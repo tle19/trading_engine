@@ -55,35 +55,37 @@ class DataHandler:
 
         def response_handler(response):
             data = json.loads(response).get("data", [])
-
             nonlocal df
 
             if not data:
-                return 
+                return
+
             for item in data:
                 content = item["content"][0]
                 row = {
-                    "open": content.get("17"),
-                    "high": content.get("10"),
-                    "low": content.get("11"),
-                    "close": content.get("12"),
-                    "volume": content.get("8"),
-                    "datetime": pd.to_datetime(item["timestamp"], unit='ms').tz_localize('UTC').tz_convert(self.timezone)
+                    "open": content.get("2"),
+                    "high": content.get("3"),
+                    "low": content.get("4"),
+                    "close": content.get("5"),
+                    "volume": content.get("6"),
+                    "datetime": pd.to_datetime(item["timestamp"], unit='ms')
+                                .tz_localize('UTC')
+                                .tz_convert(self.timezone)
                 }
-                df.loc[len(df)] = row
-            
-            curr = df.iloc[-1]
-            print(f"Datetime: {curr['datetime']}, "
-                f"Open: {curr['open']}, "
-                f"High: {curr['high']}, "
-                f"Low: {curr['low']}, "
-                f"Close: {curr['close']}, "
-                f"Volume: {curr['volume']}")
+                df.loc[len(df)] = pd.Series(row, index=df.columns)
+
+                print(f"Datetime: {row['datetime']}, "
+                    f"Open: {row['open']}, "
+                    f"High: {row['high']}, "
+                    f"Low: {row['low']}, "
+                    f"Close: {row['close']}, "
+                    f"Volume: {row['volume']}")
             
         self.streamer.start(response_handler)
-        self.streamer.send(self.streamer.level_one_equities(symbol, "0,8,10,11,12,17", command="ADD"))
         
+        self.streamer.send(self.streamer.chart_equity(symbol, "0,1,2,3,4,5,6", command="SUBS"))
         time.sleep(duration) # stream duration
+        
         self.streamer.stop()
 
         self.save_data(df, f"{symbol}_streamed_data.csv")
@@ -93,5 +95,17 @@ class DataHandler:
         file_path = os.path.join(self.data_path, filename)
         df.to_csv(file_path, index=False)
         print(f"Saved CSV to {file_path}")
+
+    def open_data(self, symbol, date="", start_time="9:30", end_time="16:00"):
+        file_path = os.path.join(self.data_path, f"{symbol}_historical_data.csv")
+        df = pd.read_csv(file_path)
+        df['datetime'] = pd.to_datetime(df['datetime'])
+        df.set_index('datetime', inplace=True)
+
+        if date != "":
+            df = df[df.index.date == pd.to_datetime(date).date()]
+        df = df.between_time(start_time, end_time)
+
+        return df
 
     

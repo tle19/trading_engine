@@ -2,12 +2,14 @@ import argparse
 from get_data import DataHandler
 from backtest import run_backtest
 from strategy.mean_reversal import MeanReversionIndicator
+from strategy.trend_follow import TrendFollow
+
 
 def main():
 
     strategy_map = {
         "mean_reversal": MeanReversionIndicator,
-        # "other": OtherStrategy,
+        "trend_follow": TrendFollow,
     }
 
     parser = argparse.ArgumentParser()
@@ -31,7 +33,7 @@ def main():
         strategy_class = strategy_map.get(args.strategy)
         if strategy_class is None:
             raise ValueError(f"Unknown strategy: {args.strategy}")
-        run_backtest(strategy_class, args.symbol)
+        run_backtest(strategy_class, args.symbol, dh)
         return
 
 if __name__ == "__main__":
