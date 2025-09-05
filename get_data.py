@@ -143,7 +143,8 @@ class DataHandler:
     def open_data(self, symbol, date="", start_time="9:30", end_time="16:00"):
         file_path = os.path.join(self.data_path, f"{symbol}_historical_data.csv")
         df = pd.read_csv(file_path, index_col=0, parse_dates=True)
-        df.set_index('timestamp', inplace=True)
+        df.index = pd.to_datetime(df.index, utc=True)
+        df.index = df.index.tz_convert(self.timezone)
 
         if date != "":
             df = df[df.index.date == pd.to_datetime(date).date()]

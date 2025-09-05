@@ -8,7 +8,7 @@ from strategy.momentum import Momentum
 def main():
 
     strategy_map = {
-        "trend_follow": Momentum,
+        "momentum": Momentum,
         "mean_reversal": MeanReversionIndicator
     }
 
@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--stream", action="store_true")
     parser.add_argument("--backtest", action="store_true")
-    parser.add_argument("--strategy", type=str, default="Momentum")
+    parser.add_argument("--strategy", type=str, default="momentum")
     parser.add_argument("--symbol", type=str, default="TSLA")
     parser.add_argument("--duration", type=int, default=300)
     args = parser.parse_args()
