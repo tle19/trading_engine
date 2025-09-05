@@ -2,32 +2,33 @@ import argparse
 from get_data import DataHandler
 from backtest import run_backtest
 from strategy.mean_reversal import MeanReversionIndicator
-from strategy.trend_follow import TrendFollow
+from strategy.momentum import Momentum
 
 
 def main():
 
     strategy_map = {
-        "mean_reversal": MeanReversionIndicator,
-        "trend_follow": TrendFollow,
+        "trend_follow": Momentum,
+        "mean_reversal": MeanReversionIndicator
     }
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--stream", action="store_true")
     parser.add_argument("--backtest", action="store_true")
-    parser.add_argument("--strategy", type=str, default="mean_reversal")
+    parser.add_argument("--strategy", type=str, default="Momentum")
     parser.add_argument("--symbol", type=str, default="TSLA")
-    parser.add_argument("--duration", type=int, default=100)
+    parser.add_argument("--duration", type=int, default=300)
     args = parser.parse_args()
 
     dh = DataHandler()
 
     if args.fetch:
-        df_hist = dh.historical_data(args.symbol)
+        dh.polygon_historical_data(args.symbol)
+        # dh.historical_data(args.symbol)
         return
     if args.stream:
-        df_stream = dh.stream_data(args.symbol, duration=args.duration)
+        dh.stream_data(args.symbol, duration=args.duration)
         return
     if args.backtest:
         strategy_class = strategy_map.get(args.strategy)
