@@ -3,17 +3,53 @@ import os
 import json
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 
-def summary(df, initial_cash):
-    strategy_final = df['equity'].iloc[-1]
-    print("Strategy final value:", strategy_final)
-    print("Strategy Profit %:", (strategy_final - initial_cash) / initial_cash * 100, "%")
+def summary(final_cash, initial_cash, win_rates, total_trades, equity_list):
+    profit = final_cash - initial_cash
+    profit_pct = (profit / initial_cash) * 100
+
+    avg_win_rate = (
+        sum(w for w in win_rates if w is not None) / len([w for w in win_rates if w is not None])
+        if any(w is not None for w in win_rates) else None
+    )
+
+    max_drawdowns_per_day = []
+
+    for intraday_equity in equity_list:
+        if not intraday_equity:
+            continue  # skip empty days
+
+        cum_max = intraday_equity[0]
+        max_dd = 0.0
+
+        for eq in intraday_equity:
+            if eq > cum_max:
+                cum_max = eq
+            drawdown = (cum_max - eq) / cum_max
+            if drawdown > max_dd:
+                max_dd = drawdown
+
+        max_drawdowns_per_day.append(max_dd * 100)
+
+    overall_max_drawdown = max(max_drawdowns_per_day) if max_drawdowns_per_day else None
+
+    print("Final Cash:", round(final_cash, 2))
+    print("Profit ($):", round(profit, 2))
+    print("Profit %:", round(profit_pct, 2), "%")
+    print(f"Average win rate: {avg_win_rate:.2%}" if avg_win_rate is not None else "No trades")
+    print("Total Trades:", total_trades)
+    if overall_max_drawdown is not None:
+        print("Max Drawdown %:", round(overall_max_drawdown, 2), "%")
+    return profit_pct, avg_win_rate, overall_max_drawdown
 
 def profits(df, symbol="", date=""):
+    daily_equity = df.groupby("date")["equity"].last()
+
     plt.figure(figsize=(12,6))
-    plt.plot(df.index, df['equity'], label='Strategy', color='blue')
-    plt.xlabel("Time")
+    plt.plot(daily_equity.index, daily_equity.values, label='Strategy', color='blue', marker="o")
+    plt.xlabel("Date")
     plt.ylabel("Portfolio Value")
     plt.title(f"{symbol} Strategy Profits ({date})")
     plt.legend()
@@ -189,20 +225,20 @@ def average_highest_high_times(df, n_highs=5):
     print(pd.DataFrame({"avg_minutes_since_open": avg_minutes, "avg_time_of_day": avg_times}))
 
 # for running data quick
-from zoneinfo import ZoneInfo
-def open_data(symbol, date="", start_time="9:30", end_time="16:00"):
-        file_path = os.path.join("data", f"{symbol}_historical_data.csv")
-        df = pd.read_csv(file_path, index_col=0, parse_dates=True)
-        df.index = pd.to_datetime(df.index, utc=True)
-        df.index = df.index.tz_convert(ZoneInfo("America/New_York"))
+# from zoneinfo import ZoneInfo
+# def open_data(symbol, date="", start_time="9:30", end_time="16:00"):
+#         file_path = os.path.join("data", f"{symbol}_historical_data.csv")
+#         df = pd.read_csv(file_path, index_col=0, parse_dates=True)
+#         df.index = pd.to_datetime(df.index, utc=True)
+#         df.index = df.index.tz_convert(ZoneInfo("America/New_York"))
 
-        if date != "":
-            df = df[df.index.date == pd.to_datetime(date).date()]
-        df = df.between_time(start_time, end_time)
+#         if date != "":
+#             df = df[df.index.date == pd.to_datetime(date).date()]
+#         df = df.between_time(start_time, end_time)
 
-        return df
+#         return df
 
-df = open_data("TSLA")
-average_highest_high_times(df, n_highs=5)
-average_lowest_low_times(df, n_lows=5)
-# HOD_probability(df, opening_minutes=120)
+# df = open_data("TSLA")
+# average_highest_high_times(df, n_highs=5)
+# average_lowest_low_times(df, n_lows=5)
+# HOD_probability(df, opening_minutes=60)

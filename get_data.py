@@ -28,15 +28,26 @@ class DataHandler:
 
         self.timezone = ZoneInfo("America/New_York")
 
+    def polygon_historical_data(self, symbol='TSLA', from_date='2023-09-01', to_date='2025-08-31',
+                                timespan='minute', multiplier=1, max_iter=13):
+        import time
 
-    def polygon_historical_data(self, symbol='TSLA', from_date='2024-09-01', to_date='2025-08-31',
-                                timespan='minute', multiplier=1, max_iter=5):
         data_list = []
         current_from = from_date
 
+        # Detect asset class
+        if "/" in symbol:  # user passed forex like "USD/JPY"
+            base, quote = symbol.split("/")
+            polygon_symbol = f"C:{base}{quote}"
+        elif symbol.upper().endswith("USD") and not symbol.startswith(("C:", "X:")):
+            # crypto shorthand like BTCUSD → X:BTCUSD
+            polygon_symbol = f"X:{symbol.upper()}"
+        else:
+            polygon_symbol = symbol  # stock or already formatted
+
         for _ in range(max_iter):
             aggs = self.polygon_client.get_aggs(
-                symbol,
+                polygon_symbol,
                 multiplier,
                 timespan,
                 current_from,
@@ -55,16 +66,18 @@ class DataHandler:
                     'high': agg.high,
                     'low': agg.low,
                     'close': agg.close,
-                    'volume': agg.volume
+                    'volume': getattr(agg, "volume", 0)  # forex often has no volume
                 })
 
+            # Advance current_from beyond last fetched bar
             last_ts = pd.to_datetime(rows[-1].timestamp, unit='ms', utc=True)
             current_from = (last_ts + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
+            # Respect Polygon's rate limit (5 calls/minute)
+            time.sleep(13)
+
         df = pd.DataFrame(data_list)
-
-        self.save_data(df, f"{symbol}_historical_data.csv")
-
+        self.save_data(df, f"{symbol.replace('/','_')}_historical_data.csv")
 
     def historical_data(self, symbol='TSLA', periodType="day", period=10, frequencyType="minute", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
@@ -90,7 +103,7 @@ class DataHandler:
         self.save_data(df, f"{symbol}_historical_data.csv")
 
 
-    def stream_data(self, symbol, duration=100):
+    def stream_data(self, symbol, duration=300):
         df = pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'timestamp'])
 
         def response_handler(response):
@@ -111,8 +124,7 @@ class DataHandler:
                     "volume": content.get("6")
                 }
                 df.loc[len(df)] = pd.Series(row, index=df.columns)
-
-                print(f"Timestamp: {row['timestamp']}, "
+                print(f"Timestamp: {pd.to_datetime(row['timestamp'], unit='ms').tz_localize("UTC").tz_convert(self.timezone)}, "
                     f"Open: {row['open']}, "
                     f"High: {row['high']}, "
                     f"Low: {row['low']}, "
@@ -139,16 +151,19 @@ class DataHandler:
         df.to_csv(file_path, index=True)
         print(f"Saved CSV to {file_path}")
 
-
-    def open_data(self, symbol, date="", start_time="9:30", end_time="16:00"):
+    
+    def open_data(self, symbol, start_date=None, end_date=None, start_time="9:30", end_time="16:00"):
         file_path = os.path.join(self.data_path, f"{symbol}_historical_data.csv")
         df = pd.read_csv(file_path, index_col=0, parse_dates=True)
         df.index = pd.to_datetime(df.index, utc=True)
         df.index = df.index.tz_convert(self.timezone)
 
-        if date != "":
-            df = df[df.index.date == pd.to_datetime(date).date()]
+        if start_date is not None and end_date is not None:
+            mask = (df.index.date >= pd.to_datetime(start_date).date()) & (df.index.date <= pd.to_datetime(end_date).date())
+            df = df.loc[mask]
+
         df = df.between_time(start_time, end_time)
 
         return df
+
     
