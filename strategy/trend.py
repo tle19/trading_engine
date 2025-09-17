@@ -12,7 +12,7 @@ class IntradayTrend:
         self.start_price = 0
         self.entry_price = 0
         self.curr_ret = 0
-        self.position = None  # "long", "short", or None
+        self.position = None
 
     def update(self, row):
         self.curr_time += 1
@@ -27,22 +27,22 @@ class IntradayTrend:
             self.entry_price = row['close']
             ret = self.entry_price / self.start_price - 1
 
-            if ret > self.entry_cond:   # Go Long
+            if ret > self.entry_cond:
                 self.position = "long"
                 return 1
-            elif ret < -self.entry_cond:  # Go Short
+            elif ret < -self.entry_cond:
                 self.position = "short"
                 return -1
             else:
                 return None
 
-        # --- Track return if holding ---
+        # --- While holding ---
         if self.position == "long":
             self.curr_ret = row['close'] / self.entry_price - 1
         elif self.position == "short":
             self.curr_ret = self.entry_price / row['close'] - 1
 
-        # --- Exit (stop-loss / take-profit) ---
+        # --- Exit ---
         if self.position is not None:
             if self.curr_ret >= self.take_profit:  # hit TP
                 self.position = None

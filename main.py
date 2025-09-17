@@ -32,7 +32,8 @@ def main():
     
     if args.start:
         pr = Program(args.symbol, strategy_class)
-        pr.start()
+        pr.start_equity()
+        pr.start_forex()
         return
     if args.fetch:
         dh.polygon_historical_data(args.symbol)

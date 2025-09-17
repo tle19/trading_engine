@@ -16,6 +16,7 @@ class DataHandler:
         if not os.path.exists(self.data_path):
             os.mkdir(self.data_path)
 
+        # save keys in json
         with open("config.json") as f:
             config = json.load(f)
         self.api_key = config['api_key']
@@ -29,18 +30,16 @@ class DataHandler:
         self.timezone = ZoneInfo("America/New_York")
 
     def polygon_historical_data(self, symbol='TSLA', from_date='2023-09-01', to_date='2025-08-31',
-                                timespan='minute', multiplier=1, max_iter=13):
+                                timespan='minute', multiplier=1, max_iter=15):
         import time
 
         data_list = []
         current_from = from_date
 
-        # Detect asset class
-        if "/" in symbol:  # user passed forex like "USD/JPY"
+        if "/" in symbol:
             base, quote = symbol.split("/")
             polygon_symbol = f"C:{base}{quote}"
         elif symbol.upper().endswith("USD") and not symbol.startswith(("C:", "X:")):
-            # crypto shorthand like BTCUSD → X:BTCUSD
             polygon_symbol = f"X:{symbol.upper()}"
         else:
             polygon_symbol = symbol  # stock or already formatted
@@ -104,41 +103,78 @@ class DataHandler:
 
 
     def stream_data(self, symbol, duration=300):
-        df = pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'timestamp'])
 
-        def response_handler(response):
+        equity_df = pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'timestamp'])
+        forex_df = pd.DataFrame(columns=['bid', 'ask', 'last', 'bid_size', 'ask_size', 'volume', 'timestamp'])
+
+        def equity_handler(response):
             data = json.loads(response).get("data", [])
-            nonlocal df
+            nonlocal equity_df
 
             if not data:
                 return
 
             for item in data:
                 content = item["content"][0]
+                timestamp = pd.to_datetime(item['timestamp'], unit='ms').tz_localize("UTC").tz_convert(self.timezone)
                 row = {
-                    "timestamp": item["timestamp"],
+                    "timestamp": timestamp,
                     "open": content.get("2"),
                     "high": content.get("3"),
                     "low": content.get("4"),
                     "close": content.get("5"),
                     "volume": content.get("6")
                 }
-                df.loc[len(df)] = pd.Series(row, index=df.columns)
-                print(f"Timestamp: {pd.to_datetime(row['timestamp'], unit='ms').tz_localize("UTC").tz_convert(self.timezone)}, "
+                equity_df.loc[len(equity_df)] = pd.Series(row, index=equity_df.columns)
+                print(f"Timestamp: {timestamp}, "
                     f"Open: {row['open']}, "
                     f"High: {row['high']}, "
                     f"Low: {row['low']}, "
                     f"Close: {row['close']}, "
                     f"Volume: {row['volume']}")
-            
-        self.streamer.start(response_handler)
-        
-        self.streamer.send(self.streamer.chart_equity(symbol, "0,1,2,3,4,5,6", command="SUBS"))
-        time.sleep(duration) # stream duration
-        
-        self.streamer.stop()
 
-        self.save_data(df, f"{symbol}_streamed_data.csv")
+        def forex_handler(response):
+            data = json.loads(response).get("data", [])
+            nonlocal forex_df
+
+            if not data:
+                return
+
+            for item in data:
+                content = item["content"][0]
+                timestamp = pd.to_datetime(item['timestamp'], unit='ms').tz_localize("UTC").tz_convert(self.timezone)
+                row = {
+                    "timestamp": timestamp,
+                    "bid": content.get("1"),
+                    "ask": content.get("2"),
+                    "last": content.get("3"),
+                    "bid_size": content.get("4"),
+                    "ask_size": content.get("5"),
+                    "volume": content.get("6")
+                }
+                forex_df.loc[len(forex_df)] = pd.Series(row, index=forex_df.columns)
+                print(f"Timestamp: {timestamp}, "
+                    f"Bid: {row['bid']}, "
+                    f"Ask: {row['ask']}, "
+                    f"Last: {row['last']}, "
+                    f"Bid Size: {row['bid_size']}, "
+                    f"Ask Size: {row['ask_size']}, "
+                    f"Volume: {row['volume']}")
+                
+        if "/" in symbol:
+            self.streamer.start(forex_handler)
+            self.streamer.send(self.streamer.level_one_forex(symbol, "0,1,2,3,4,5,6,7", command="SUBS"))
+            
+            time.sleep(duration)
+
+            self.streamer.stop()
+        else:
+            self.streamer.start(equity_handler)
+            self.streamer.send(self.streamer.chart_equity(symbol, "0,1,2,3,4,5,6", command="SUBS"))
+
+            time.sleep(duration)
+
+            self.streamer.stop()
 
 
     def save_data(self, df, filename):

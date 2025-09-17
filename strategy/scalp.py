@@ -4,53 +4,53 @@ import pandas as pd
 
 
 class Scalp:
-    def __init__(self, entry_time=30, entry_cond=0.003, 
-                 stop_loss=0.01, take_profit=0.004):
-        self.curr_time = 0
-        self.entry_time = entry_time
-        self.entry_cond = entry_cond
+    def __init__(self, entry_spread=0.0003, stop_loss=0.0001, take_profit=0.00004):
+        self.entry_spread = entry_spread
         self.stop_loss = stop_loss
         self.take_profit = take_profit
-        self.start_price = 0
+        self.position = None
         self.entry_price = 0
         self.curr_ret = 0
-        self.position = None  # "long", "short", or None
+        self.start_time = None
+        self.bid = 0
+        self.ask = 0
+        self.last = 0
 
     def update(self, row):
-        self.curr_time += 1
-        if row['timestamp'].time().strftime("%H:%M") < "9:00":
-            self.curr_time = 0
 
-        if self.curr_time == 1:
-            self.start_price = row['open']
+        if row.get("bid") is not None:
+            self.bid = row["bid"]
+        if row.get("ask") is not None:
+            self.ask = row["ask"]
+        if row.get("last") is not None:
+            self.last = row["last"]
+
+        spread = self.ask - self.bid
 
         # --- Entry signal ---
-        if self.curr_time == self.entry_time and self.position is None:
-            self.entry_price = row['close']
-            ret = self.entry_price / self.start_price - 1
-
-            if ret > self.entry_cond:   # Go Long
+        if self.position is None:
+            if spread >= self.entry_spread:
                 self.position = "long"
-                return 1
-            elif ret < -self.entry_cond:  # Go Short
+                self.entry_price = self.bid
+                return 1, self.stop_loss, self.take_profit
+            elif self.last is not None and (self.bid - self.last) >= self.entry_spread:
                 self.position = "short"
-                return -1
+                self.entry_price = self.ask
+                return -1, self.stop_loss, self.take_profit
             else:
                 return None
 
-        # --- Track return if holding ---
-        if self.position == "long":
-            self.curr_ret = row['close'] / self.entry_price - 1
-        elif self.position == "short":
-            self.curr_ret = self.entry_price / row['close'] - 1
+        # --- While holding ---
+        if self.position == "long" and self.last is not None:
+            self.curr_ret = (self.last - self.entry_price) / self.entry_price
+            if self.curr_ret >= self.take_profit or self.curr_ret <= -self.stop_loss:
+                self.position = None
+                return 0  # exit
 
-        # --- Exit (stop-loss / take-profit) ---
-        if self.position is not None:
-            if self.curr_ret >= self.take_profit:  # hit TP
+        elif self.position == "short" and self.last is not None:
+            self.curr_ret = (self.entry_price - self.last) / self.entry_price
+            if self.curr_ret >= self.take_profit or self.curr_ret <= -self.stop_loss:
                 self.position = None
-                return 0
-            elif self.curr_ret <= -self.stop_loss:  # hit SL
-                self.position = None
-                return 0
+                return 0  # exit
 
         return None

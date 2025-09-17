@@ -2,7 +2,7 @@ import numpy as np
 
 
 class MeanReversionIndicator:
-    def __init__(self, window=20, risk_pct=0.01, rr_ratio=3):
+    def __init__(self, window=20, risk_pct=0.01, rr_ratio=3): #WIP
         self.window = window
         self.risk_pct = risk_pct
         self.rr_ratio = rr_ratio
