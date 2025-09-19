@@ -1,7 +1,7 @@
 import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -26,14 +26,12 @@ class Program:
         
         self.symbol = symbol
         self.position = None
-        self.shares = 35
+        self.shares = 10
 
     def start_equity(self, duration=23520):
-        df = pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'timestamp'])
 
         def response_handler(response):
             data = json.loads(response).get("data", [])
-            nonlocal df
 
             if not data:
                 return
@@ -41,7 +39,8 @@ class Program:
             for item in data:
                 content = item["content"][0]
                 
-                timestamp = pd.to_datetime(item['timestamp'], unit='ms').tz_localize("UTC").tz_convert(self.timezone)
+                timestamp = datetime.fromtimestamp(item["timestamp"] / 1000, tz=timezone.utc)
+                timestamp = timestamp.astimezone(self.timezone)
                 row = {
                     "timestamp": timestamp,
                     "open": content.get("2"),
@@ -50,10 +49,9 @@ class Program:
                     "close": content.get("5"),
                     "volume": content.get("6")
                 }
-                df.loc[len(df)] = pd.Series(row, index=df.columns)
                 print(f"Timestamp: {timestamp}")
 
-            signal, stop_loss, take_profit = self.strategy.update(df.set_index("timestamp").iloc[-1])
+            signal, stop_loss, take_profit = self.strategy.update(row)
             self.interpret_equity_signal(signal, stop_loss, take_profit)
 
         self.streamer.start(response_handler)
@@ -64,18 +62,18 @@ class Program:
         self.streamer.stop()
         
     def start_forex(self, duration=23520):
-        df = pd.DataFrame(columns=['bid', 'ask', 'last', 'bid_size', 'ask_size', 'volume', 'timestamp'])
 
         def response_handler(response):
             data = json.loads(response).get("data", [])
-            nonlocal df
 
             if not data:
                 return
             
             for item in data:
                 content = item["content"][0]
-                timestamp = pd.to_datetime(item['timestamp'], unit='ms').tz_localize("UTC").tz_convert(self.timezone)
+
+                timestamp = datetime.fromtimestamp(item["timestamp"] / 1000, tz=timezone.utc)
+                timestamp = timestamp.astimezone(ZoneInfo(self.timezone))
                 row = {
                     "timestamp": timestamp,
                     "bid": content.get("1"),
@@ -85,10 +83,9 @@ class Program:
                     "ask_size": content.get("5"),
                     "volume": content.get("6")
                 }
-                df.loc[len(df)] = pd.Series(row, index=df.columns)
                 print(f"Timestamp: {timestamp}")
 
-            signal, stop_pct, limit_pct = self.strategy.update(df.iloc[-1])
+            signal, stop_pct, limit_pct = self.strategy.update(row)
             self.interpret_signal(signal, signal, stop_pct, limit_pct)
 
         self.streamer.start(response_handler)
@@ -141,120 +138,6 @@ class Program:
                 pass
 
             self.position = None
-            
-        # --- Force close at 16:00 ---
-        if self.position is not None and curr_time.time().strftime("%H:%M") == "15:59":
-            if self.position == "long":
-                self.sell_market(self.shares)
-
-            elif self.position == "short":
-                self.buy_market(self.shares)
-
-            self.position = None
-
-    def interpret_simple_signal(self, signal, curr_time):
-
-        # --- Enter Long ---
-        if signal == 1 and self.position is None:
-            self.position = "long"
-            self.buy_market(self.shares)
-
-        # --- Enter Short ---
-        elif signal == -1 and self.position is None:
-            self.position = "short"
-            self.sell_market(self.shares)
-
-        # --- Exit Position ---
-        elif signal == 0 and self.position is not None:
-            if self.position == "long":
-                self.sell_market(self.shares)
-
-            elif self.position == "short":
-                self.buy_market(self.shares)
-
-            self.position = None
-
-        # --- Force close at 16:00 ---
-        if self.position is not None and curr_time.time().strftime("%H:%M") == "15:59":
-            if self.position == "long":
-                self.sell_market(self.shares)
-
-            elif self.position == "short":
-                self.buy_market(self.shares)
-
-            self.position = None
-    
-    def buy_market(self, shares):
-        order = {"orderType": "MARKET",
-            "session": "NORMAL",
-            "duration": "DAY",
-            "orderStrategyType": "SINGLE",
-            "orderLegCollection": [
-                {"instruction": "BUY",
-                "quantity": shares,
-                "instrument": {
-                    "symbol": self.symbol,
-                    "assetType": "EQUITY"
-                }
-                }
-            ]
-            }    
-        self.client.order_place(self.hash, order)
-        print(f"BUY {shares} of {self.symbol}")
-    
-    def sell_market(self, shares):
-        order = {"orderType": "MARKET",
-            "session": "NORMAL",
-            "duration": "DAY",
-            "orderStrategyType": "SINGLE",
-            "orderLegCollection": [
-                {"instruction": "SELL",
-                "quantity": shares,
-                "instrument": {
-                    "symbol": self.symbol,
-                    "assetType": "EQUITY"
-                }
-                }
-            ]
-            }  
-        self.client.order_place(self.hash, order)
-        print(f"SELL {shares} of {self.symbol}")
-    
-    def limit_order(self, shares, limit_pct):
-        order = {"orderType": "LIMIT",
-         "session": "NORMAL",
-         "duration": "DAY",
-         "orderStrategyType": "SINGLE",
-         "price": str(round(limit_pct, 2)),
-         "orderLegCollection": [
-             {"instruction": "SELL",
-              "quantity": shares,
-              "instrument": {
-                  "symbol": self.symbol,
-                  "assetType": "EQUITY"
-              }
-              }
-         ]
-         }
-        self.client.order_place(self.hash, order)
-    
-    def stop_loss(self, shares, limit_pct):
-        order = {"orderType": "STOP",
-         "session": "NORMAL",
-         "duration": "DAY",
-         "orderStrategyType": "SINGLE",
-         "price": str(round(limit_pct, 2)),
-         "orderLegCollection": [
-             {"instruction": "BUY",
-              "quantity": shares,
-              "instrument": {
-                  "symbol": self.symbol,
-                  "assetType": "EQUITY"
-              }
-              }
-         ]
-         }
-        self.client.order_place(self.hash, order)
 
     def buy_equity_bracket(self, quantity, stop_pct, limit_pct):
         buy_order = {
@@ -327,7 +210,7 @@ class Program:
 
         self.client.order_place(self.hash, bracket_order)
 
-        print(f"SELL {quantity} {self.symbol} with TP {limit_price} and SL {stop_price}")
+        print(f"BUY {quantity} {self.symbol} with TP {limit_price} and SL {stop_price}")
 
     def sell_equity_bracket(self, quantity, stop_pct, limit_pct):
             sell_order = {

@@ -23,7 +23,7 @@ class IntradayTrend:
         high = row["high"]
         low = row["low"]
 
-        ts = pd.to_datetime(row.name)
+        ts = row["timestamp"]
         if (ts.hour, ts.minute) < (9, 30):
             self.curr_time = 0
 
