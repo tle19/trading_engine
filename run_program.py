@@ -53,8 +53,8 @@ class Program:
                 df.loc[len(df)] = pd.Series(row, index=df.columns)
                 print(f"Timestamp: {timestamp}")
 
-            signal = self.strategy.update(df.iloc[-1])
-            self.interpret_signal_simple(signal, df.iloc[-1]['timestamp'])
+            signal, stop_loss, take_profit = self.strategy.update(df.set_index("timestamp").iloc[-1])
+            self.interpret_equity_signal(signal, stop_loss, take_profit)
 
         self.streamer.start(response_handler)
         
@@ -98,17 +98,17 @@ class Program:
         
         self.streamer.stop()
 
-    def interpret_forex_signal(self, signal, stop_pct, limit_pct):
+    def interpret_equity_signal(self, signal, stop_pct, limit_pct):
 
         # --- Enter Long ---
         if signal == 1 and self.position is None:
             self.position = "long"
-            self.buy_forex_bracket(self.shares, stop_pct, limit_pct)
+            self.buy_equity_bracket(self.shares, stop_pct, limit_pct)
 
         # --- Enter Short ---
         elif signal == -1 and self.position is None:
             self.position = "short"
-            self.sell_forex_bracket(self.shares, stop_pct, limit_pct)
+            self.sell_equity_bracket(self.shares, stop_pct, limit_pct)
 
         # --- Exit Position ---
         elif signal == 0 and self.position is not None:
@@ -119,8 +119,40 @@ class Program:
                 pass
 
             self.position = None
+            
+    def interpret_forex_signal(self, signal, stop_pct, limit_pct, curr_time):
 
-    def interpret_signal_simple(self, signal, curr_time):
+        # --- Enter Long ---
+        if signal == 1 and self.position is None:
+            self.position = "long"
+            self.buy_equity_bracket(self.shares, stop_pct, limit_pct)
+
+        # --- Enter Short ---
+        elif signal == -1 and self.position is None:
+            self.position = "short"
+            self.sell_equity_bracket(self.shares, stop_pct, limit_pct)
+
+        # --- Exit Position ---
+        elif signal == 0 and self.position is not None:
+            if self.position == "long":
+                pass
+
+            elif self.position == "short":
+                pass
+
+            self.position = None
+            
+        # --- Force close at 16:00 ---
+        if self.position is not None and curr_time.time().strftime("%H:%M") == "15:59":
+            if self.position == "long":
+                self.sell_market(self.shares)
+
+            elif self.position == "short":
+                self.buy_market(self.shares)
+
+            self.position = None
+
+    def interpret_simple_signal(self, signal, curr_time):
 
         # --- Enter Long ---
         if signal == 1 and self.position is None:
@@ -224,6 +256,152 @@ class Program:
          }
         self.client.order_place(self.hash, order)
 
+    def buy_equity_bracket(self, quantity, stop_pct, limit_pct):
+        buy_order = {
+            "orderStrategyType": "SINGLE",
+            "orderType": "MARKET",
+            "session": "NORMAL",
+            "duration": "DAY",
+            "orderLegCollection": [
+                {
+                    "instruction": "BUY",
+                    "quantity": quantity,
+                    "instrument": {
+                        "symbol": self.symbol,
+                        "assetType": "EQUITY"
+                    }
+                }
+            ]
+        }
+
+        response = self.client.order_place(self.hash, buy_order)
+        order_id = response.headers.get('location', '/').split('/')[-1]
+        details = self.client.order_details(self.hash, order_id)
+        details_json = details.json()
+
+        legs = details_json['orderActivityCollection'][0]['executionLegs']
+        fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / sum(leg['quantity'] for leg in legs)
+
+        stop_price = str(round(fill_price * (1 - stop_pct), 2))
+        limit_price = str(round(fill_price * (1 + limit_pct), 2))
+
+        bracket_order = {
+            "orderStrategyType": "OCO",
+            "childOrderStrategies": [
+                {
+                    "orderType": "LIMIT",
+                    "session": "NORMAL",
+                    "price": limit_price,
+                    "duration": "DAY",
+                    "orderStrategyType": "SINGLE",
+                    "orderLegCollection": [
+                        {
+                            "instruction": "SELL",
+                            "quantity": quantity,
+                            "instrument": {
+                                "symbol": self.symbol,
+                                "assetType": "EQUITY"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "orderType": "STOP",
+                    "session": "NORMAL",
+                    "stopPrice": stop_price,
+                    "duration": "DAY",
+                    "orderStrategyType": "SINGLE",
+                    "orderLegCollection": [
+                        {
+                            "instruction": "SELL",
+                            "quantity": quantity,
+                            "instrument": {
+                                "symbol": self.symbol,
+                                "assetType": "EQUITY"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+
+        self.client.order_place(self.hash, bracket_order)
+
+        print(f"SELL {quantity} {self.symbol} with TP {limit_price} and SL {stop_price}")
+
+    def sell_equity_bracket(self, quantity, stop_pct, limit_pct):
+            sell_order = {
+                "orderStrategyType": "SINGLE",
+                "orderType": "MARKET",
+                "session": "NORMAL",
+                "duration": "DAY",
+                "orderLegCollection": [
+                    {
+                        "instruction": "SELL_SHORT",
+                        "quantity": quantity,
+                        "instrument": {
+                            "symbol": self.symbol,
+                            "assetType": "EQUITY"
+                        }
+                    }
+                ]
+            }
+
+            response = self.client.order_place(self.hash, sell_order)
+            order_id = response.headers.get('location', '/').split('/')[-1]
+            details = self.client.order_details(self.hash, order_id)
+            details_json = details.json()
+
+            legs = details_json['orderActivityCollection'][0]['executionLegs']
+            fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / sum(leg['quantity'] for leg in legs)
+
+            stop_price = str(round(fill_price * (1 + stop_pct), 2))
+            limit_price = str(round(fill_price * (1 - limit_pct), 2))
+
+            bracket_order = {
+                "orderStrategyType": "OCO",
+                "childOrderStrategies": [
+                    {
+                        "orderType": "LIMIT",
+                        "session": "NORMAL",
+                        "price": limit_price,
+                        "duration": "DAY",
+                        "orderStrategyType": "SINGLE",
+                        "orderLegCollection": [
+                            {
+                                "instruction": "BUY_TO_COVER",
+                                "quantity": quantity,
+                                "instrument": {
+                                    "symbol": self.symbol,
+                                    "assetType": "EQUITY"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "orderType": "STOP",
+                        "session": "NORMAL",
+                        "stopPrice": stop_price,
+                        "duration": "DAY",
+                        "orderStrategyType": "SINGLE",
+                        "orderLegCollection": [
+                            {
+                                "instruction": "BUY_TO_COVER",
+                                "quantity": quantity,
+                                "instrument": {
+                                    "symbol": self.symbol,
+                                    "assetType": "EQUITY"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+
+            self.client.order_place(self.hash, bracket_order)
+
+            print(f"SELL {quantity} {self.symbol} with TP {limit_price} and SL {stop_price}") 
+
     def buy_forex_bracket(self, quantity, stop_pct, limit_pct):
         buy_order = {
             "orderStrategyType": "SINGLE",
@@ -245,27 +423,13 @@ class Program:
         response = self.client.order_place(self.hash, buy_order)
         order_id = response.headers.get('location', '/').split('/')[-1]
         details = self.client.order_details(self.hash, order_id)
+        details_json = details.json()
 
-        # polling if order doesnt fill quickly
-        # fill_price = 0
-        # while fill_price == 0:
-        #     details = self.client.order_details(self.hash, order_id)
-        #     for activity in details.get('orderActivityCollection', []):
-        #         if activity['activityType'] == 'EXECUTION':
-        #             legs = activity.get('executionLegs', [])
-        #             if legs:
-        #                 total_qty = sum(leg['quantity'] for leg in legs)
-        #                 if total_qty > 0:
-        #                     fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / total_qty
-        #                     break
-        #     if fill_price == 0:
-        #         time.sleep(0.05)
-
-        legs = details['orderActivityCollection'][0]['executionLegs']
+        legs = details_json['orderActivityCollection'][0]['executionLegs']
         fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / sum(leg['quantity'] for leg in legs)
 
-        stop_price = fill_price * (1 - stop_pct)
-        limit_price = fill_price * (1 + limit_pct)
+        stop_price = str(round(fill_price * (1 - stop_pct), 5))
+        limit_price = str(round(fill_price * (1 + limit_pct), 5))
 
         oco_order = {
             "orderStrategyType": "OCO",
@@ -273,7 +437,7 @@ class Program:
                 {
                     "orderType": "LIMIT",
                     "session": "NORMAL",
-                    "price": str(round(limit_price, 5)),
+                    "price": limit_price,
                     "duration": "GTC",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -290,7 +454,7 @@ class Program:
                 {
                     "orderType": "STOP",
                     "session": "NORMAL",
-                    "stopPrice": str(round(stop_price, 5)),
+                    "stopPrice": stop_price,
                     "duration": "GTC",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -332,12 +496,13 @@ class Program:
         response = self.client.order_place(self.hash, sell_order)
         order_id = response.headers.get('location', '/').split('/')[-1]
         details = self.client.order_details(self.hash, order_id)
+        details_json = details.json()
 
-        legs = details['orderActivityCollection'][0]['executionLegs']
+        legs = details_json['orderActivityCollection'][0]['executionLegs']
         fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / sum(leg['quantity'] for leg in legs)
 
-        stop_price = fill_price * (1 + stop_pct)
-        limit_price = fill_price * (1 - limit_pct)
+        stop_price = str(round(fill_price * (1 + stop_pct), 5))
+        limit_price = str(round(fill_price * (1 - limit_pct), 5))
 
         bracket_order = {
             "orderStrategyType": "OCO",
@@ -345,7 +510,7 @@ class Program:
                 {
                     "orderType": "LIMIT",
                     "session": "NORMAL",
-                    "price": str(round(limit_price, 5)),
+                    "price": limit_price,
                     "duration": "GTC",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -362,7 +527,7 @@ class Program:
                 {
                     "orderType": "STOP",
                     "session": "NORMAL",
-                    "stopPrice": str(round(stop_price, 5)),
+                    "stopPrice": stop_price,
                     "duration": "GTC",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -383,65 +548,8 @@ class Program:
 
         print(f"SELL {quantity} {self.symbol} with TP {limit_price} and SL {stop_price}")
 
-    def buy_equity_bracket(self, shares, stop_pct, limit_pct):
-        order = {
-        "orderStrategyType": "TRIGGER",
-        "orderLegCollection": [
-            {
-                "instruction": "BUY",
-                "quantity": shares,
-                "instrument": {
-                    "symbol": self.symbol,
-                    "assetType": "EQUITY"
-                }
-            }
-        ],
-        "childOrderStrategies": [
-            {
-                "orderStrategyType": "OCO",
-                "childOrderStrategies": [
-                    {
-                        "orderType": "LIMIT",
-                        "session": "NORMAL",
-                        "price": str(round(limit_pct, 2)),
-                        "duration": "DAY",
-                        "orderStrategyType": "SINGLE",
-                        "orderLegCollection": [
-                            {
-                                "instruction": "SELL",
-                                "quantity": shares,
-                                "instrument": {
-                                    "symbol": self.symbol,
-                                    "assetType": "EQUITY"
-                                }
-                            }
-                        ]
-                    },
-                    {
-                        "orderType": "STOP",
-                        "session": "NORMAL",
-                        "stopPrice": str(round(stop_pct, 2)),
-                        "duration": "DAY",
-                        "orderStrategyType": "SINGLE",
-                        "orderLegCollection": [
-                            {
-                                "instruction": "SELL",
-                                "quantity": shares,
-                                "instrument": {
-                                    "symbol": self.symbol,
-                                    "assetType": "EQUITY"
-                                }
-                            }
-                        ]
-                    }
-                ]
-            }
-        ]
-        }
-        self.client.order_place(self.hash, order)
-        print(f"BUY {shares} of {self.symbol} with TP {limit_pct} and SL {limit_pct}")        
 
 # from strategy.scalp import Scalp
 
-# pr = Program("USD/JPY", Scalp)
-# pr.buy_forex_bracket(1, 146.469, 146.474)
+# pr = Program("TSLA", Scalp)
+# pr.sell_equity_bracket(1, 0.001, 0.002)

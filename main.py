@@ -1,6 +1,6 @@
 import argparse
 from get_data import DataHandler
-from backtest import run_backtest, grid_search
+from backtest import run_backtest, grid_search_trend, grid_search_scalp
 from strategy.mean_reversal import MeanReversionIndicator
 from strategy.scalp import Scalp
 from strategy.trend import IntradayTrend
@@ -10,8 +10,8 @@ def main():
 
     strategy_map = {
         "trend": IntradayTrend,
-        "momentum": Scalp,
-        "mean_reversal": MeanReversionIndicator
+        "scalp": Scalp,
+        "mean_reversion": MeanReversionIndicator
     }
 
     parser = argparse.ArgumentParser()
@@ -33,7 +33,7 @@ def main():
     if args.start:
         pr = Program(args.symbol, strategy_class)
         pr.start_equity()
-        pr.start_forex()
+        # pr.start_forex()
         return
     if args.fetch:
         dh.polygon_historical_data(args.symbol)
@@ -44,7 +44,8 @@ def main():
         return
     if args.backtest:
         run_backtest(strategy_class, args.symbol, dh)
-        # grid_search(strategy_class, args.symbol, dh)
+        # grid_search_trend(strategy_class, args.symbol, dh)
+        # grid_search_scalp(strategy_class, args.symbol, dh)
         return
 
 if __name__ == "__main__":

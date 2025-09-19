@@ -4,53 +4,70 @@ import pandas as pd
 
 
 class Scalp:
-    def __init__(self, entry_spread=0.0003, stop_loss=0.0001, take_profit=0.00004):
+    def __init__(self, entry_spread=0.3, stop_loss=0.0006, take_profit=0.00045):
         self.entry_spread = entry_spread
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.position = None
         self.entry_price = 0
-        self.curr_ret = 0
-        self.start_time = None
-        self.bid = 0
-        self.ask = 0
-        self.last = 0
+        self.curr_time = 0
+        self.candle_streak = 0
 
     def update(self, row):
+        self.curr_time += 1
 
-        if row.get("bid") is not None:
-            self.bid = row["bid"]
-        if row.get("ask") is not None:
-            self.ask = row["ask"]
-        if row.get("last") is not None:
-            self.last = row["last"]
+        ts = pd.to_datetime(row.name)
+        if not ((10, 30) <= (ts.hour, ts.minute) <= (14, 30)):
+            self.curr_time = 0
 
-        spread = self.ask - self.bid
+        open = row["open"]
+        close = row["close"]
+        high = row["high"]
+        low = row["low"]
 
         # --- Entry signal ---
-        if self.position is None:
-            if spread >= self.entry_spread:
-                self.position = "long"
-                self.entry_price = self.bid
-                return 1, self.stop_loss, self.take_profit
-            elif self.last is not None and (self.bid - self.last) >= self.entry_spread:
-                self.position = "short"
-                self.entry_price = self.ask
-                return -1, self.stop_loss, self.take_profit
+        if self.position is None and self.curr_time != 0:
+            spread = high - low
+
+            if spread < self.entry_spread:
+                return None, self.stop_loss, self.take_profit
+            
+            # if spread < self.entry_spread and spread > self.entry_spread * 2:
+            #     return None, self.stop_loss, self.take_profit
+            
+            if close > open:
+                self.candle_streak = 1 if self.candle_streak < 0 else self.candle_streak + 1
+            elif close < open:
+                self.candle_streak = -1 if self.candle_streak > 0 else self.candle_streak - 1
             else:
-                return None
+                self.candle_streak = 0
 
-        # --- While holding ---
-        if self.position == "long" and self.last is not None:
-            self.curr_ret = (self.last - self.entry_price) / self.entry_price
-            if self.curr_ret >= self.take_profit or self.curr_ret <= -self.stop_loss:
+            if close > open and self.candle_streak >= 2: # signal inverted for better performance
+                self.position = "short"
+                self.entry_price = close
+                self.candle_streak = 0
+                return -1, self.stop_loss, self.take_profit
+            elif close < open and self.candle_streak <= -2: # signal inverted for better performance
+                self.position = "long"
+                self.entry_price = close
+                self.candle_streak = 0
+                return 1, self.stop_loss, self.take_profit
+
+            return None, self.stop_loss, self.take_profit
+
+        # --- Exit ---
+        if self.position is not None:
+            if self.position == "long":
+                tp_price = self.entry_price * (1 + self.take_profit)
+                sl_price = self.entry_price * (1 - self.stop_loss)
+                exit_condition = high >= tp_price or low <= sl_price
+            elif self.position == "short":
+                tp_price = self.entry_price * (1 - self.take_profit)
+                sl_price = self.entry_price * (1 + self.stop_loss)
+                exit_condition = low <= tp_price or high >= sl_price
+
+            if exit_condition:
                 self.position = None
-                return 0  # exit
+                return 0, self.stop_loss, self.take_profit
 
-        elif self.position == "short" and self.last is not None:
-            self.curr_ret = (self.entry_price - self.last) / self.entry_price
-            if self.curr_ret >= self.take_profit or self.curr_ret <= -self.stop_loss:
-                self.position = None
-                return 0  # exit
-
-        return None
+        return None, self.stop_loss, self.take_profit
