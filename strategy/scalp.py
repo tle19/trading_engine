@@ -4,10 +4,11 @@ import pandas as pd
 
 
 class Scalp:
-    def __init__(self, entry_spread=0.3, stop_loss=0.0006, take_profit=0.00045):
-        self.entry_spread = entry_spread
+    def __init__(self, entry_spread=0.0005, stop_loss=0.00065, take_profit=0.0005):
         self.stop_loss = stop_loss
         self.take_profit = take_profit
+        self.entry_spread_pct = entry_spread
+        self.entry_spread = 0
         self.position = None
         self.entry_price = 0
         self.curr_time = 0
@@ -16,14 +17,17 @@ class Scalp:
     def update(self, row):
         self.curr_time += 1
 
-        ts = pd.to_datetime(row.name)
-        if not ((10, 30) <= (ts.hour, ts.minute) <= (14, 30)):
-            self.curr_time = 0
-
         open = row["open"]
         close = row["close"]
         high = row["high"]
         low = row["low"]
+
+        ts = pd.to_datetime(row.name)
+        if (ts.hour, ts.minute) == (9, 30):
+            self.entry_spread = open * self.entry_spread_pct
+
+        if not ((10, 30) <= (ts.hour, ts.minute) <= (14, 30)):
+            self.curr_time = 0
 
         # --- Entry signal ---
         if self.position is None and self.curr_time != 0:

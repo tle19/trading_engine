@@ -45,7 +45,7 @@ def main():
     if args.backtest:
         run_backtest(strategy_class, args.symbol, dh)
         # grid_search_trend(strategy_class, args.symbol, dh)
-        # grid_search_scalp(strategy_class, args.symbol, dh)
+        # grid_search_scalp(strategy_class, args.symbol, DataHandler)
         return
 
 if __name__ == "__main__":

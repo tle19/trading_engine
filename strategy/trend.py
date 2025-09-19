@@ -18,16 +18,17 @@ class IntradayTrend:
     def update(self, row):
         self.curr_time += 1
 
-        ts = pd.to_datetime(row.name)
-        if (ts.hour, ts.minute) <= (9, 0):
-            self.curr_time = 0
-
+        open = row["open"]
         close = row["close"]
         high = row["high"]
         low = row["low"]
 
+        ts = pd.to_datetime(row.name)
+        if (ts.hour, ts.minute) < (9, 30):
+            self.curr_time = 0
+
         if self.curr_time == 1:
-            self.start_price = row['open']
+            self.start_price = open
 
         # --- Entry signal ---
         if self.curr_time == self.entry_time and self.position is None:

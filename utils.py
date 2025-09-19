@@ -55,3 +55,21 @@ def profits(df, symbol="", date=""):
     plt.legend()
     plt.grid(True)
     plt.show()
+
+
+# df = pd.read_json("scalp_optimize_results.json")
+# summary1 = df.groupby("entry_spread")[["pnl_pct", "win_rate"]].mean().reset_index()
+# summary2 = df.groupby("stop_loss")[["pnl_pct", "win_rate"]].mean().reset_index()
+# summary3 = df.groupby("take_profit")[["pnl_pct", "win_rate"]].mean().reset_index()
+# print(summary1)
+# print(summary2)
+# print(summary3)
+
+# df['expected_value'] = df['win_rate'] * df['pnl_pct'] - (1 - df['win_rate']) * df['stop_loss'] * 100
+# df_grouped = df.groupby(['entry_spread', 'stop_loss', 'take_profit'])[['expected_value']].mean().reset_index()
+# df_grouped = df_grouped.sort_values('expected_value', ascending=False).reset_index(drop=True)
+# print(df_grouped)
+
+# df_ranked = df.sort_values('win_rate', ascending=False).reset_index(drop=True)
+# df_ranked[['entry_spread', 'stop_loss', 'take_profit', 'pnl_pct', 'win_rate']]
+# print(df_ranked.iloc[10:20, :])
