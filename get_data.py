@@ -29,9 +29,8 @@ class DataHandler:
 
         self.timezone = ZoneInfo("America/New_York")
 
-    def polygon_historical_data(self, symbol='TSLA', from_date='2023-09-01', to_date='2025-08-31',
+    def polygon_historical_data(self, symbol='TSLA', from_date='2023-09-01', to_date='2025-08-29',
                                 timespan='minute', multiplier=1, max_iter=15):
-        import time
 
         data_list = []
         current_from = from_date
@@ -45,6 +44,7 @@ class DataHandler:
             polygon_symbol = symbol  # stock or already formatted
 
         for _ in range(max_iter):
+            print(current_from, "--->")
             aggs = self.polygon_client.get_aggs(
                 polygon_symbol,
                 multiplier,
@@ -76,7 +76,7 @@ class DataHandler:
             time.sleep(13)
 
         df = pd.DataFrame(data_list)
-        self.save_data(df, f"{symbol.replace('/','_')}_historical_data.csv")
+        self.save_data(df, symbol)
 
     def historical_data(self, symbol='TSLA', periodType="day", period=10, frequencyType="minute", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
@@ -177,28 +177,28 @@ class DataHandler:
             self.streamer.stop()
 
 
-    def save_data(self, df, filename):
+    def save_data(self, df, symbol):
         df = df.drop_duplicates(subset=["timestamp"])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
-        df.set_index('timestamp', inplace=True)
-        df.index = df.index.tz_convert(self.timezone)
+        df["timestamp"] = df["timestamp"].dt.tz_convert(self.timezone)
 
-        file_path = os.path.join(self.data_path, filename)
-        df.to_csv(file_path, index=True)
+        file_path = os.path.join(self.data_path, f"{symbol}_historical_data.csv")
+        df.to_csv(file_path, index=False)
         print(f"Saved CSV to {file_path}")
 
     
     def open_data(self, symbol, start_date=None, end_date=None, start_time="9:30", end_time="16:00"):
         file_path = os.path.join(self.data_path, f"{symbol}_historical_data.csv")
-        df = pd.read_csv(file_path, index_col=0, parse_dates=True)
-        df.index = pd.to_datetime(df.index, utc=True)
-        df.index = df.index.tz_convert(self.timezone)
+        df = pd.read_csv(file_path)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+        df["timestamp"] = df["timestamp"].dt.tz_convert(self.timezone)
 
         if start_date is not None and end_date is not None:
-            mask = (df.index.date >= pd.to_datetime(start_date).date()) & (df.index.date <= pd.to_datetime(end_date).date())
+            mask = (df['timestamp'].dt.date >= pd.to_datetime(start_date).date()) & \
+                    (df['timestamp'].dt.date <= pd.to_datetime(end_date).date())
             df = df.loc[mask]
 
-        df = df.between_time(start_time, end_time)
+        df = df.set_index('timestamp').between_time(start_time, end_time).reset_index()
 
         return df
 

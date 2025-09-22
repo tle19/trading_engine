@@ -6,7 +6,7 @@ from utils import *
 
 def run_backtest(strategy, symbol, dh, start_date="2024-08-29", end_date="2025-08-29", initial_cash=30_000, plot=False):
     df = dh.open_data(symbol, start_date, end_date)
-    df["date"] = df.index.date
+    df["date"] = df["timestamp"].dt.date
 
     cash = initial_cash
     equity_list = []
@@ -56,7 +56,8 @@ def run_one_day(df, strat, cash, win_rate=0):
             entry_price = close
             position = "short"
 
-        # --- Exit (SL first) ---
+        
+        # --- Exit (PESSIMISTIC) ---
         elif signal == 0 and position is not None:
             if position == "long":
                 pnl = (close - entry_price) * shares
@@ -78,30 +79,31 @@ def run_one_day(df, strat, cash, win_rate=0):
             entry_price = None
             position = None
         
-        # --- Exit (TP first) ---
-        # elif signal == 0 and position is not None:
-        #     if position == "long":
-        #         pnl = (close - entry_price) * shares
-        #         if high >= entry_price * (1 + take_profit):
-        #             wins += 1
-        #         elif low <= entry_price * (1 - stop_loss):
-        #             pass
 
-        #     elif position == "short":
-        #         pnl = (entry_price - close) * shares
-        #         if low <= entry_price * (1 - take_profit):
-        #             wins += 1
-        #         elif high >= entry_price * (1 + stop_loss):
-        #             pass
+        # --- Exit (OPTIMISTIC) ---
+        elif signal == 0 and position is not None:
+            if position == "long":
+                pnl = (close - entry_price) * shares
+                if high >= entry_price * (1 + take_profit):
+                    wins += 1
+                elif low <= entry_price * (1 - stop_loss):
+                    pass
 
-        #     cash += pnl
-        #     total_trades += 1
-        #     shares = 0
-        #     entry_price = None
-        #     position = None
+            elif position == "short":
+                pnl = (entry_price - close) * shares
+                if low <= entry_price * (1 - take_profit):
+                    wins += 1
+                elif high >= entry_price * (1 + stop_loss):
+                    pass
+
+            cash += pnl
+            total_trades += 1
+            shares = 0
+            entry_price = None
+            position = None
 
         # --- Force close at 16:00 ---
-        ts = pd.to_datetime(row.name)
+        ts = pd.to_datetime(row['timestamp'])
         if position is not None and ts.hour == 15 and ts.minute == 59:
             if position == "long":
                 pnl = (close - entry_price) * shares
