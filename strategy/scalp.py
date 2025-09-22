@@ -1,6 +1,6 @@
 from datetime import time
 
-import pandas as pd
+import numpy as np
 
 
 class Scalp:
@@ -8,7 +8,7 @@ class Scalp:
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.entry_spread_pct = entry_spread
-        self.entry_spread = 422 * entry_spread
+        self.entry_spread = 422 * entry_spread # force set
         self.position = None
         self.entry_price = 0
         self.curr_time = 0
@@ -25,13 +25,11 @@ class Scalp:
         ts = row["timestamp"]
         if (ts.hour, ts.minute) == (9, 30):
             self.entry_spread = open * self.entry_spread_pct
-
         if not ((10, 30) <= (ts.hour, ts.minute) <= (14, 30)):
             self.curr_time = 0
 
         # --- Entry signal ---
         if self.position is None and self.curr_time != 0:
-            # consider close - open spread
             # spread = abs(close - open)
             spread = high - low
 
@@ -40,10 +38,16 @@ class Scalp:
             
             # if spread < self.entry_spread and spread > self.entry_spread * 2:
             #     return None, self.stop_loss, self.take_profit
-            
             # optimize candle entry (check if better!!!)
             # optimize on  >triple downs/ups eating profits
+            # moving average mean reversal
+            # probability after 2 same candles
+            # rnn classification on two candles (volkume, spread, body)
+            # what iondicates push through stop loss on following candle
             # consider VOLUME
+
+            # --- Candle streak update ---
+
             if close > open:
                 self.candle_streak = 1 if self.candle_streak < 0 else self.candle_streak + 1
             elif close < open:
@@ -51,15 +55,13 @@ class Scalp:
             else:
                 self.candle_streak = 0
 
-            if close > open and self.candle_streak >= 2: # signal inverted for better performance
+            if self.candle_streak >= 2: # signal inverted for better performance
                 self.position = "short"
                 self.entry_price = close
-                self.candle_streak = 0
                 return -1, self.stop_loss, self.take_profit
-            elif close < open and self.candle_streak <= -2: # signal inverted for better performance
+            elif self.candle_streak <= -2: # signal inverted for better performance
                 self.position = "long"
                 self.entry_price = close
-                self.candle_streak = 0
                 return 1, self.stop_loss, self.take_profit
 
             return None, self.stop_loss, self.take_profit
