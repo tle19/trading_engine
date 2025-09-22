@@ -4,7 +4,7 @@ import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from utils import *
 
-def run_backtest(strategy, symbol, dh, start_date="2024-08-29", end_date="2025-08-29", initial_cash=30_000, plot=False):
+def run_backtest(strategy, symbol, dh, start_date="2024-08-29", end_date="2025-08-29", initial_cash=30_000, plot=True):
     df = dh.open_data(symbol, start_date, end_date)
     df["date"] = df["timestamp"].dt.date
 
@@ -28,19 +28,17 @@ def run_backtest(strategy, symbol, dh, start_date="2024-08-29", end_date="2025-0
         equity_list.append(intraday_equity)
         total_trades += trades
 
-    profit_pct, win_rate, max_drawdown_pct = summary(initial_cash, pess_cash, opt_cash, avg_cash, 
+    avg_cash, win_rate, max_drawdown_pct = summary(initial_cash, pess_cash, opt_cash, avg_cash, 
                                                             pess_win_rates, opt_win_rates, avg_win_rates, total_trades, equity_list)
-    
+
     if plot:
-        equity_df = pd.DataFrame(equity_list, columns=["timestamp", "equity"])
-        equity_df.set_index("timestamp", inplace=True)
-        profits(equity_df, symbol, f"{start_date} to {end_date}")
+        plot_equity(equity_list, symbol, start_date, end_date)
     
     return avg_cash, win_rate, max_drawdown_pct, total_trades
 
-def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, shares=50):
+def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, shares=20):
     entry_price = None
-    position = None   # "long", "short", or None
+    position = None
     total_trades = 0
     pess_wins = 0
     opt_wins = 0
@@ -68,7 +66,7 @@ def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, shares=50):
                 stop_loss_price = entry_price * (1 - stop_loss)
                 take_profit_price = entry_price * (1 + take_profit)
 
-                # pessimsitic
+                # pessimistic
                 if low <= stop_loss_price:
                     pnl = (stop_loss_price - entry_price) * shares
                 elif high >= take_profit_price:
@@ -88,7 +86,7 @@ def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, shares=50):
                 stop_loss_price = entry_price * (1 + stop_loss)
                 take_profit_price = entry_price * (1 - take_profit)
 
-                # pessimsitic
+                # pessimistic
                 if high >= stop_loss_price:
                     pnl = (entry_price - stop_loss_price) * shares
                 elif low <= take_profit_price:
@@ -109,7 +107,7 @@ def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, shares=50):
             total_trades += 1
             avg_cash = (pess_cash + opt_cash) / 2
 
-        # --- Force close at 16:00 ---
+        # --- Force close at 16:00 --- WIP
         # ts = pd.to_datetime(row['timestamp'])
         # if position is not None and ts.hour == 15 and ts.minute == 59:
         #     if position == "long":
@@ -128,12 +126,12 @@ def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, shares=50):
         #     entry_price = None
         #     position = None
 
-        if position:
-            if position == "long":
-                current_equity = shares * (close - entry_price) + avg_cash
-            elif position == "short":
-                current_equity = shares * (entry_price - close) + avg_cash
-            intraday_equity.append(current_equity)
+        current_equity = avg_cash
+        if position == "long":
+            current_equity = shares * (close - entry_price) + avg_cash
+        elif position == "short":
+            current_equity = shares * (entry_price - close) + avg_cash
+        intraday_equity.append(current_equity)
 
     pess_win_rate = pess_wins / total_trades if total_trades > 0 else None
     opt_win_rate = opt_wins / total_trades if total_trades > 0 else None
@@ -155,7 +153,8 @@ def _run_combination(params):
         lambda: strat, symbol, dh,
         start_date=start_date,
         end_date=end_date,
-        initial_cash=initial_cash
+        initial_cash=initial_cash,
+        plot=False
     )
 
     pnl_pct = ((final_cash - initial_cash) / initial_cash) * 100

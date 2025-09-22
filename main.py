@@ -34,19 +34,15 @@ def main():
         pr = Program(args.symbol, strategy_class)
         pr.start_equity()
         # pr.start_forex()
-        return
-    if args.fetch:
+    elif args.fetch:
         dh.polygon_historical_data(args.symbol)
         # dh.historical_data(args.symbol)
-        return
-    if args.stream:
+    elif args.stream:
         dh.stream_data(args.symbol, duration=args.duration)
-        return
-    if args.backtest:
+    elif args.backtest:
         run_backtest(strategy_class, args.symbol, dh)
         # grid_search_trend(strategy_class, args.symbol, dh)
         # grid_search_scalp(strategy_class, args.symbol, DataHandler)
-        return
 
 if __name__ == "__main__":
     main()

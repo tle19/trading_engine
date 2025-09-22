@@ -4,25 +4,46 @@ import json
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+from itertools import chain
 
 def summary(initial_cash, pess_cash, opt_cash, avg_cash, 
             pess_win_rates, opt_win_rates, avg_win_rates, total_trades, equity_list):
 
-    avg_pess_win_rate = (
-        sum(w for w in pess_win_rates if w is not None) / len([w for w in pess_win_rates if w is not None])
-        if any(w is not None for w in pess_win_rates) else None
+    avg_pess_win_rate = calculate_win_rate(pess_win_rates)
+    avg_opt_win_rate = calculate_win_rate(opt_win_rates)
+    avg_avg_win_rate = calculate_win_rate(avg_win_rates)
+
+    max_drawdown_pct = calculate_drawdown(equity_list)
+
+    for scenario, cash, win_rate in [("Pessimistic", pess_cash, avg_pess_win_rate),
+                                    ("Optimistic", opt_cash, avg_opt_win_rate),
+                                    ("Average", avg_cash, avg_avg_win_rate)]:
+        profit = cash - initial_cash
+        profit_pct = (profit / initial_cash) * 100
+        print(f"{scenario} Scenario:")
+        print("  Initial Cash:", round(initial_cash, 2))
+        print("  Final Cash:", round(cash, 2))
+        print("  Profit ($):", round(profit, 2))
+        print("  Profit %:", round(profit_pct, 2), "%")
+        print(f"  Win Rate: {win_rate:.2%}" if win_rate is not None else "  No trades")
+        print()
+
+    if max_drawdown_pct is not None:
+        print("Max Drawdown:", round(max_drawdown_pct, 2), "%")
+    print("Total Trades:", total_trades)
+    print()
+
+    return avg_cash, avg_avg_win_rate, max_drawdown_pct
+
+def calculate_win_rate(win_rates):
+    avg_win_rate = (
+        sum(w for w in win_rates if w is not None) / len([w for w in win_rates if w is not None])
+        if any(w is not None for w in win_rates) else None
     )
 
-    avg_opt_win_rate = (
-        sum(w for w in opt_win_rates if w is not None) / len([w for w in opt_win_rates if w is not None])
-        if any(w is not None for w in opt_win_rates) else None
-    )
+    return avg_win_rate
 
-    avg_avg_win_rate = (
-        sum(w for w in avg_win_rates if w is not None) / len([w for w in avg_win_rates if w is not None])
-        if any(w is not None for w in avg_win_rates) else None
-    )
-
+def calculate_drawdown(equity_list):
     max_drawdowns_per_day = []
 
     for intraday_equity in equity_list:
@@ -41,36 +62,32 @@ def summary(initial_cash, pess_cash, opt_cash, avg_cash,
 
         max_drawdowns_per_day.append(max_dd * 100)
 
-    overall_max_drawdown = max(max_drawdowns_per_day) if max_drawdowns_per_day else None
+    max_drawdown_pct = max(max_drawdowns_per_day) if max_drawdowns_per_day else None
 
-    for scenario, cash, win_rate in [("Pessimistic", pess_cash, avg_pess_win_rate),
-                                    ("Optimistic", opt_cash, avg_opt_win_rate),
-                                    ("Average", avg_cash, avg_avg_win_rate)]:
-        profit = cash - initial_cash
-        profit_pct = (profit / initial_cash) * 100
-        print(f"{scenario} Scenario:")
-        print("  Initial Cash:", round(initial_cash, 2))
-        print("  Final Cash:", round(cash, 2))
-        print("  Profit ($):", round(profit, 2))
-        print("  Profit %:", round(profit_pct, 2), "%")
-        print(f"  Win Rate: {win_rate:.2%}" if win_rate is not None else "  No trades")
-        print()
+    return max_drawdown_pct
 
-    print("Total Trades:", total_trades)
-    if overall_max_drawdown is not None:
-        print("Max Drawdown %:", round(overall_max_drawdown, 2), "%")
-    return profit_pct, avg_avg_win_rate, overall_max_drawdown
+def plot_equity(equity_list, symbol="", start_date="", end_date=""):
+    equity_values = list(chain.from_iterable(equity_list))
+    df = pd.DataFrame({"equity": equity_values})
+    num_points = len(df)
 
-def profits(df, symbol="", date=""):
-    daily_equity = df.groupby("date")["equity"].last()
+    plt.figure(figsize=(14,6))
+    plt.plot(df.index, df["equity"], label='Strategy', color='blue')
 
-    plt.figure(figsize=(12,6))
-    plt.plot(daily_equity.index, daily_equity.values, label='Strategy', color='blue', marker="o")
+    months = pd.date_range(start=start_date, end=end_date, freq='MS')
+    if len(months) > 12:
+        step = int(np.ceil(len(months) / 12))
+        months = months[::step]
+
+    month_positions = np.linspace(0, num_points-1, len(months), dtype=int)
+    plt.xticks(month_positions, [m.strftime('%b %Y') for m in months], rotation=45)
+
     plt.xlabel("Date")
     plt.ylabel("Portfolio Value")
-    plt.title(f"{symbol} Strategy Profits ({date})")
+    plt.title(f"{symbol} Strategy Equity ({start_date} to {end_date})")
     plt.legend()
     plt.grid(True)
+    plt.tight_layout()
     plt.show()
 
 

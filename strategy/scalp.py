@@ -32,6 +32,7 @@ class Scalp:
         # --- Entry signal ---
         if self.position is None and self.curr_time != 0:
             # consider close - open spread
+            # spread = abs(close - open)
             spread = high - low
 
             if spread < self.entry_spread:
@@ -42,6 +43,7 @@ class Scalp:
             
             # optimize candle entry (check if better!!!)
             # optimize on  >triple downs/ups eating profits
+            # consider VOLUME
             if close > open:
                 self.candle_streak = 1 if self.candle_streak < 0 else self.candle_streak + 1
             elif close < open:
