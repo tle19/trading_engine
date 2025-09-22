@@ -5,14 +5,22 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
+def summary(initial_cash, pess_cash, opt_cash, avg_cash, 
+            pess_win_rates, opt_win_rates, avg_win_rates, total_trades, equity_list):
 
-def summary(final_cash, initial_cash, win_rates, total_trades, equity_list):
-    profit = final_cash - initial_cash
-    profit_pct = (profit / initial_cash) * 100
+    avg_pess_win_rate = (
+        sum(w for w in pess_win_rates if w is not None) / len([w for w in pess_win_rates if w is not None])
+        if any(w is not None for w in pess_win_rates) else None
+    )
 
-    avg_win_rate = (
-        sum(w for w in win_rates if w is not None) / len([w for w in win_rates if w is not None])
-        if any(w is not None for w in win_rates) else None
+    avg_opt_win_rate = (
+        sum(w for w in opt_win_rates if w is not None) / len([w for w in opt_win_rates if w is not None])
+        if any(w is not None for w in opt_win_rates) else None
+    )
+
+    avg_avg_win_rate = (
+        sum(w for w in avg_win_rates if w is not None) / len([w for w in avg_win_rates if w is not None])
+        if any(w is not None for w in avg_win_rates) else None
     )
 
     max_drawdowns_per_day = []
@@ -35,14 +43,23 @@ def summary(final_cash, initial_cash, win_rates, total_trades, equity_list):
 
     overall_max_drawdown = max(max_drawdowns_per_day) if max_drawdowns_per_day else None
 
-    print("Final Cash:", round(final_cash, 2))
-    print("Profit ($):", round(profit, 2))
-    print("Profit %:", round(profit_pct, 2), "%")
-    print(f"Average win rate: {avg_win_rate:.2%}" if avg_win_rate is not None else "No trades")
+    for scenario, cash, win_rate in [("Pessimistic", pess_cash, avg_pess_win_rate),
+                                    ("Optimistic", opt_cash, avg_opt_win_rate),
+                                    ("Average", avg_cash, avg_avg_win_rate)]:
+        profit = cash - initial_cash
+        profit_pct = (profit / initial_cash) * 100
+        print(f"{scenario} Scenario:")
+        print("  Initial Cash:", round(initial_cash, 2))
+        print("  Final Cash:", round(cash, 2))
+        print("  Profit ($):", round(profit, 2))
+        print("  Profit %:", round(profit_pct, 2), "%")
+        print(f"  Win Rate: {win_rate:.2%}" if win_rate is not None else "  No trades")
+        print()
+
     print("Total Trades:", total_trades)
     if overall_max_drawdown is not None:
         print("Max Drawdown %:", round(overall_max_drawdown, 2), "%")
-    return profit_pct, avg_win_rate, overall_max_drawdown
+    return profit_pct, avg_avg_win_rate, overall_max_drawdown
 
 def profits(df, symbol="", date=""):
     daily_equity = df.groupby("date")["equity"].last()

@@ -8,130 +8,141 @@ def run_backtest(strategy, symbol, dh, start_date="2024-08-29", end_date="2025-0
     df = dh.open_data(symbol, start_date, end_date)
     df["date"] = df["timestamp"].dt.date
 
-    cash = initial_cash
+    pess_cash = opt_cash = avg_cash = initial_cash
+
+    pess_win_rates = []
+    opt_win_rates = []
+    avg_win_rates = []
+
     equity_list = []
-    win_rates = []
     total_trades = 0
 
     for day, day_df in df.groupby("date"):
         strat = strategy()
-        cash, day_win_rate, trades, intraday_equity = run_one_day(day_df, strat, cash)
-        total_trades += trades
-        equity_list.append(intraday_equity)
-        win_rates.append(day_win_rate)
+        pess_cash, opt_cash, avg_cash, p_win_rate, o_win_rate, a_win_rate, trades, intraday_equity = run_one_day(day_df, strat, pess_cash, opt_cash, avg_cash)
 
-    profit_pct, avg_win_rate, max_drawdown_pct = summary(cash, initial_cash, win_rates, total_trades, equity_list)
+        pess_win_rates.append(p_win_rate)
+        opt_win_rates.append(o_win_rate)
+        avg_win_rates.append(a_win_rate)
+
+        equity_list.append(intraday_equity)
+        total_trades += trades
+
+    profit_pct, win_rate, max_drawdown_pct = summary(initial_cash, pess_cash, opt_cash, avg_cash, 
+                                                            pess_win_rates, opt_win_rates, avg_win_rates, total_trades, equity_list)
     
     if plot:
         equity_df = pd.DataFrame(equity_list, columns=["timestamp", "equity"])
         equity_df.set_index("timestamp", inplace=True)
         profits(equity_df, symbol, f"{start_date} to {end_date}")
     
-    return cash, avg_win_rate, max_drawdown_pct, total_trades
+    return avg_cash, win_rate, max_drawdown_pct, total_trades
 
-def run_one_day(df, strat, cash, win_rate=0):
-    shares = 0
+def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, shares=50):
     entry_price = None
     position = None   # "long", "short", or None
-    wins = 0
     total_trades = 0
+    pess_wins = 0
+    opt_wins = 0
     intraday_equity = []
 
     for _, row in df.iterrows():
         signal, stop_loss, take_profit = strat.update(row)
-
         close = row['close']
         high = row['high']
         low = row['low']
         
         # --- Enter Long ---
         if signal == 1 and position is None:
-            shares = cash // close
             entry_price = close
             position = "long"
 
         # --- Enter Short ---
         elif signal == -1 and position is None:
-            shares = cash // close
             entry_price = close
             position = "short"
 
-        
-        # --- Exit (PESSIMISTIC) ---
+        # --- Exit ---
         elif signal == 0 and position is not None:
             if position == "long":
-                pnl = (close - entry_price) * shares
-                if low <= entry_price * (1 - stop_loss):
-                    pass
-                elif high >= entry_price * (1 + take_profit):
-                    wins += 1
+                stop_loss_price = entry_price * (1 - stop_loss)
+                take_profit_price = entry_price * (1 + take_profit)
+
+                # pessimsitic
+                if low <= stop_loss_price:
+                    pnl = (stop_loss_price - entry_price) * shares
+                elif high >= take_profit_price:
+                    pnl = (take_profit_price - entry_price) * shares
+                    pess_wins += 1
+                pess_cash += pnl
+                
+                # optimistic
+                if high >= take_profit_price:
+                    pnl = (take_profit_price - entry_price) * shares
+                    opt_wins += 1
+                elif low <= stop_loss_price:
+                    pnl = (stop_loss_price - entry_price) * shares
+                opt_cash += pnl
 
             elif position == "short":
-                pnl = (entry_price - close) * shares
-                if high >= entry_price * (1 + stop_loss):
-                    pass
-                elif low <= entry_price * (1 - take_profit):
-                    wins += 1
+                stop_loss_price = entry_price * (1 + stop_loss)
+                take_profit_price = entry_price * (1 - take_profit)
 
-            cash += pnl
-            total_trades += 1
-            shares = 0
+                # pessimsitic
+                if high >= stop_loss_price:
+                    pnl = (entry_price - stop_loss_price) * shares
+                elif low <= take_profit_price:
+                    pnl = (entry_price - take_profit_price) * shares
+                    pess_wins += 1
+                pess_cash += pnl
+
+                # optimistic
+                if low <= take_profit_price:
+                    pnl = (entry_price - take_profit_price) * shares
+                    opt_wins += 1
+                elif high >= stop_loss_price:
+                    pnl = (entry_price - stop_loss_price) * shares
+                opt_cash += pnl
+
             entry_price = None
             position = None
-        
-
-        # --- Exit (OPTIMISTIC) ---
-        elif signal == 0 and position is not None:
-            if position == "long":
-                pnl = (close - entry_price) * shares
-                if high >= entry_price * (1 + take_profit):
-                    wins += 1
-                elif low <= entry_price * (1 - stop_loss):
-                    pass
-
-            elif position == "short":
-                pnl = (entry_price - close) * shares
-                if low <= entry_price * (1 - take_profit):
-                    wins += 1
-                elif high >= entry_price * (1 + stop_loss):
-                    pass
-
-            cash += pnl
             total_trades += 1
-            shares = 0
-            entry_price = None
-            position = None
+            avg_cash = (pess_cash + opt_cash) / 2
 
         # --- Force close at 16:00 ---
-        ts = pd.to_datetime(row['timestamp'])
-        if position is not None and ts.hour == 15 and ts.minute == 59:
+        # ts = pd.to_datetime(row['timestamp'])
+        # if position is not None and ts.hour == 15 and ts.minute == 59:
+        #     if position == "long":
+        #         pnl = (close - entry_price) * shares
+        #         cash += pnl
+        #         if pnl > 0:
+        #             wins += 1
+
+        #     elif position == "short":
+        #         pnl = (entry_price - close) * shares
+        #         cash += pnl
+        #         if pnl > 0:
+        #             wins += 1
+
+        #     total_trades += 1
+        #     entry_price = None
+        #     position = None
+
+        if position:
             if position == "long":
-                pnl = (close - entry_price) * shares
-                cash += pnl
-                if pnl > 0:
-                    wins += 1
-
+                current_equity = shares * (close - entry_price) + avg_cash
             elif position == "short":
-                pnl = (entry_price - close) * shares
-                cash += pnl
-                if pnl > 0:
-                    wins += 1
+                current_equity = shares * (entry_price - close) + avg_cash
+            intraday_equity.append(current_equity)
 
-            total_trades += 1
-            shares = 0
-            entry_price = None
-            position = None
-
-        if position == "long":
-            current_equity = cash + (close - entry_price) * shares
-        elif position == "short":
-            current_equity = cash + (entry_price - close) * shares
-        else:
-            current_equity = cash
-        intraday_equity.append(current_equity)
-
-    win_rate = wins / total_trades if total_trades > 0 else None
-    return cash, win_rate, total_trades, intraday_equity
+    pess_win_rate = pess_wins / total_trades if total_trades > 0 else None
+    opt_win_rate = opt_wins / total_trades if total_trades > 0 else None
+    if pess_win_rate is None or opt_win_rate is None:
+        avg_win_rate = None
+    else:
+        avg_win_rate = (pess_win_rate + opt_win_rate) / 2
+    
+    return pess_cash, opt_cash, avg_cash, pess_win_rate, opt_win_rate, avg_win_rate, total_trades, intraday_equity
 
 def _run_combination(params):
     entry_spread, stop_loss, take_profit, strategy_class, symbol, dh_class, start_date, end_date, initial_cash = params
