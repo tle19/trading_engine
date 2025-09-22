@@ -4,17 +4,16 @@ import numpy as np
 
 
 class MeanReversionIndicator:
-    def __init__(self, entry_spread=0.0005, stop_loss=0.00065, take_profit=0.0005,
-                 window=20, k=25):
+    def __init__(self, entry_spread=0.00065, stop_loss=0.002125, take_profit=0.002125,
+                 window=30):
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.entry_spread_pct = entry_spread
-        self.entry_spread = 422 * entry_spread # force set
+        # self.entry_spread = 422 * entry_spread # force set
         self.position = None
         self.entry_price = 0
         self.curr_time = 0
         self.candle_streak = 0
-        self.k = k
 
         self.window = window
         self.prices = []
@@ -42,18 +41,8 @@ class MeanReversionIndicator:
 
             if spread < self.entry_spread:
                 return None, self.stop_loss, self.take_profit
-            
-            # if spread < self.entry_spread and spread > self.entry_spread * 2:
-            #     return None, self.stop_loss, self.take_profit
-            # optimize candle entry (check if better!!!)
-            # optimize on  >triple downs/ups eating profits
-            # probability after 2 same candles
-            # rnn classification on two candles (volkume, spread, body)
-            # what iondicates push through stop loss on following candle
-            # consider VOLUME
 
             # --- Candle streak update ---
-
             if close > open:
                 self.candle_streak = 1 if self.candle_streak < 0 else self.candle_streak + 1
             elif close < open:
@@ -61,9 +50,11 @@ class MeanReversionIndicator:
             else:
                 self.candle_streak = 0
 
-            if len(self.prices) >= self.window:  
-                ma = np.mean(self.prices[-self.window:])
-                distance_factor = (ma * self.take_profit) / self.k
+            if len(self.prices) >= self.window:
+                prices_window = self.prices[-self.window:]
+                ma = np.mean(prices_window)
+                std_dev = np.std(prices_window)
+                distance_factor = std_dev / ma / 2
                 if self.candle_streak >= 2 and close > ma * (1 + distance_factor): # signal inverted for better performance
                     self.position = "short"
                     self.entry_price = close
