@@ -26,7 +26,7 @@ class Program:
         
         self.symbol = symbol
         self.position = None
-        self.shares = 10
+        self.shares = 5
 
     def start_equity(self, duration=23520):
 

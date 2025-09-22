@@ -4,7 +4,7 @@ import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from utils import *
 
-def run_backtest(strategy, symbol, dh, start_date="2024-08-29", end_date="2025-08-29", initial_cash=30_000, plot=True):
+def run_backtest(strategy, symbol, dh, start_date="2024-09-01", end_date="2025-09-01", initial_cash=30_000, plot=True):
     df = dh.open_data(symbol, start_date, end_date)
     df["date"] = df["timestamp"].dt.date
 

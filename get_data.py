@@ -29,8 +29,8 @@ class DataHandler:
 
         self.timezone = ZoneInfo("America/New_York")
 
-    def polygon_historical_data(self, symbol='TSLA', from_date='2023-09-01', to_date='2025-08-29',
-                                timespan='minute', multiplier=1, max_iter=15):
+    def historical_data(self, symbol='TSLA', from_date='2023-09-01', to_date='2025-09-01',
+                                timespan='minute', multiplier=1, max_iter=12):
 
         data_list = []
         current_from = from_date
@@ -65,7 +65,7 @@ class DataHandler:
                     'high': agg.high,
                     'low': agg.low,
                     'close': agg.close,
-                    'volume': getattr(agg, "volume", 0)  # forex often has no volume
+                    'volume': getattr(agg, "volume", 0)
                 })
 
             # Advance current_from beyond last fetched bar
@@ -78,7 +78,7 @@ class DataHandler:
         df = pd.DataFrame(data_list)
         self.save_data(df, symbol)
 
-    def historical_data(self, symbol='TSLA', periodType="day", period=10, frequencyType="minute", frequency=1, 
+    def schwab_historical_data(self, symbol='TSLA', periodType="day", period=10, frequencyType="minute", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
 
         raw_data = self.client.price_history(
@@ -99,7 +99,7 @@ class DataHandler:
 
         df.rename(columns={"datetime": "timestamp"}, inplace=True)
 
-        self.save_data(df, f"{symbol}_historical_data.csv")
+        self.save_data(df, symbol)
 
 
     def stream_data(self, symbol, duration=300):

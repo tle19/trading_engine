@@ -35,8 +35,8 @@ def main():
         pr.start_equity()
         # pr.start_forex()
     elif args.fetch:
-        dh.polygon_historical_data(args.symbol)
-        # dh.historical_data(args.symbol)
+        dh.historical_data(args.symbol)
+        # dh.schwab_historical_data(args.symbol)
     elif args.stream:
         dh.stream_data(args.symbol, duration=args.duration)
     elif args.backtest:
