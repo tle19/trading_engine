@@ -1,9 +1,9 @@
 from datetime import time
 import pandas as pd
+import numpy as np
 
 class IntradayTrend:
-    def __init__(self, entry_time=30, entry_cond=0.003, 
-                 stop_loss=0.01, take_profit=0.004):
+    def __init__(self, entry_time=30, entry_cond=0.0035, stop_loss=0.01, take_profit=0.004):
         self.curr_time = 0
         self.entry_time = entry_time
         self.entry_cond = entry_cond
@@ -14,6 +14,9 @@ class IntradayTrend:
         self.curr_ret = 0
         self.position = None
         self.ret_high = 0
+
+        self.window = entry_time
+        self.prices = []
 
     def update(self, row):
         self.curr_time += 1
@@ -30,15 +33,19 @@ class IntradayTrend:
         if self.curr_time == 1:
             self.start_price = open
 
+        self.prices.append(close)
+        
         # --- Entry signal ---
         if self.curr_time == self.entry_time and self.position is None:
+            prices_window = self.prices[-self.window:]
+            ma = np.mean(prices_window)
             self.entry_price = close
             ret = self.entry_price / self.start_price - 1
 
-            if ret > self.entry_cond:
+            if ret > self.entry_cond and ma > self.start_price:
                 self.position = "long"
                 return 1, self.stop_loss, self.take_profit
-            elif ret < -self.entry_cond:
+            elif ret < -self.entry_cond and ma < self.start_price:
                 self.position = "short"
                 return -1, self.stop_loss, self.take_profit
             

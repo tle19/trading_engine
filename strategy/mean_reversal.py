@@ -4,8 +4,8 @@ import numpy as np
 
 
 class MeanReversionIndicator:
-    def __init__(self, entry_spread=0.00065, stop_loss=0.002125, take_profit=0.002125,
-                 window=30):
+    def __init__(self, entry_spread=0.0003, stop_loss=0.002125, take_profit=0.002125,
+                 window=20):
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.entry_spread_pct = entry_spread
@@ -17,6 +17,7 @@ class MeanReversionIndicator:
 
         self.window = window
         self.prices = []
+        # self.volume = []
 
     def update(self, row):
         self.curr_time += 1
@@ -25,6 +26,7 @@ class MeanReversionIndicator:
         close = row["close"]
         high = row["high"]
         low = row["low"]
+        # volume = row["volume"]
 
         ts = row["timestamp"]
         if (ts.hour, ts.minute) == (9, 30):
@@ -33,12 +35,12 @@ class MeanReversionIndicator:
             self.curr_time = 0
 
         self.prices.append(close)
+        # self.volume.append(volume)
 
         # --- Entry signal ---
         if self.position is None and self.curr_time != 0:
             # spread = abs(close - open)
             spread = high - low
-
             if spread < self.entry_spread:
                 return None, self.stop_loss, self.take_profit
 
@@ -54,12 +56,12 @@ class MeanReversionIndicator:
                 prices_window = self.prices[-self.window:]
                 ma = np.mean(prices_window)
                 std_dev = np.std(prices_window)
-                distance_factor = std_dev / ma / 2
-                if self.candle_streak >= 2 and close > ma * (1 + distance_factor): # signal inverted for better performance
+                streak_threshold = 2 if std_dev / ma < 0.00145 else 3
+                if self.candle_streak >= streak_threshold and close > ma + (1.025 * std_dev): # signal inverted for better performance
                     self.position = "short"
                     self.entry_price = close
                     return -1, self.stop_loss, self.take_profit
-                elif self.candle_streak <= -2 and close < ma * (1 - distance_factor): # signal inverted for better performance
+                elif self.candle_streak <= -streak_threshold and close < ma - (1.025 * std_dev): # signal inverted for better performance
                     self.position = "long"
                     self.entry_price = close
                     return 1, self.stop_loss, self.take_profit
