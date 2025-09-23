@@ -35,19 +35,8 @@ class Scalp:
 
             if spread < self.entry_spread:
                 return None, self.stop_loss, self.take_profit
-            
-            # if spread < self.entry_spread and spread > self.entry_spread * 2:
-            #     return None, self.stop_loss, self.take_profit
-            # optimize candle entry (check if better!!!)
-            # optimize on  >triple downs/ups eating profits
-            # moving average mean reversal
-            # probability after 2 same candles
-            # rnn classification on two candles (volkume, spread, body)
-            # what iondicates push through stop loss on following candle
-            # consider VOLUME
 
             # --- Candle streak update ---
-
             if close > open:
                 self.candle_streak = 1 if self.candle_streak < 0 else self.candle_streak + 1
             elif close < open:

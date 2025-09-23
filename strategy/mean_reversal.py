@@ -23,9 +23,11 @@ class MeanReversionIndicator:
         self.sl_price = 0
         self.effective_stop_loss = self.stop_loss
 
-    def update(self, row, k = 575):
+    def update(self, row, k = 575, trailing_ratio = 0.3075):
         self.curr_time += 1
-
+        # rnn classification on two candles (volkume, spread, body)
+        # what indicates push through stop loss on following candles
+        # consider volume metrics
         open = row["open"]
         close = row["close"]
         high = row["high"]
@@ -105,8 +107,6 @@ class MeanReversionIndicator:
             self.holding_time += 1
             if self.holding_time >= 4:
 
-                trailing_ratio = 0.3075
-
                 if self.position == "long" and close > avg_price:
                     self.sl_price = self.sl_price + trailing_ratio * (avg_price - self.sl_price)
                     self.effective_stop_loss = 1 - (self.sl_price / self.entry_price)
@@ -115,6 +115,6 @@ class MeanReversionIndicator:
                     self.effective_stop_loss = (self.sl_price / self.entry_price) - 1
                 
                 return None, self.effective_stop_loss, self.take_profit, self.position_size
-        
+            # consider adaptive stop loss and take profit
         return None, None, None, None
 

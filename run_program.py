@@ -54,8 +54,8 @@ class Equities:
                 print(f"Timestamp: {timestamp}")
 
             signal, stop_loss, take_profit, position_size = self.strategy.update(row)
-            # if position_size is not None:
-            #     self.shares = (avg_cash * position_size) // close
+            if position_size is not None:
+                self.shares = (1000 * position_size) // row["close"]
             self.interpret_signal(signal, stop_loss, take_profit, position_size)
 
         self.streamer.start(response_handler)
