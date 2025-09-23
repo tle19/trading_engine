@@ -51,7 +51,8 @@ class Program:
                 }
                 print(f"Timestamp: {timestamp}")
 
-            signal, stop_loss, take_profit = self.strategy.update(row)
+            signal, stop_loss, take_profit, position_size = self.strategy.update(row)
+            # self.shares = (20000 * position_size) // row['close']
             self.interpret_equity_signal(signal, stop_loss, take_profit)
 
         self.streamer.start(response_handler)

@@ -15,6 +15,10 @@ def summary(initial_cash, pess_cash, opt_cash, avg_cash,
 
     max_drawdown_pct = calculate_drawdown(equity_list)
 
+    equity_values = np.array([val for sublist in equity_list for val in sublist])
+    step_returns = np.diff(equity_values) / equity_values[:-1] if len(equity_values) > 1 else [0]
+    sharpe = sharpe_ratio(step_returns)
+
     for scenario, cash, win_rate in [("Pessimistic", pess_cash, avg_pess_win_rate),
                                     ("Optimistic", opt_cash, avg_opt_win_rate),
                                     ("Average", avg_cash, avg_avg_win_rate)]:
@@ -30,6 +34,7 @@ def summary(initial_cash, pess_cash, opt_cash, avg_cash,
 
     if max_drawdown_pct is not None:
         print("Max Drawdown:", round(max_drawdown_pct, 2), "%")
+    print("Sharpe Ratio:", round(sharpe, 3))
     print("Total Trades:", total_trades)
     print()
 
@@ -65,6 +70,15 @@ def calculate_drawdown(equity_list):
     max_drawdown_pct = max(max_drawdowns_per_day) if max_drawdowns_per_day else None
 
     return max_drawdown_pct
+
+def sharpe_ratio(returns, risk_free=0.0):
+    returns = np.array(returns)
+    excess = returns - risk_free
+    mean_return = np.mean(excess)
+    std_return = np.std(excess, ddof=1)
+    if std_return == 0:
+        return 0.0
+    return mean_return / std_return
 
 def plot_equity(equity_list, symbol="", start_date="", end_date=""):
     equity_values = list(chain.from_iterable(equity_list))

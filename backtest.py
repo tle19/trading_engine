@@ -45,11 +45,14 @@ def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, shares=100):
     intraday_equity = []
 
     for _, row in df.iterrows():
-        signal, stop_loss, take_profit = strat.update(row)
+        signal, stop_loss, take_profit, position_size = strat.update(row)
+
         close = row['close']
         high = row['high']
         low = row['low']
-        
+
+        shares = (avg_cash * position_size) // close
+
         # --- Enter Long ---
         if signal == 1 and position is None:
             entry_price = close
