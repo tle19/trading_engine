@@ -17,7 +17,7 @@ class MeanReversionIndicator:
 
         self.window = window
         self.prices = []
-        # self.volume = []
+        self.volume = []
 
     def update(self, row):
         self.curr_time += 1
@@ -26,7 +26,7 @@ class MeanReversionIndicator:
         close = row["close"]
         high = row["high"]
         low = row["low"]
-        # volume = row["volume"]
+        volume = row["volume"]
 
         ts = row["timestamp"]
         if (ts.hour, ts.minute) == (9, 30):
@@ -35,7 +35,9 @@ class MeanReversionIndicator:
             self.curr_time = 0
 
         self.prices.append(close)
-        # self.volume.append(volume)
+        self.volume.append(volume)
+
+
 
         # --- Entry signal ---
         if self.position is None and self.curr_time != 0:
@@ -44,6 +46,11 @@ class MeanReversionIndicator:
             if spread < self.entry_spread:
                 return None, self.stop_loss, self.take_profit
 
+            avg_vol = np.mean(self.volume[-self.window:])
+            rvol = volume / avg_vol
+            if rvol > 2.35 or rvol < 0.325:
+                return None, self.stop_loss, self.take_profit
+            
             # --- Candle streak update ---
             if close > open:
                 self.candle_streak = 1 if self.candle_streak < 0 else self.candle_streak + 1
