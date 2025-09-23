@@ -209,9 +209,11 @@ class Program:
             ]
         }
 
-        self.client.order_place(self.hash, bracket_order)
+        response = self.client.order_place(self.hash, bracket_order)
 
         print(f"BUY {quantity} {self.symbol} with TP {limit_price} and SL {stop_price}")
+
+        return response
 
     def sell_equity_bracket(self, quantity, stop_pct, limit_pct):
             sell_order = {
@@ -282,9 +284,11 @@ class Program:
                 ]
             }
 
-            self.client.order_place(self.hash, bracket_order)
+            response = self.client.order_place(self.hash, bracket_order)
 
             print(f"SELL {quantity} {self.symbol} with TP {limit_price} and SL {stop_price}") 
+
+            return response
 
     def buy_forex_bracket(self, quantity, stop_pct, limit_pct):
         buy_order = {
@@ -355,9 +359,11 @@ class Program:
             ]
         }
 
-        self.client.order_place(self.hash, oco_order)
+        response = self.client.order_place(self.hash, oco_order)
 
         print(f"BUY {quantity} {self.symbol} with TP {stop_price} and SL {limit_price}") 
+
+        return response
     
     def sell_forex_bracket(self, quantity, stop_pct, limit_pct):
         sell_order = {
@@ -428,10 +434,21 @@ class Program:
             ]
         }
 
-        self.client.order_place(self.hash, bracket_order)
+        response = self.client.order_place(self.hash, bracket_order)
 
         print(f"SELL {quantity} {self.symbol} with TP {limit_price} and SL {stop_price}")
 
+        return response
+
+    def cancel_order(self, response):
+        order_id = response.headers.get('location', '/').split('/')[-1]
+        self.client.order_cancel(self.hash, order_id)
+
+    def replace_order(self, response):
+        order_id = response.headers.get('location', '/').split('/')[-1]
+
+        
+        self.client.order_replace(self.hash, order_id, replacement_order)
 
 # from strategy.scalp import Scalp
 

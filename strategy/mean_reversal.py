@@ -19,6 +19,9 @@ class MeanReversionIndicator:
         self.volume = []
 
         self.position_size = 0
+        self.holding_time = 0
+        self.sl_price = 0
+        self.effective_stop_loss = self.stop_loss
 
     def update(self, row, k = 575):
         self.curr_time += 1
@@ -48,11 +51,11 @@ class MeanReversionIndicator:
         if self.position is None and self.curr_time != 0:
             spread = high - low
             if spread < avg_price * self.entry_spread:
-                return None, self.stop_loss, self.take_profit, self.position_size
+                return None, None, None, None
 
             # remove extreme price movement
             if rvol > 2.35 or rvol < 0.325:
-                return None, self.stop_loss, self.take_profit, self.position_size
+                return None, None, None, None
             
             # --- Candle streak update ---
             if close > open:
@@ -71,27 +74,45 @@ class MeanReversionIndicator:
                 if self.candle_streak >= streak_threshold and close > avg_price + (1.025 * std_price): # signal inverted for better performance
                     self.position = "short"
                     self.entry_price = close
+                    self.sl_price = self.entry_price * (1 + self.stop_loss)
                     return -1, self.stop_loss, self.take_profit, self.position_size
                 elif self.candle_streak <= -streak_threshold and close < avg_price - (1.025 * std_price): # signal inverted for better performance
                     self.position = "long"
                     self.entry_price = close
+                    self.sl_price = self.entry_price * (1 - self.stop_loss)
                     return 1, self.stop_loss, self.take_profit, self.position_size
 
-            return None, self.stop_loss, self.take_profit, self.position_size
-
-        # --- Exit ---
-        if self.position is not None:
+            return None, None, None, None
+        
+        # --- Holding ---
+        if self.position is not None: 
+            # --- Exit ---
             if self.position == "long":
                 tp_price = self.entry_price * (1 + self.take_profit)
-                sl_price = self.entry_price * (1 - self.stop_loss)
-                exit_condition = high >= tp_price or low <= sl_price
+                exit_condition = high >= tp_price or low <= self.sl_price
             elif self.position == "short":
                 tp_price = self.entry_price * (1 - self.take_profit)
-                sl_price = self.entry_price * (1 + self.stop_loss)
-                exit_condition = low <= tp_price or high >= sl_price
+                exit_condition = low <= tp_price or high >= self.sl_price
 
             if exit_condition:
                 self.position = None
-                return 0, self.stop_loss, self.take_profit, self.position_size
+                self.holding_time = 0
+                return 0, self.effective_stop_loss, self.take_profit, self.position_size
+        
+            # --- Trailing Stop ---
+            self.holding_time += 1
+            if self.holding_time >= 5:
 
-        return None, self.stop_loss, self.take_profit, self.position_size
+                trailing_ratio = 0.3
+
+                if self.position == "long" and close > avg_price:
+                    self.sl_price = self.sl_price + trailing_ratio * (avg_price - self.sl_price)
+                    self.effective_stop_loss = 1 - (self.sl_price / self.entry_price)
+                elif self.position == "short" and close < avg_price:
+                    self.sl_price = self.sl_price - trailing_ratio * (avg_price - self.sl_price)
+                    self.effective_stop_loss = (self.sl_price / self.entry_price) - 1
+                
+                return None, self.effective_stop_loss, self.take_profit, self.position_size
+        
+        return None, None, None, None
+
