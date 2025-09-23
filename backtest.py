@@ -4,7 +4,7 @@ import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from utils import *
 
-def run_backtest(strategy, symbol, dh, start_date="2023-08-01", end_date="2024-09-01", initial_cash=30_000, plot=True):
+def run_backtest(strategy, symbol, dh, start_date="2023-08-01", end_date="2024-09-01", initial_cash=25_000, plot=True):
     df = dh.open_data(symbol, start_date, end_date)
     df["date"] = df["timestamp"].dt.date
 
@@ -171,7 +171,7 @@ def _run_combination(params):
 
 def grid_search_scalp(strategy, symbol, dh_class, 
                       start_date="2024-08-29", end_date="2025-08-29",
-                      initial_cash=30_000,
+                      initial_cash=25_000,
                       entry_spreads=[0.0005, 0.0006, 0.00065, 0.0007, 0.00075, 0.0008, 0.0009],
                       stop_losses=[0.00035, 0.0004, 0.00045, 0.0005, 0.00055, 0.0006, 0.00065],
                       take_profits=[0.0003, 0.00035, 0.0004, 0.00045, 0.0005],
@@ -220,9 +220,60 @@ def grid_search_scalp(strategy, symbol, dh_class,
 
     return best_params, best_pnl_pct, best_winrate, results
 
+def grid_search_mean_reversion(strategy_class, symbol, dh_class, 
+                               start_date="2023-08-29", end_date="2024-08-29",
+                               initial_cash=25_000,
+                               entry_spreads=[0.000275, 0.0003, 0.000325, 0.00035],
+                               stop_losses=[0.002, 0.0020625, 0.002125, 0.0021875, 0.00225],
+                               take_profits=[0.002, 0.0020625, 0.002125, 0.0021875, 0.002255],
+                               results_file="mean_rev_optimize_results.json"):
+
+    best_pnl_pct = -float("inf")
+    best_params = None
+    best_winrate = 0.0
+    results = []
+
+    all_params = [
+        (entry_spread, stop_loss, take_profit, strategy_class, symbol, dh_class, start_date, end_date, initial_cash)
+        for entry_spread, stop_loss, take_profit in itertools.product(entry_spreads, stop_losses, take_profits)
+    ]
+
+    # run in parallel
+    with ProcessPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(_run_combination, p) for p in all_params]
+
+        for future in as_completed(futures):
+            result = future.result()
+            results.append(result)
+
+            pnl_pct = result["pnl_pct"]
+            win_rate = result["win_rate"]
+
+            if pnl_pct > best_pnl_pct or (pnl_pct == best_pnl_pct and win_rate > best_winrate):
+                best_pnl_pct = pnl_pct
+                best_winrate = win_rate
+                best_params = (
+                    result.get("entry_spread"),
+                    result.get("stop_loss"),
+                    result.get("take_profit")
+                )
+
+            print(result)
+
+    # save all results
+    with open(results_file, "w") as f:
+        json.dump(results, f, indent=4)
+
+    print("Best params:", best_params)
+    print("Best PnL %:", best_pnl_pct)
+    print("Best winrate:", best_winrate)
+    print(f"Saved all results to {results_file}")
+
+    return best_params, best_pnl_pct, best_winrate, results
+
 def grid_search_trend(strategy, symbol, dh, 
                 start_date="2024-09-03", end_date="2025-08-29",
-                initial_cash=30_000,
+                initial_cash=25_000,
                 entry_times=[25, 30, 35, 40],  # trend focused
                 entry_conds=[0.002, 0.003, 0.004, 0.005],
                 stop_losses=[0.004, 0.006, 0.008, 0.01],

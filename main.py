@@ -1,6 +1,6 @@
 import argparse
 from get_data import DataHandler
-from backtest import run_backtest, grid_search_trend, grid_search_scalp
+from backtest import *
 from strategy.mean_reversal import MeanReversionIndicator
 from strategy.scalp import Scalp
 from strategy.trend import IntradayTrend
@@ -43,6 +43,7 @@ def main():
         run_backtest(strategy_class, args.symbol, dh)
         # grid_search_trend(strategy_class, args.symbol, dh)
         # grid_search_scalp(strategy_class, args.symbol, DataHandler)
+        # grid_search_mean_reversion(strategy_class, args.symbol, DataHandler)
 
 if __name__ == "__main__":
     main()

@@ -4,12 +4,11 @@ import numpy as np
 
 
 class MeanReversionIndicator:
-    def __init__(self, entry_spread=0.0003, stop_loss=0.002125, take_profit=0.002125,
+    def __init__(self, entry_spread=0.00035, stop_loss=0.002125, take_profit=0.002125,
                  window=20):
         self.stop_loss = stop_loss
         self.take_profit = take_profit
-        self.entry_spread_pct = entry_spread
-        # self.entry_spread = 422 * entry_spread # force set
+        self.entry_spread = entry_spread
         self.position = None
         self.entry_price = 0
         self.curr_time = 0
@@ -29,25 +28,29 @@ class MeanReversionIndicator:
         volume = row["volume"]
 
         ts = row["timestamp"]
-        if (ts.hour, ts.minute) == (9, 30):
-            self.entry_spread = open * self.entry_spread_pct
-        if not ((10, 30) <= (ts.hour, ts.minute) <= (14, 30)):
+        if not ((10, 15) <= (ts.hour, ts.minute) <= (15, 00)):
             self.curr_time = 0
 
         self.prices.append(close)
         self.volume.append(volume)
 
-
-
         # --- Entry signal ---
         if self.position is None and self.curr_time != 0:
             # spread = abs(close - open)
+            # avg of price window applied onto spread
+            prices_window = self.prices[-self.window:]
+            avg_price = np.mean(prices_window)
+            std_price = np.std(prices_window)
+
+            volume_window = self.volume[-self.window:]
+            avg_vol = np.mean(volume_window)
+            rvol = volume / avg_vol
+
             spread = high - low
-            if spread < self.entry_spread:
+            if spread < avg_price * self.entry_spread:
                 return None, self.stop_loss, self.take_profit
 
-            avg_vol = np.mean(self.volume[-self.window:])
-            rvol = volume / avg_vol
+            # remove extreme price movement
             if rvol > 2.35 or rvol < 0.325:
                 return None, self.stop_loss, self.take_profit
             
@@ -60,15 +63,12 @@ class MeanReversionIndicator:
                 self.candle_streak = 0
 
             if len(self.prices) >= self.window:
-                prices_window = self.prices[-self.window:]
-                ma = np.mean(prices_window)
-                std_dev = np.std(prices_window)
-                streak_threshold = 2 if std_dev / ma < 0.00145 else 3
-                if self.candle_streak >= streak_threshold and close > ma + (1.025 * std_dev): # signal inverted for better performance
+                streak_threshold = 2 if std_price / avg_price < 0.00145 else 3
+                if self.candle_streak >= streak_threshold and close > avg_price + (1.025 * std_price): # signal inverted for better performance
                     self.position = "short"
                     self.entry_price = close
                     return -1, self.stop_loss, self.take_profit
-                elif self.candle_streak <= -streak_threshold and close < ma - (1.025 * std_dev): # signal inverted for better performance
+                elif self.candle_streak <= -streak_threshold and close < avg_price - (1.025 * std_price): # signal inverted for better performance
                     self.position = "long"
                     self.entry_price = close
                     return 1, self.stop_loss, self.take_profit
