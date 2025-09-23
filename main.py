@@ -4,7 +4,7 @@ from backtest import *
 from strategy.mean_reversal import MeanReversionIndicator
 from strategy.scalp import Scalp
 from strategy.trend import IntradayTrend
-from run_program import Program
+from run_program import Equities
 
 def main():
 
@@ -19,7 +19,7 @@ def main():
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--stream", action="store_true")
     parser.add_argument("--backtest", action="store_true")
-    parser.add_argument("--strategy", type=str, default="trend")
+    parser.add_argument("--strategy", type=str, default="mean_reversion")
     parser.add_argument("--symbol", type=str, default="TSLA")
     parser.add_argument("--duration", type=int, default=300)
     args = parser.parse_args()
@@ -31,9 +31,8 @@ def main():
     dh = DataHandler()
     
     if args.start:
-        pr = Program(args.symbol, strategy_class)
-        pr.start_equity()
-        # pr.start_forex()
+        pr = Equities(args.symbol, strategy_class)
+        pr.start()
     elif args.fetch:
         dh.historical_data(args.symbol)
         # dh.schwab_historical_data(args.symbol)
