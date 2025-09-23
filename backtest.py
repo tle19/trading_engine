@@ -4,7 +4,7 @@ import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from utils import *
 
-def run_backtest(strategy, symbol, dh, start_date="2024-09-01", end_date="2025-09-01", initial_cash=25_000, plot=True):
+def run_backtest(strategy, symbol, dh, start_date="2023-09-01", end_date="2024-09-01", initial_cash=25_000, plot=True):
     df = dh.open_data(symbol, start_date, end_date)
     df["date"] = df["timestamp"].dt.date
 
@@ -51,8 +51,8 @@ def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, shares=100):
         high = row['high']
         low = row['low']
 
-        # if position_size is not None:
-        #     shares = (avg_cash * position_size) // close
+        if position_size is not None:
+            shares = (avg_cash * position_size) // close
 
         # --- Enter Long ---
         if signal == 1 and position is None:

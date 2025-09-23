@@ -74,11 +74,13 @@ class MeanReversionIndicator:
                 if self.candle_streak >= streak_threshold and close > avg_price + (1.025 * std_price): # signal inverted for better performance
                     self.position = "short"
                     self.entry_price = close
+                    self.effective_stop_loss = self.stop_loss
                     self.sl_price = self.entry_price * (1 + self.stop_loss)
                     return -1, self.stop_loss, self.take_profit, self.position_size
                 elif self.candle_streak <= -streak_threshold and close < avg_price - (1.025 * std_price): # signal inverted for better performance
                     self.position = "long"
                     self.entry_price = close
+                    self.effective_stop_loss = self.stop_loss
                     self.sl_price = self.entry_price * (1 - self.stop_loss)
                     return 1, self.stop_loss, self.take_profit, self.position_size
 
@@ -101,9 +103,9 @@ class MeanReversionIndicator:
         
             # --- Trailing Stop ---
             self.holding_time += 1
-            if self.holding_time >= 5:
+            if self.holding_time >= 4:
 
-                trailing_ratio = 0.3
+                trailing_ratio = 0.3075
 
                 if self.position == "long" and close > avg_price:
                     self.sl_price = self.sl_price + trailing_ratio * (avg_price - self.sl_price)
