@@ -31,7 +31,7 @@ class Equities:
         self.hold_response = None
 
     def start(self, duration=23520):
-
+        cash = 1000
         def response_handler(response):
             data = json.loads(response).get("data", [])
 
@@ -55,9 +55,9 @@ class Equities:
 
             signal, stop_loss, take_profit, position_size = self.strategy.update(row)
             if position_size is not None:
-                self.shares = (1000 * position_size) // row["close"]
+                self.shares = (cash * position_size) // row["close"]
             self.interpret_signal(signal, stop_loss, take_profit, position_size)
-
+        # daily_stop_loss
         self.streamer.start(response_handler)
         
         self.streamer.send(self.streamer.chart_equity(self.symbol, "0,1,2,3,4,5,6", command="SUBS"))
