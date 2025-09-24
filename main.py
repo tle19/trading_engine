@@ -1,17 +1,19 @@
 import argparse
 from get_data import DataHandler
 from backtest import *
+from strategy.volatility import VolatilityIndicator
 from strategy.mean_reversal import MeanReversionIndicator
-from strategy.scalp import Scalp
 from strategy.trend import IntradayTrend
+from strategy.scalp import Scalp
 from run_program import Equities
 
 def main():
 
     strategy_map = {
+        "volatility": VolatilityIndicator,
+        "mean": MeanReversionIndicator,
         "trend": IntradayTrend,
-        "scalp": Scalp,
-        "mean_reversion": MeanReversionIndicator
+        "scalp": Scalp
     }
 
     parser = argparse.ArgumentParser()
@@ -19,7 +21,7 @@ def main():
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--stream", action="store_true")
     parser.add_argument("--backtest", action="store_true")
-    parser.add_argument("--strategy", type=str, default="mean_reversion")
+    parser.add_argument("--strategy", type=str, default="volatility")
     parser.add_argument("--symbol", type=str, default="GOOG")
     parser.add_argument("--duration", type=int, default=300)
     args = parser.parse_args()
