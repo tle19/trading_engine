@@ -20,7 +20,7 @@ def run_backtest(strategy, symbol, dh, start_date="2023-09-01", end_date="2024-0
     for day, day_df in df.groupby("date"):
         strat = strategy()
         pess_cash, opt_cash, avg_cash, p_win_rate, o_win_rate, a_win_rate, trades, intraday_equity = \
-            run_one_day(day_df, strat, pess_cash, opt_cash, avg_cash, -250)
+            run_one_day(day_df, strat, pess_cash, opt_cash, avg_cash, -200)
                                         # find average low pnl intraday
         pess_win_rates.append(p_win_rate)
         opt_win_rates.append(o_win_rate)
@@ -28,6 +28,7 @@ def run_backtest(strategy, symbol, dh, start_date="2023-09-01", end_date="2024-0
 
         equity_list.append(intraday_equity)
         total_trades += trades
+        # print(intraday_equity[-1] - intraday_equity[0])
 
     avg_cash, win_rate, max_drawdown_pct = summary(initial_cash, pess_cash, opt_cash, avg_cash, 
                                                             pess_win_rates, opt_win_rates, avg_win_rates, total_trades, equity_list)

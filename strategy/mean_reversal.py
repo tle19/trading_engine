@@ -1,10 +1,8 @@
-from datetime import time
-
 import numpy as np
 
 
 class MeanReversionIndicator:
-    def __init__(self, entry_spread=0.0005, stop_loss=0.002125, take_profit=0.002125,
+    def __init__(self, entry_spread=0.00035, stop_loss=0.002125, take_profit=0.002125,
                  window=20):
         self.stop_loss = stop_loss
         self.take_profit = take_profit
@@ -23,8 +21,9 @@ class MeanReversionIndicator:
         self.sl_price = 0
         self.effective_stop_loss = self.stop_loss
 
-    def update(self, row, trailing_ratio=0.3075, k=500):
+    def update(self, row, k=575, trailing_ratio=0.3075):
         self.curr_time += 1
+        # rnn classification on two candles (volume, spread, body)
         # rnn classification on two candles (volume, spread, body)
         # what indicates push through stop loss on following candles
         # consider volume metrics
@@ -56,26 +55,34 @@ class MeanReversionIndicator:
             spread = high - low
             if spread < avg_price * self.entry_spread:
                 return None, None, None, None
+
+            # remove extreme price movement
             if rvol > 2.35 or rvol < 0.325:
                 return None, None, None, None
-                
-            volatility_gate = std_price / avg_price < 0.0014
-            price_deviation = std_price * 2.0
 
+            # --- Candle streak update ---
+            if close > open:
+                self.candle_streak = 1 if self.candle_streak < 0 else self.candle_streak + 1
+            elif close < open:
+                self.candle_streak = -1 if self.candle_streak > 0 else self.candle_streak - 1
+            else:
+                self.candle_streak = 0
+
+            # volume weighted candles
             if len(self.prices) >= self.window:
                 vol_factor = std_price / avg_price
                 self.position_size = np.exp(-vol_factor * k)
                 self.position_size = min(max(self.position_size, 0.25), 1.0)
-                
+
+                streak_threshold = 2 if std_price / avg_price < 0.00145 else 3
                 # close > avg_price needs to be rechecked
-                price_deviation = std_price * 2.1
-                if close > avg_price - price_deviation and volatility_gate:
+                if close > avg_price - (2.1 * std_price) and self.candle_streak >= streak_threshold: # signal inverted for better performance
                     self.position = "short"
                     self.entry_price = close
                     self.effective_stop_loss = self.stop_loss
                     self.sl_price = self.entry_price * (1 + self.stop_loss)
                     return -1, self.stop_loss, self.take_profit, self.position_size
-                elif close < avg_price + price_deviation and volatility_gate:
+                elif close < avg_price + (2.1 * std_price) and self.candle_streak <= -streak_threshold: # signal inverted for better performance
                     self.position = "long"
                     self.entry_price = close
                     self.effective_stop_loss = self.stop_loss
@@ -83,7 +90,7 @@ class MeanReversionIndicator:
                     return 1, self.stop_loss, self.take_profit, self.position_size
 
             return None, None, None, None
-        
+
         # --- Holding ---
         if self.position is not None: 
             # --- Exit ---
@@ -98,17 +105,18 @@ class MeanReversionIndicator:
                 self.position = None
                 self.holding_time = 0
                 return 0, self.effective_stop_loss, self.take_profit, self.position_size
-        
+
             # --- Trailing Stop ---
             self.holding_time += 1
             if self.holding_time >= 4:
+
                 if self.position == "long" and close > avg_price:
                     self.sl_price = self.sl_price + trailing_ratio * (avg_price - self.sl_price)
                     self.effective_stop_loss = 1 - (self.sl_price / self.entry_price)
                 elif self.position == "short" and close < avg_price:
-                    self.sl_price = self.sl_price - trailing_ratio * (avg_price - self.sl_price)
+                    self.sl_price = self.sl_price + trailing_ratio * (avg_price - self.sl_price)
                     self.effective_stop_loss = (self.sl_price / self.entry_price) - 1
-                
+
                 return None, self.effective_stop_loss, self.take_profit, self.position_size
             # consider adaptive stop loss and take profit
         return None, None, None, None
