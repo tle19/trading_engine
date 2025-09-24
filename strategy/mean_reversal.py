@@ -4,7 +4,7 @@ import numpy as np
 
 
 class MeanReversionIndicator:
-    def __init__(self, entry_spread=0.00035, stop_loss=0.002125, take_profit=0.002125,
+    def __init__(self, entry_spread=0.0005, stop_loss=0.002125, take_profit=0.002125,
                  window=20):
         self.stop_loss = stop_loss
         self.take_profit = take_profit
@@ -23,7 +23,7 @@ class MeanReversionIndicator:
         self.sl_price = 0
         self.effective_stop_loss = self.stop_loss
 
-    def update(self, row, k=575, trailing_ratio=0.3075):
+    def update(self, row, trailing_ratio=0.3075, k=500):
         self.curr_time += 1
         # rnn classification on two candles (volume, spread, body)
         # what indicates push through stop loss on following candles
@@ -58,29 +58,24 @@ class MeanReversionIndicator:
                 return None, None, None, None
             if rvol > 2.35 or rvol < 0.325:
                 return None, None, None, None
-            
-            # --- Candle streak update ---
-            if close > open:
-                self.candle_streak = 1 if self.candle_streak < 0 else self.candle_streak + 1
-            elif close < open:
-                self.candle_streak = -1 if self.candle_streak > 0 else self.candle_streak - 1
-            else:
-                self.candle_streak = 0
-            # volume weighted candles
+                
+            volatility_gate = std_price / avg_price < 0.0014
+            price_deviation = std_price * 2.0
+
             if len(self.prices) >= self.window:
                 vol_factor = std_price / avg_price
                 self.position_size = np.exp(-vol_factor * k)
                 self.position_size = min(max(self.position_size, 0.25), 1.0)
                 
-                streak_threshold = 2 if std_price / avg_price < 0.00145 else 3
                 # close > avg_price needs to be rechecked
-                if close > avg_price - (2.1 * std_price) and self.candle_streak >= streak_threshold: # signal inverted for better performance
+                price_deviation = std_price * 2.1
+                if close > avg_price - price_deviation and volatility_gate:
                     self.position = "short"
                     self.entry_price = close
                     self.effective_stop_loss = self.stop_loss
                     self.sl_price = self.entry_price * (1 + self.stop_loss)
                     return -1, self.stop_loss, self.take_profit, self.position_size
-                elif close < avg_price + (2.1 * std_price) and self.candle_streak <= -streak_threshold: # signal inverted for better performance
+                elif close < avg_price + price_deviation and volatility_gate:
                     self.position = "long"
                     self.entry_price = close
                     self.effective_stop_loss = self.stop_loss

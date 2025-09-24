@@ -26,12 +26,14 @@ class Equities:
         
         self.symbol = symbol
         self.position = None
-        self.shares = 5
+        self.shares = 10
+        self.daily_stop_loss = -250
+
         self.entry_response = None
         self.hold_response = None
 
     def start(self, duration=23520):
-        cash = 1000
+        start_of_day_cash = 5000
         def response_handler(response):
             data = json.loads(response).get("data", [])
 
@@ -55,9 +57,15 @@ class Equities:
 
             signal, stop_loss, take_profit, position_size = self.strategy.update(row)
             if position_size is not None:
-                self.shares = (cash * position_size) // row["close"]
+                self.shares = (start_of_day_cash * position_size) // row["close"]
             self.interpret_signal(signal, stop_loss, take_profit, position_size)
-        # daily_stop_loss
+
+            # curr_cash = ???
+            # if self.daily_stop_loss is not None:
+            #     cumulative_pnl = curr_cash - start_of_day_cash
+            #     if cumulative_pnl <= self.daily_stop_loss:
+            #         self.streamer.stop()  # skip rest of day
+
         self.streamer.start(response_handler)
         
         self.streamer.send(self.streamer.chart_equity(self.symbol, "0,1,2,3,4,5,6", command="SUBS"))
