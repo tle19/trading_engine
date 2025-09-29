@@ -29,8 +29,8 @@ class DataHandler:
 
         self.timezone = ZoneInfo("America/New_York")
 
-    def historical_data(self, symbol='TSLA', from_date='2023-09-01', to_date='2025-09-01',
-                                timespan='minute', multiplier=1, max_iter=12):
+    def historical_data(self, symbol='GOOG', from_date='2023-09-01', to_date='2025-09-01',
+                                timespan='minute', multiplier=15, max_iter=12):
 
         data_list = []
         current_from = from_date

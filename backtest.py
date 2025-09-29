@@ -4,9 +4,10 @@ import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from utils import *
 
-def run_backtest(strategy, symbol, dh, start_date="2023-09-01", end_date="2024-09-01", initial_cash=25_000, plot=True):
+def run_backtest(strategy, symbol, dh, start_date="2024-4-01", end_date="2024-6-01", initial_cash=25_000, plot=True):
     df = dh.open_data(symbol, start_date, end_date)
     df["date"] = df["timestamp"].dt.date
+    strat = strategy(symbol)
 
     pess_cash = opt_cash = avg_cash = initial_cash
 
@@ -17,18 +18,20 @@ def run_backtest(strategy, symbol, dh, start_date="2023-09-01", end_date="2024-0
     equity_list = []
     total_trades = 0
 
+    position = None
+    entry_price = None
+
     for day, day_df in df.groupby("date"):
-        strat = strategy()
-        pess_cash, opt_cash, avg_cash, p_win_rate, o_win_rate, a_win_rate, trades, intraday_equity = \
-            run_one_day(day_df, strat, pess_cash, opt_cash, avg_cash, -200)
-                                        # find average low pnl intraday
+        pess_cash, opt_cash, avg_cash, p_win_rate, o_win_rate, a_win_rate, \
+        trades, intraday_equity, position, entry_price = run_one_day(
+            day_df, strat, pess_cash, opt_cash, avg_cash, daily_stop_loss=None,
+            shares=100, position=position, entry_price=entry_price
+            )
         pess_win_rates.append(p_win_rate)
         opt_win_rates.append(o_win_rate)
         avg_win_rates.append(a_win_rate)
-
         equity_list.append(intraday_equity)
         total_trades += trades
-        # print(intraday_equity[-1] - intraday_equity[0])
 
     avg_cash, win_rate, max_drawdown_pct = summary(initial_cash, pess_cash, opt_cash, avg_cash, 
                                                             pess_win_rates, opt_win_rates, avg_win_rates, total_trades, equity_list)
@@ -38,10 +41,9 @@ def run_backtest(strategy, symbol, dh, start_date="2023-09-01", end_date="2024-0
     
     return avg_cash, win_rate, max_drawdown_pct, total_trades
 
-def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, daily_stop_loss=None, shares=100):
+def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, daily_stop_loss=None, shares=100,
+                position=None, entry_price=None):
     start_of_day_cash = avg_cash
-    entry_price = None
-    position = None
     total_trades = 0
     pess_wins = 0
     opt_wins = 0
@@ -72,7 +74,7 @@ def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, daily_stop_loss=None, 
             if position == "long":
                 stop_loss_price = entry_price * (1 - stop_loss)
                 take_profit_price = entry_price * (1 + take_profit)
-
+                pnl = 0
                 # pessimistic
                 if low <= stop_loss_price:
                     pnl = (stop_loss_price - entry_price) * shares
@@ -133,7 +135,7 @@ def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, daily_stop_loss=None, 
     else:
         avg_win_rate = (pess_win_rate + opt_win_rate) / 2
     
-    return pess_cash, opt_cash, avg_cash, pess_win_rate, opt_win_rate, avg_win_rate, total_trades, intraday_equity
+    return pess_cash, opt_cash, avg_cash, pess_win_rate, opt_win_rate, avg_win_rate, total_trades, intraday_equity, position, entry_price
 
 def _run_combination(params):
     entry_spread, stop_loss, take_profit, strategy_class, symbol, dh_class, start_date, end_date, initial_cash = params
@@ -218,7 +220,7 @@ def grid_search_mean_reversion(strategy_class, symbol, dh_class,
                                initial_cash=25_000,
                                entry_spreads=[0.0003, 0.000325, 0.00035, 0.000375],
                                stop_losses=[0.002, 0.0020625, 0.002125, 0.0021875, 0.00225],
-                               take_profits=[0.002, 0.0020625, 0.002125, 0.0021875, 0.002255],
+                               take_profits=[0.002, 0.0020625, 0.002125, 0.0021875, 0.00225],
                                results_file="mean_rev_optimize_results.json"):
 
     best_pnl_pct = -float("inf")

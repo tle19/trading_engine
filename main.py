@@ -4,6 +4,7 @@ from backtest import *
 from strategy.mean_reversal import MeanReversionIndicator
 from strategy.trend import IntradayTrend
 from strategy.scalp import Scalp
+from strategy.swing import SwingMAIndicator
 from run_program import Equities
 
 def main():
@@ -11,7 +12,8 @@ def main():
     strategy_map = {
         "mean": MeanReversionIndicator,
         "trend": IntradayTrend,
-        "scalp": Scalp
+        "scalp": Scalp,
+        "swing": SwingMAIndicator
     }
 
     parser = argparse.ArgumentParser()
