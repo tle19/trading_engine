@@ -3,7 +3,7 @@ from datetime import time
 import numpy as np
 
 
-class Scalp:
+class ScalpIndicator:
     def __init__(self, symbol, entry_spread=0.0005, stop_loss=0.00065, take_profit=0.0005):
         self.stop_loss = stop_loss
         self.take_profit = take_profit

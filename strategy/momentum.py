@@ -2,7 +2,7 @@ from datetime import time
 import pandas as pd
 import numpy as np
 
-class IntradayTrend:
+class MomentumSMAIndicator:
     def __init__(self, symbol, entry_time=30, entry_cond=0.0035, stop_loss=0.01, take_profit=0.004):
         self.curr_time = 0
         self.entry_time = entry_time

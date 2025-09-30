@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from itertools import chain
+from get_data import DataHandler
+import itertools
 
 def summary(initial_cash, pess_cash, opt_cash, avg_cash, 
             pess_win_rates, opt_win_rates, avg_win_rates, total_trades, equity_list):
@@ -156,21 +158,3 @@ def plot_equity(equity_list, symbol="", start_date="", end_date=""):
     plt.grid(True)
     plt.tight_layout()
     plt.show()
-
-
-# df = pd.read_json("scalp_optimize_results.json")
-# summary1 = df.groupby("entry_spread")[["pnl_pct", "win_rate"]].mean().reset_index()
-# summary2 = df.groupby("stop_loss")[["pnl_pct", "win_rate"]].mean().reset_index()
-# summary3 = df.groupby("take_profit")[["pnl_pct", "win_rate"]].mean().reset_index()
-# print(summary1)
-# print(summary2)
-# print(summary3)
-
-# df['expected_value'] = df['win_rate'] * df['pnl_pct'] - (1 - df['win_rate']) * df['stop_loss'] * 100
-# df_grouped = df.groupby(['entry_spread', 'stop_loss', 'take_profit'])[['expected_value']].mean().reset_index()
-# df_grouped = df_grouped.sort_values('expected_value', ascending=False).reset_index(drop=True)
-# print(df_grouped)
-
-# df_ranked = df.sort_values('win_rate', ascending=False).reset_index(drop=True)
-# df_ranked[['entry_spread', 'stop_loss', 'take_profit', 'pnl_pct', 'win_rate']]
-# print(df_ranked.iloc[10:20, :])

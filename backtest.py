@@ -4,10 +4,9 @@ import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from utils import *
 
-def run_backtest(strategy, symbol, dh, start_date="2024-4-01", end_date="2024-6-01", initial_cash=25_000, plot=True):
+def run_backtest(strategy, symbol, dh, start_date="2024-1-01", end_date="2025-1-01", initial_cash=25_000, plot=True):
     df = dh.open_data(symbol, start_date, end_date)
     df["date"] = df["timestamp"].dt.date
-    strat = strategy(symbol)
 
     pess_cash = opt_cash = avg_cash = initial_cash
 
@@ -22,6 +21,7 @@ def run_backtest(strategy, symbol, dh, start_date="2024-4-01", end_date="2024-6-
     entry_price = None
 
     for day, day_df in df.groupby("date"):
+        strat = strategy(symbol)
         pess_cash, opt_cash, avg_cash, p_win_rate, o_win_rate, a_win_rate, \
         trades, intraday_equity, position, entry_price = run_one_day(
             day_df, strat, pess_cash, opt_cash, avg_cash, daily_stop_loss=None,
@@ -136,6 +136,7 @@ def run_one_day(df, strat, pess_cash, opt_cash, avg_cash, daily_stop_loss=None, 
         avg_win_rate = (pess_win_rate + opt_win_rate) / 2
     
     return pess_cash, opt_cash, avg_cash, pess_win_rate, opt_win_rate, avg_win_rate, total_trades, intraday_equity, position, entry_price
+
 
 def _run_combination(params):
     entry_spread, stop_loss, take_profit, strategy_class, symbol, dh_class, start_date, end_date, initial_cash = params
@@ -256,75 +257,6 @@ def grid_search_mean_reversion(strategy_class, symbol, dh_class,
             print(result)
 
     # save all results
-    with open(results_file, "w") as f:
-        json.dump(results, f, indent=4)
-
-    print("Best params:", best_params)
-    print("Best PnL %:", best_pnl_pct)
-    print("Best winrate:", best_winrate)
-    print(f"Saved all results to {results_file}")
-
-    return best_params, best_pnl_pct, best_winrate, results
-
-def grid_search_trend(strategy, symbol, dh, 
-                start_date="2024-09-03", end_date="2025-08-29",
-                initial_cash=25_000,
-                entry_times=[25, 30, 35, 40],  # trend focused
-                entry_conds=[0.002, 0.003, 0.004, 0.005],
-                stop_losses=[0.004, 0.006, 0.008, 0.01],
-                take_profits=[0.001, 0.002, 0.003, 0.004],
-                results_file="trend_optimize_results.json"):
-
-    best_pnl_pct = -float("inf")
-    best_params = None
-    best_winrate = 0.0
-    results = []
-
-    for entry_time, entry_cond, stop_loss, take_profit in itertools.product(
-        entry_times, entry_conds, stop_losses, take_profits
-    ):
-        # define strategy with current params
-        def strat_factory():
-            return strategy(
-                entry_time=entry_time,
-                entry_cond=entry_cond,
-                stop_loss=stop_loss,
-                take_profit=take_profit
-            )
-
-        # run backtest
-        final_cash, avg_win_rate, max_drawdown_pct, total_trades = run_backtest(
-            strat_factory, symbol, dh,
-            start_date=start_date,
-            end_date=end_date,
-            initial_cash=initial_cash
-        )
-
-        pnl = final_cash - initial_cash
-        pnl_pct = (pnl / initial_cash) * 100
-
-        result = {
-            "entry_time": entry_time,
-            "entry_cond": entry_cond,
-            "stop_loss": stop_loss,
-            "take_profit": take_profit,
-            "pnl": pnl,
-            "pnl_pct": pnl_pct,
-            "win_rate": avg_win_rate,
-            "max_drawdown_pct": max_drawdown_pct,
-            "total_trades": total_trades
-        }
-        results.append(result)
-
-        # choose best by pnl % first, then winrate
-        if pnl_pct > best_pnl_pct or (pnl_pct == best_pnl_pct and avg_win_rate > best_winrate):
-            best_pnl_pct = pnl_pct
-            best_winrate = avg_win_rate
-            best_params = (entry_time, entry_cond, stop_loss, take_profit)
-
-        print(result)
-
-    # save all results to JSON
     with open(results_file, "w") as f:
         json.dump(results, f, indent=4)
 

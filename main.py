@@ -2,8 +2,8 @@ import argparse
 from get_data import DataHandler
 from backtest import *
 from strategy.mean_reversal import MeanReversionIndicator
-from strategy.trend import IntradayTrend
-from strategy.scalp import Scalp
+from strategy.momentum import MomentumSMAIndicator
+from strategy.scalp import ScalpIndicator
 from strategy.swing import SwingMAIndicator
 from run_program import Equities
 
@@ -11,8 +11,8 @@ def main():
 
     strategy_map = {
         "mean": MeanReversionIndicator,
-        "trend": IntradayTrend,
-        "scalp": Scalp,
+        "momentum": MomentumSMAIndicator,
+        "scalp": ScalpIndicator,
         "swing": SwingMAIndicator
     }
 
@@ -42,7 +42,6 @@ def main():
         dh.stream_data(args.symbol, duration=args.duration)
     elif args.backtest:
         run_backtest(strategy_class, args.symbol, dh)
-        # grid_search_trend(strategy_class, args.symbol, dh)
         # grid_search_scalp(strategy_class, args.symbol, DataHandler)
         # grid_search_mean_reversion(strategy_class, args.symbol, DataHandler)
 
