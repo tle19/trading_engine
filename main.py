@@ -1,10 +1,10 @@
 import argparse
 from get_data import DataHandler
 from backtest import *
-from strategy.mean_reversal import MeanReversionIndicator
-from strategy.momentum import MomentumSMAIndicator
-from strategy.scalp import ScalpIndicator
-from strategy.swing import SwingMAIndicator
+from strategies.mean_reversal import MeanReversionIndicator
+from strategies.momentum import MomentumSMAIndicator
+from strategies.scalp import ScalpIndicator
+from strategies.swing import SwingMAIndicator
 from run_program import Equities
 
 def main():
