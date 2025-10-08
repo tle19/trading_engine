@@ -5,14 +5,22 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-
 import schwabdev
 
 from utils import *
 
 class Equities:
-    def __init__(self, symbol, strategy):
-        
+    def __init__(self, symbol, strategy_class, cash=30_000, margin=1.0, shares=1, daily_stop_loss=-250,
+                 force_close=True):
+        self.symbol = symbol
+        self.strategy = strategy_class(symbol)
+        self.cash = cash
+        self.shares = shares
+        self.margin = margin
+        self.force_close = force_close
+        self.daily_stop_loss = daily_stop_loss
+        self.position = None
+
         config = load_config()
         self.app_key = config['app_key']
         self.app_secret = config['app_secret']
@@ -23,18 +31,10 @@ class Equities:
 
         self.timezone = ZoneInfo("America/New_York")
 
-        self.strategy = strategy()
-        
-        self.symbol = symbol
-        self.position = None
-        self.shares = 10
-        self.daily_stop_loss = -250
-
         self.entry_response = None
         self.hold_response = None
 
     def start(self, duration=23520):
-        start_of_day_cash = 5000
         def response_handler(response):
             data = json.loads(response).get("data", [])
 
@@ -56,14 +56,19 @@ class Equities:
                 }
                 print(f"Timestamp: {timestamp}")
 
-            signal, stop_loss, take_profit, position_size = self.strategy.generate_signal(row)
-            if position_size is not None:
-                self.shares = (start_of_day_cash * position_size) // row["close"]
-            self.interpret_signal(signal, stop_loss, take_profit, position_size)
+            position_size = self.strategy.get_position_size()
+            stop_loss = self.strategy.get_stop_loss()
+            take_profit = self.strategy.get_take_profit()
+
+            signal = self.strategy.generate_signal(row)
+
+            # self.shares = ((avg_cash * position_size) // close) * self.margin
+
+            self.interpret_signal(signal, stop_loss, take_profit)
 
             # curr_cash = ???
             # if self.daily_stop_loss is not None:
-            #     cumulative_pnl = curr_cash - start_of_day_cash
+            #     cumulative_pnl = curr_cash - self.cash
             #     if cumulative_pnl <= self.daily_stop_loss:
             #         self.streamer.stop()  # skip rest of day
 
@@ -74,27 +79,27 @@ class Equities:
         
         self.streamer.stop()
 
-    def interpret_signal(self, signal, stop_pct, limit_pct, position_size):
+    def interpret_signal(self, signal, stop_loss, take_profit):
 
         # --- Enter Long ---
         if signal == 1 and self.position is None:
             self.position = "long"
             self.entry_response = self.buy_market(self.shares)
-            self.hold_response = self.long_bracket(self.shares, stop_pct, limit_pct, self.entry_response)
+            self.hold_response = self.long_bracket(self.shares, stop_loss, take_profit, self.entry_response)
 
         # --- Enter Short ---
         elif signal == -1 and self.position is None:
             self.position = "short"
             self.entry_response = self.sell_market(self.shares)
-            self.hold_response = self.short_bracket(self.shares, stop_pct, limit_pct, self.entry_response)
+            self.hold_response = self.short_bracket(self.shares, stop_loss, take_profit, self.entry_response)
         
         # --- Holding ---
-        elif signal is None and position_size is not None:
+        elif signal is None and self.position is not None:
             if self.position == "long":
-                self.replace_order(self.shares, stop_pct, limit_pct, self.entry_response, self.hold_response, self.position)
+                self.replace_order(self.shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
 
             elif self.position == "short":
-                self.replace_order(self.shares, stop_pct, limit_pct, self.entry_response, self.hold_response, self.position)
+                self.replace_order(self.shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
 
             self.position = None
 
@@ -152,25 +157,25 @@ class Equities:
         print(f"SELL -{quantity} {self.symbol}")
         return response
     
-    def long_bracket(self, quantity, stop_pct, limit_pct, response):
-        order_dict, stop_price, limit_price = self.get_sell_order_dict(quantity, stop_pct, limit_pct, response)
+    def long_bracket(self, quantity, stop_loss, take_profit, response):
+        order_dict, stop_price, profit_price = self.get_sell_order_dict(quantity, stop_loss, take_profit, response)
 
         response = self.client.order_place(self.hash, order_dict)
-        print(f"SET SL {stop_price} and TP {limit_price}")
+        print(f"SET SL {stop_price} and TP {profit_price}")
         return response
 
-    def short_bracket(self, quantity, stop_pct, limit_pct, response):
-        order_dict, stop_price, limit_price = self.get_buy_order_dict(quantity, stop_pct, limit_pct, response)
+    def short_bracket(self, quantity, stop_loss, take_profit, response):
+        order_dict, stop_price, profit_price = self.get_buy_order_dict(quantity, stop_loss, take_profit, response)
 
         response = self.client.order_place(self.hash, order_dict)
-        print(f"SET SL {stop_price} and TP {limit_price}")
+        print(f"SET SL {stop_price} and TP {profit_price}")
         return response
     
-    def get_buy_order_dict(self, quantity, stop_pct, limit_pct, response):
+    def get_buy_order_dict(self, quantity, stop_loss, take_profit, response):
 
         fill_price = self.get_fill_price(response)
-        stop_price = str(round(fill_price * (1 + stop_pct), 2))
-        limit_price = str(round(fill_price * (1 - limit_pct), 2))
+        stop_price = str(round(fill_price * (1 + stop_loss), 2))
+        profit_price = str(round(fill_price * (1 - take_profit), 2))
 
         order_dict = {
             "orderStrategyType": "OCO",
@@ -178,7 +183,7 @@ class Equities:
                 {
                     "orderType": "LIMIT",
                     "session": "NORMAL",
-                    "price": limit_price,
+                    "price": profit_price,
                     "duration": "DAY",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -212,13 +217,13 @@ class Equities:
             ]
         }
 
-        return order_dict, stop_price, limit_price
+        return order_dict, stop_price, profit_price
     
-    def get_sell_order_dict(self, quantity, stop_pct, limit_pct, response):
+    def get_sell_order_dict(self, quantity, stop_loss, take_profit, response):
 
         fill_price = self.get_fill_price(response)
-        stop_price = str(round(fill_price * (1 - stop_pct), 2))
-        limit_price = str(round(fill_price * (1 + limit_pct), 2))
+        stop_price = str(round(fill_price * (1 - stop_loss), 2))
+        profit_price = str(round(fill_price * (1 + take_profit), 2))
 
         order_dict = {
             "orderStrategyType": "OCO",
@@ -226,7 +231,7 @@ class Equities:
                 {
                     "orderType": "LIMIT",
                     "session": "NORMAL",
-                    "price": limit_price,
+                    "price": profit_price,
                     "duration": "DAY",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -260,7 +265,7 @@ class Equities:
             ]
         }
 
-        return order_dict, stop_price, limit_price
+        return order_dict, stop_price, profit_price
 
     def get_fill_price(self, response):
         order_id = response.headers.get('location', '/').split('/')[-1]
@@ -271,12 +276,12 @@ class Equities:
         fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / sum(leg['quantity'] for leg in legs)
         return fill_price
 
-    def replace_order(self, quantity, stop_pct, limit_pct, entry_response, hold_response, position=None):
+    def replace_order(self, quantity, stop_loss, take_profit, entry_response, hold_response, position=None):
         self.cancel_order(hold_response)
         if position == "long":
-            self.long_bracket(quantity, stop_pct, limit_pct, entry_response)
+            self.long_bracket(quantity, stop_loss, take_profit, entry_response)
         elif position == "short":
-            self.short_bracket(quantity, stop_pct, limit_pct, entry_response)
+            self.short_bracket(quantity, stop_loss, take_profit, entry_response)
 
     def cancel_order(self, response):
         order_id = response.headers.get('location', '/').split('/')[-1]

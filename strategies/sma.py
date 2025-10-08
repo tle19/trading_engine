@@ -1,7 +1,7 @@
 from strategies import Strategy
 import numpy as np
 
-class MomentumSMAIndicator(Strategy):
+class SMAIndicator(Strategy):
     def __init__(self, symbol, window=20, stop_loss=0.01, take_profit=0.01, position_size=1.0):
         super().__init__(symbol, stop_loss, take_profit, position_size)
         self.window = window

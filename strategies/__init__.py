@@ -1,13 +1,10 @@
 from .strategy import Strategy
-from .mean_reversal import MeanReversionIndicator
+from .mean_reversion import MeanReversionIndicator
 from .momentum import MomentumSMAIndicator
-from .scalp import ScalpIndicator
-from .swing import SwingMAIndicator
+from .sma import SMAIndicator
 
-__all__ = [
-    "Strategy",
-    "MeanReversionIndicator",
-    "MomentumSMAIndicator",
-    "ScalpIndicator",
-    "SwingMAIndicator",
-]
+strategy_map = {
+    "mean": MeanReversionIndicator,
+    "momentum": MomentumSMAIndicator,
+    "sma": SMAIndicator
+}

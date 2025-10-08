@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class MeanReversionIndicator:
     def __init__(self, symbol, entry_spread=0.00034, stop_loss=0.002125, take_profit=0.002125,
                  window=20):

@@ -1,22 +1,16 @@
 import argparse
 from core import *
-from strategies import *
+from strategies import strategy_map
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--backtest", action="store_true")
-    parser.add_argument("--strategy", type=str, default="momentum")
+    parser.add_argument("--strategy", type=str, default="sma")
     parser.add_argument("--symbol", type=str, default="TSLA")
     args = parser.parse_args()
 
-    strategy_map = {
-        "mean": MeanReversionIndicator,
-        "momentum": MomentumSMAIndicator,
-        "scalp": ScalpIndicator,
-        "swing": SwingMAIndicator
-    }
     strategy_class = strategy_map.get(args.strategy)
     if strategy_class is None:
         raise ValueError(f"Unknown strategy: {args.strategy}")
