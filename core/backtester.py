@@ -133,10 +133,15 @@ class Backtest:
                 current_equity = self.shares * (entry_price - close) + avg_cash
             intraday_equity.append(current_equity)
 
+        self.summary_stats()
+        self.plot_data(plot)
+
+    def summary_stats(self):
         self.stats.summary(
             self.cash, pess_cash, opt_cash, avg_cash,
             pess_trades, opt_trades, intraday_equity
         )   #caclulate average win rate in function
-        
+
+    def plot_data(self, plot=False):
         if plot:
             plot_equity(intraday_equity, self.symbol, start_date, end_date)

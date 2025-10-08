@@ -19,7 +19,7 @@ class MomentumSMAIndicator(Strategy):
         prices_window = self.prices[-self.window:]
         avg_price = np.mean(self.prices)
         sma = np.mean(prices_window)
-        
+
         # --- Entry logic ---
         if self.position is None:
             if sma > avg_price:
