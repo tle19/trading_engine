@@ -1,4 +1,4 @@
-from get_data import DataHandler
+from core.data_handler import DataHandler
 
 import numpy as np
 import pandas as pd
@@ -31,7 +31,7 @@ class SwingMAIndicator:  # SWINGMAINDICATOR REQUIRES STRAT OUTSIDE
         self.initialized = True
 
     def update(self, row):
-
+        # update = self.update(row, force_close=False)
         ts = row["timestamp"]
         if not self.initialized:
             self._load_history_up_to(ts)

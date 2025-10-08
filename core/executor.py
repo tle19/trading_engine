@@ -8,11 +8,12 @@ import pandas as pd
 
 import schwabdev
 
+from utils import *
+
 class Equities:
     def __init__(self, symbol, strategy):
-        with open("config.json") as f:
-            config = json.load(f)
-
+        
+        config = load_config()
         self.app_key = config['app_key']
         self.app_secret = config['app_secret']
 
@@ -55,7 +56,7 @@ class Equities:
                 }
                 print(f"Timestamp: {timestamp}")
 
-            signal, stop_loss, take_profit, position_size = self.strategy.update(row)
+            signal, stop_loss, take_profit, position_size = self.strategy.generate_signal(row)
             if position_size is not None:
                 self.shares = (start_of_day_cash * position_size) // row["close"]
             self.interpret_signal(signal, stop_loss, take_profit, position_size)

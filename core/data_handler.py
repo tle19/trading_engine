@@ -9,16 +9,15 @@ import pandas as pd
 import schwabdev
 from polygon import RESTClient
 
+from utils import *
 
 class DataHandler:
-    def __init__(self, data_path="data"):
-        self.data_path = data_path
+    def __init__(self):
+        config = load_config()
+        self.data_path = config['data_path']
         if not os.path.exists(self.data_path):
             os.mkdir(self.data_path)
 
-        # save keys in json
-        with open("config.json") as f:
-            config = json.load(f)
         self.api_key = config['api_key']
         self.app_key = config['app_key']
         self.app_secret = config['app_secret']
@@ -29,8 +28,9 @@ class DataHandler:
 
         self.timezone = ZoneInfo("America/New_York")
 
-    def historical_data(self, symbol='GOOG', from_date='2023-09-01', to_date='2025-09-01',
-                                timespan='minute', multiplier=2, max_iter=12):
+
+    def historical_data(self, symbol='GOOG', from_date='2023-10-01', to_date='2025-10-10',
+                                timespan='minute', multiplier=1, max_iter=10):
 
         data_list = []
         current_from = from_date
@@ -41,7 +41,7 @@ class DataHandler:
         elif symbol.upper().endswith("USD") and not symbol.startswith(("C:", "X:")):
             polygon_symbol = f"X:{symbol.upper()}"
         else:
-            polygon_symbol = symbol  # stock or already formatted
+            polygon_symbol = symbol  # equity or already formatted
 
         for _ in range(max_iter):
             print(current_from, "--->")
@@ -76,7 +76,8 @@ class DataHandler:
             time.sleep(13)
 
         df = pd.DataFrame(data_list)
-        self.save_data(df, symbol)
+        save_data(df, symbol)
+
 
     def schwab_historical_data(self, symbol='TSLA', periodType="day", period=10, frequencyType="minute", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
@@ -99,7 +100,7 @@ class DataHandler:
 
         df.rename(columns={"datetime": "timestamp"}, inplace=True)
 
-        self.save_data(df, symbol)
+        save_data(df, symbol)
 
 
     def stream_data(self, symbol, duration=300):
@@ -163,43 +164,11 @@ class DataHandler:
                 
         if "/" in symbol:
             self.streamer.start(forex_handler)
-            self.streamer.send(self.streamer.level_one_forex(symbol, "0,1,2,3,4,5,6,7", command="SUBS"))
-            
+            self.streamer.send(self.streamer.level_one_forex(symbol, "0,1,2,3,4,5,6,7", command="SUBS"))  
             time.sleep(duration)
-
             self.streamer.stop()
         else:
             self.streamer.start(equity_handler)
             self.streamer.send(self.streamer.chart_equity(symbol, "0,1,2,3,4,5,6", command="SUBS"))
-
             time.sleep(duration)
-
             self.streamer.stop()
-
-
-    def save_data(self, df, symbol):
-        df = df.drop_duplicates(subset=["timestamp"])
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
-        df["timestamp"] = df["timestamp"].dt.tz_convert(self.timezone)
-
-        file_path = os.path.join(self.data_path, f"{symbol}_historical_data.csv")
-        df.to_csv(file_path, index=False)
-        print(f"Saved CSV to {file_path}")
-
-    
-    def open_data(self, symbol, start_date=None, end_date=None, start_time="9:30", end_time="16:00"):
-        file_path = os.path.join(self.data_path, f"{symbol}_historical_data.csv")
-        df = pd.read_csv(file_path)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
-        df["timestamp"] = df["timestamp"].dt.tz_convert(self.timezone)
-
-        if start_date is not None and end_date is not None:
-            mask = (df['timestamp'].dt.date >= pd.to_datetime(start_date).date()) & \
-                    (df['timestamp'].dt.date <= pd.to_datetime(end_date).date())
-            df = df.loc[mask]
-
-        df = df.set_index('timestamp').between_time(start_time, end_time).reset_index()
-
-        return df
-
-    
