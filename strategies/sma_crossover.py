@@ -2,7 +2,8 @@ from strategies import Strategy
 import numpy as np
 
 class SMACrossoverIndicator(Strategy):
-    def __init__(self, symbol, short_window=20, long_window=30, stop_loss=0.005, take_profit=0.015, position_size=1.0):
+    def __init__(self, symbol, short_window=10, long_window=20, 
+                 stop_loss=0.005, take_profit=0.015, position_size=1.0):
         super().__init__(symbol, stop_loss, take_profit, position_size)
         self.short_window = short_window
         self.long_window = long_window
@@ -10,14 +11,16 @@ class SMACrossoverIndicator(Strategy):
     
     def generate_signal(self, row):
         update = self.update(row)
+        self.reset_data()
+        self.prices.append(self.close) # (self.close + self.high + self.low) / 3
         if update is not None:
             return update
         
-        self.prices.append(self.close)
         if len(self.prices) < self.long_window:
             return None
-        short_sma = np.mean(self.prices[-self.short_window:])
-        long_sma = np.mean(self.prices[-self.long_window:])
+            
+        short_sma = self.compute_sma(self.short_window)
+        long_sma = self.compute_sma(self.long_window)
 
         # --- Entry logic ---
         if self.position is None:
@@ -28,3 +31,10 @@ class SMACrossoverIndicator(Strategy):
 
         self.set_trailing_stop()
         return None
+    
+    def compute_sma(self, window):
+        return np.mean(self.prices[-window:])
+    
+    def reset_data(self):
+        if (self.ts.hour, self.ts.minute) <= (9, 30):
+            self.prices = []

@@ -21,6 +21,7 @@ class Strategy:
         self.close = 0
         self.high = 0
         self.low = 0
+        self.volume = 0
         self.ts = None
      
     def generate_signal(self, row=None):
@@ -33,6 +34,7 @@ class Strategy:
             self.close = row["close"]
             self.high = row["high"]
             self.low = row["low"]
+            self.volume = row["volume"]
             self.ts = row["timestamp"]
 
         if self.position == "long":
@@ -92,7 +94,7 @@ class Strategy:
         self.entry_price = 0
         self.stop_price = 0
         self.profit_price = 0
-
+        
     def get_stop_loss(self):
         return self.trailing_stop_loss if self.trailing else self.stop_loss
     

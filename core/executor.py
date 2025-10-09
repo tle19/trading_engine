@@ -17,8 +17,8 @@ class Equities:
         self.cash = cash
         self.shares = shares
         self.margin = margin
-        self.force_close = force_close
         self.daily_stop_loss = daily_stop_loss
+        self.force_close = force_close  
         self.position = None
 
         config = load_config()
