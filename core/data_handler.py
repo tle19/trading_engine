@@ -29,7 +29,7 @@ class DataHandler:
         self.timezone = ZoneInfo("America/New_York")
 
 
-    def historical_data(self, symbol='GOOG', from_date='2023-10-01', to_date='2025-10-10',
+    def historical_data(self, symbol='GOOG', from_date='2023-10-01', to_date='2025-10-01',
                                 timespan='minute', multiplier=1, max_iter=10):
 
         data_list = []
@@ -44,7 +44,9 @@ class DataHandler:
             polygon_symbol = symbol  # equity or already formatted
 
         for _ in range(max_iter):
-            print(current_from, "--->")
+            print(current_from)
+            print("     |")
+            print("     v")
             aggs = self.polygon_client.get_aggs(
                 polygon_symbol,
                 multiplier,
@@ -71,7 +73,8 @@ class DataHandler:
             # Advance current_from beyond last fetched bar
             last_ts = pd.to_datetime(rows[-1].timestamp, unit='ms', utc=True)
             current_from = (last_ts + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-
+            if current_from > pd.to_datetime(to_date).strftime("%Y-%m-%d"):
+                break
             # Respect Polygon's rate limit (5 calls/minute)
             time.sleep(13)
 
