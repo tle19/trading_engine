@@ -2,7 +2,7 @@ from strategies import Strategy
 import numpy as np
 
 class SMACrossoverIndicator(Strategy):
-    def __init__(self, symbol, short_window=20, long_window=30, stop_loss=0.01, take_profit=0.01, position_size=1.0):
+    def __init__(self, symbol, short_window=20, long_window=30, stop_loss=0.005, take_profit=0.015, position_size=1.0):
         super().__init__(symbol, stop_loss, take_profit, position_size)
         self.short_window = short_window
         self.long_window = long_window

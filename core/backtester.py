@@ -6,8 +6,8 @@ PESS = "pess"
 OPT = "opt"
 
 class Backtest:
-    def __init__(self, symbol, strategy_class, cash=30_000, margin=1.0, 
-                 shares=10, commission=0.0, slippage=0.0005, force_close=True):
+    def __init__(self, symbol, strategy_class, cash=25_000, margin=1.0, 
+                 shares=10, commission=0.0, slippage=0.0002, force_close=True):
         self.symbol = symbol
         self.strategy = strategy_class(symbol)
         self.cash = cash
@@ -20,7 +20,7 @@ class Backtest:
         self.stats = Stats(symbol)
         self.plotting = Plotting(symbol)
 
-    def run(self, start_date="2024-1-03", end_date="2024-5-03", plot=False):
+    def run(self, start_date="2023-10-02", end_date="2023-11-02", plot=True):
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 
         pess_cash = opt_cash = avg_cash = self.cash
@@ -28,7 +28,6 @@ class Backtest:
         entry_price = None
 
         for _, row in df.iterrows():
-            position_size = self.strategy.get_position_size()
             stop_loss = self.strategy.get_stop_loss()
             take_profit = self.strategy.get_take_profit()
 
@@ -39,28 +38,26 @@ class Backtest:
             low = row['low']
             ts = row["timestamp"]
 
-            # self.shares = ((avg_cash * position_size) // close) * self.margin
-
             # --- Enter Long ---
             if signal == 1 and position is None:
                 position = "long"
-                entry_price = close
+                entry_price = close * (1 + self.slippage)
 
             # --- Enter Short ---
             elif signal == -1 and position is None:
                 position = "short"
-                entry_price = close
+                entry_price = close * (1 - self.slippage)
 
             # --- Exit ---
             elif signal == 0 and position is not None:
                 if position == "long":
-                    stop_price = entry_price * (1 - stop_loss)
+                    stop_price = entry_price * (1 - stop_loss) * (1 - self.slippage)
                     profit_price = entry_price * (1 + take_profit)
                     pnl = 0
 
                     # --- Force Close ---
                     if self.force_close and (ts.hour, ts.minute) >= (15, 58):
-                        pnl = (close - entry_price) * self.shares
+                        pnl = (close * (1 - self.slippage) - entry_price) * self.shares
                         self.stats.update_trade(pnl, PESS)
                         self.stats.update_trade(pnl, OPT)
                         pess_cash += pnl
@@ -84,12 +81,12 @@ class Backtest:
 
                 # --- Force Close ---      
                 elif position == "short":
-                    stop_price = entry_price * (1 + stop_loss)
+                    stop_price = entry_price * (1 + stop_loss) * (1 + self.slippage)
                     profit_price = entry_price * (1 - take_profit)
                     pnl = 0
 
                     if self.force_close and (ts.hour, ts.minute) >= (15, 58):
-                        pnl = (entry_price - close) * self.shares
+                        pnl = (entry_price - close * (1 + self.slippage)) * self.shares
                         self.stats.update_trade(pnl, PESS)
                         self.stats.update_trade(pnl, OPT)
                         pess_cash += pnl

@@ -56,13 +56,10 @@ class Equities:
                 }
                 print(f"Timestamp: {timestamp}")
 
-            position_size = self.strategy.get_position_size()
             stop_loss = self.strategy.get_stop_loss()
             take_profit = self.strategy.get_take_profit()
 
             signal = self.strategy.generate_signal(row)
-
-            # self.shares = ((avg_cash * position_size) // close) * self.margin
 
             self.interpret_signal(signal, stop_loss, take_profit)
 

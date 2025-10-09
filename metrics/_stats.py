@@ -49,7 +49,6 @@ class Stats:
 
     def update_intraday_equity(self, equity):
         self.intraday_equity.append(equity)
-        self.equity_peak = max(self.intraday_equity) if self.intraday_equity else 0
 
     def update_cash_vals(self, cash, pess_cash, opt_cash, avg_cash):
         self.starting_cash = cash
@@ -64,7 +63,7 @@ class Stats:
 
     def summary(self):
         self.total_trades = len(self.pess_trades)
-
+        self.equity_peak = max(self.intraday_equity) if self.intraday_equity else 0
         self._calculate_win_rates()
         self._calculate_drawdown()
         self._calculate_streaks()
