@@ -20,7 +20,7 @@ class Backtest:
         self.stats = Stats(symbol)
         self.plotting = Plotting(symbol)
 
-    def run(self, start_date="2024-1-03", end_date="2024-2-03", plot=False):
+    def run(self, start_date="2024-1-03", end_date="2024-5-03", plot=False):
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 
         pess_cash = opt_cash = avg_cash = self.cash

@@ -1,10 +1,10 @@
 from .strategy import Strategy
 from .mean_reversion import MeanReversionIndicator
 from .momentum import MomentumSMAIndicator
-from .sma import SMAIndicator
+from .sma_crossover import SMACrossoverIndicator
 
 strategy_map = {
     "mean": MeanReversionIndicator,
     "momentum": MomentumSMAIndicator,
-    "sma": SMAIndicator
+    "sma": SMACrossoverIndicator
 }
