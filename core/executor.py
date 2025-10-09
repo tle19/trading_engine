@@ -13,7 +13,7 @@ class Equities:
     def __init__(self, symbol, strategy_class, cash=30_000, margin=1.0, shares=1, daily_stop_loss=-250,
                  force_close=True):
         self.symbol = symbol
-        self.strategy = strategy_class(symbol)
+        self.strategy = strategy_class
         self.cash = cash
         self.shares = shares
         self.margin = margin
@@ -58,10 +58,11 @@ class Equities:
 
             stop_loss = self.strategy.get_stop_loss()
             take_profit = self.strategy.get_take_profit()
+            is_trailing = self.strategy.is_trailing()
 
             signal = self.strategy.generate_signal(row)
 
-            self.interpret_signal(signal, stop_loss, take_profit)
+            self.interpret_signal(signal, stop_loss, take_profit, is_trailing)
 
             # curr_cash = ???
             # if self.daily_stop_loss is not None:
@@ -76,7 +77,7 @@ class Equities:
         
         self.streamer.stop()
 
-    def interpret_signal(self, signal, stop_loss, take_profit):
+    def interpret_signal(self, signal, stop_loss, take_profit, is_trailing=False):
 
         # --- Enter Long ---
         if signal == 1 and self.position is None:
@@ -91,7 +92,7 @@ class Equities:
             self.hold_response = self.short_bracket(self.shares, stop_loss, take_profit, self.entry_response)
         
         # --- Holding ---
-        elif signal is None and self.position is not None:
+        elif signal is None and self.position is not None and is_trailing:
             if self.position == "long":
                 self.replace_order(self.shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
 

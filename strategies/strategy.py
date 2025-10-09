@@ -4,10 +4,12 @@ EXIT = 0
 HOLD = None
 
 class Strategy:
-    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, position_size=1.0):
+    def __init__(self, symbol, position_size=1.0, 
+                 stop_loss=0.01, take_profit=0.02, trailing_ratio=0.5):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
+        self.trailing_ratio = trailing_ratio
         self.position_size = position_size
 
         self.position = None
@@ -70,9 +72,8 @@ class Strategy:
             self.flatten()
             return EXIT
 
-    def set_trailing_stop(self):
+    def set_trailing_stop(self, trailing_ratio):
         self.trailing = True
-        trailing_ratio = 0.5  # halfway between current stop and current price
         adjustment = trailing_ratio * abs(self.stop_price - self.close)
 
         if self.position == "long" and self.close > self.entry_price:
@@ -94,9 +95,12 @@ class Strategy:
         self.entry_price = 0
         self.stop_price = 0
         self.profit_price = 0
-        
+    
+    def is_trailing(self):
+        return self.trailing
+    
     def get_stop_loss(self):
-        return self.trailing_stop_loss if self.trailing else self.stop_loss
+        return self.trailing_stop_loss if self.is_trailing() else self.stop_loss
     
     def get_take_profit(self):
         return self.take_profit

@@ -2,9 +2,9 @@ from strategies import Strategy
 import numpy as np
 
 class SMACrossoverIndicator(Strategy):
-    def __init__(self, symbol, short_window=10, long_window=20, 
-                 stop_loss=0.005, take_profit=0.015, position_size=1.0):
-        super().__init__(symbol, stop_loss, take_profit, position_size)
+    def __init__(self, symbol, short_window=10, long_window=20, position_size=1.0, 
+                 stop_loss=0.005, take_profit=0.015, trailing_ratio=0.5):
+        super().__init__(symbol, position_size, stop_loss, take_profit, trailing_ratio)
         self.short_window = short_window
         self.long_window = long_window
         self.prices = []
@@ -29,9 +29,23 @@ class SMACrossoverIndicator(Strategy):
             elif short_sma < long_sma:
                 return self.sell()
 
-        self.set_trailing_stop()
+        self.set_dynamic_trailing_stop()
         return None
-    
+        
+    def set_dynamic_trailing_stop(self, min_dist_ratio=0.00075):
+        avg_price = self.compute_sma(self.long_window)
+        distance = abs(self.close - self.stop_price)
+        min_distance = avg_price * min_dist_ratio
+
+        if distance < min_distance:
+            return
+
+        max_ratio = 1 - (min_distance / distance)
+        trailing_ratio = min(self.trailing_ratio, max_ratio)
+        trailing_ratio = max(0.1, min(0.9, trailing_ratio))
+
+        self.set_trailing_stop(trailing_ratio)
+
     def compute_sma(self, window):
         return np.mean(self.prices[-window:])
     

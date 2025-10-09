@@ -3,9 +3,9 @@ import numpy as np
 
 class MomentumSMAIndicator(Strategy):
     def __init__(self, symbol, rsi_period=8, rsi_long=40, rsi_short=60,
-                 momentum_window=10, sma_window=5,
-                 stop_loss=0.01, take_profit=0.01, position_size=1.0):
-        super().__init__(symbol, stop_loss, take_profit, position_size)
+                 momentum_window=10, sma_window=5, position_size=1.0,
+                 stop_loss=0.01, take_profit=0.01, trailing_ratio=0.5):
+        super().__init__(symbol, position_size, stop_loss, take_profit, trailing_ratio)
         self.rsi_period = rsi_period
         self.rsi_long = rsi_long
         self.rsi_short = rsi_short

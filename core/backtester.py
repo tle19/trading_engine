@@ -6,12 +6,12 @@ PESS = "pess"
 OPT = "opt"
 
 class Backtest:
-    def __init__(self, symbol, strategy_class, cash=25_000, margin=1.0, 
-                 shares=10, commission=0.0, slippage=0.0002, force_close=True):
+    def __init__(self, symbol, strategy_class, cash=25_000, shares=10, 
+                 margin=1.0, commission=0.0, slippage=0.0002, force_close=True):
         self.symbol = symbol
-        self.strategy = strategy_class(symbol)
+        self.strategy = strategy_class
         self.cash = cash
-        self.shares = shares
+        self.shares = shares * margin
         self.margin = margin
         self.commission = commission
         self.slippage = slippage
