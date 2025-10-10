@@ -79,6 +79,7 @@ class Backtest:
                         self.stats.update_trade(pnl, OPT)
                         opt_cash += pnl
 
+                    self.strategy.check_pnl(pnl)
                 # --- Force Close ---      
                 elif position == "short":
                     stop_price = entry_price * (1 + stop_loss) * (1 + self.slippage)
@@ -108,6 +109,7 @@ class Backtest:
                         self.stats.update_trade(pnl, OPT)
                         opt_cash += pnl
 
+                    self.strategy.check_pnl(pnl)
                 position = None
                 entry_price = None
                 avg_cash = (pess_cash + opt_cash) / 2
@@ -129,3 +131,6 @@ class Backtest:
             current_equity = self.shares * (entry_price - close) + cash
         self.stats.update_intraday_equity(current_equity)
         self.plotting.update_intraday_equity(current_equity)
+
+    def get_stats_class(self):
+        return self.stats

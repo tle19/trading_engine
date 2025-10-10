@@ -90,7 +90,7 @@ class Stats:
 
         print("-" * 40)
         print(f"Equity Peak [$]:       {self.equity_peak:.2f}")
-        print(f"Max. Drawdown [%]:     {self.max_drawdown:.2f}")
+        print(f"Max. Drawdown [%]:     {self.max_drawdown:.2f}%")
         print(f"Consec Wins:           {self.max_win_streak} (${self.max_win_gain:.2f})")
         print(f"Consec Losses:         {self.max_loss_streak} (${self.max_loss_loss:.2f})")
         print(f"# Trades:              {self.total_trades}")
@@ -170,3 +170,26 @@ class Stats:
         self.avg_change = np.mean(changes)
         self.profit_factor = abs(self.gross_profit / self.gross_loss) if self.gross_loss != 0 else np.inf
 
+    def get_data_dict(self):
+        profit = self.avg_cash - self.starting_cash
+        profit_pct = (profit / self.starting_cash) * 100 if self.starting_cash else 0
+
+        data = {
+            "Equity Final [$]": float(self.avg_cash),
+            "Return [$]": profit,
+            "Return [%]": profit_pct,
+            "Win Rate [%]": float(self.avg_win_rate * 100) if self.avg_win_rate is not None else None,
+            "Equity Peak [$]": float(self.equity_peak),
+            "Max Drawdown [%]": float(self.max_drawdown),
+            "Consec Wins": int(self.max_win_streak),
+            "Max Win Gain [$]": float(self.max_win_gain),
+            "Consec Losses": int(self.max_loss_streak),
+            "Max Loss [$]": float(self.max_loss_loss),
+            "# Trades": int(self.total_trades),
+            "Gross Profit [$]": float(self.gross_profit),
+            "Gross Loss [$]": float(self.gross_loss),
+            "Net Profit [$]": float(self.net_profit),
+            "Avg Δ per step [$]": float(self.avg_change),
+            "Profit Factor": float(self.profit_factor)
+        }
+        return data
