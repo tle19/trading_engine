@@ -1,21 +1,19 @@
-import json
 import os
+import json
 import time
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-import pandas as pd
 import schwabdev
 
 from utils import *
 
 class Equities:
-    def __init__(self, symbol, strategy_class, cash=30_000, margin=1.0, shares=1, daily_stop_loss=-250,
-                 force_close=True):
+    def __init__(self, symbol, strategy_class, cash=30_000, margin=1.0, shares=1, force_close=True):
         self.symbol = symbol
         self.strategy = strategy_class
         self.cash = cash
-        self.shares = shares
+        self.shares = shares * margin
         self.margin = margin
         self.force_close = force_close
         self.prev_stop = None
@@ -296,9 +294,9 @@ class Equities:
         self.client.order_cancel(self.hash, order_id)
 
 
-# from strategy.trend import IntradayTrend
+# from strategies import SMACrossoverIndicator
 
-# pr = Equities("GOOG", IntradayTrend)
+# pr = Equities("TSLA", SMACrossoverIndicator)
 # entry_response = pr.sell_market(1)
 # hold_response = pr.short_bracket(1, 0.001, 0.001, entry_response)
 # time.sleep(5)
