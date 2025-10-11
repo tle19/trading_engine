@@ -94,7 +94,7 @@ symbols = ["SPY", "QQQ",
            "MSFT", "META", 
            "TSM", "CSCO", 
            "INTC", "ADBE"]
-curr_symbol = symbols[2]
+curr_symbol = symbols[8]
 
 
 # fetch_multiple_symbols(symbols)

@@ -48,11 +48,11 @@ class SMACrossoverIndicator(Strategy):
         htf_ma = self.compute_ma(self.prices, self.htf_window)
 
         trend_strength = abs(fast_ma - slow_ma)
-        min_trend = 0.01
+        min_trend = 0.01 #consider percetage based
         if trend_strength < min_trend:
             return None
         
-        if fast_ma > slow_ma >= htf_ma:
+        if fast_ma > slow_ma >= htf_ma and self.close < self.open:
             return self.buy()
-        elif fast_ma < slow_ma <= htf_ma:
+        elif fast_ma < slow_ma <= htf_ma and self.close > self.open:
             return self.sell()
