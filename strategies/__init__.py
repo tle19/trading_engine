@@ -1,4 +1,4 @@
-from .strategy import Strategy
+from .strategy import Strategy, RiskManager
 from .mean_reversion import MeanReversionIndicator
 from .momentum import MomentumSMAIndicator
 from .sma_crossover import SMACrossoverIndicator

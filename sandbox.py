@@ -25,7 +25,7 @@ def run_one_backtest(symbol):
                                 stop_loss=0.005, take_profit=0.015, trailing_ratio=0.2)
     bt = Backtest(symbol, strat, cash=25_000, margin=1.0, shares=30, 
                 commission=0.0, slippage=0.0002, force_close=True)
-    bt.run(start_date="2023-10-02", end_date="2024-10-02")
+    bt.run(start_date="2023-10-02", end_date="2024-10-02", plot=True)
 
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
@@ -101,6 +101,7 @@ curr_symbol = symbols[2]
 run_one_backtest(curr_symbol)
 # grid_search(curr_symbol)
 # grid_search_results()
+
 
 # walk forward optimization / OOS
 

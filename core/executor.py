@@ -21,6 +21,8 @@ class Equities:
         self.force_close = force_close  
         self.position = None
 
+        self.risk_manager = self.strategy.get_risk_manager()
+
         config = load_config()
         self.app_key = config['app_key']
         self.app_secret = config['app_secret']
@@ -69,6 +71,8 @@ class Equities:
             #     cumulative_pnl = curr_cash - self.cash
             #     if cumulative_pnl <= self.daily_stop_loss:
             #         self.streamer.stop()  # skip rest of day
+            # check risk after exiting position
+            # self.risk_manager.check_risk(pnl)
 
         self.streamer.start(response_handler)
         

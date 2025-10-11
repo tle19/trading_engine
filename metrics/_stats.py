@@ -30,6 +30,7 @@ class Stats:
         self.gross_profit = 0
         self.gross_loss = 0
         self.net_profit = 0
+        self.net_profit_pct = 0
         self.avg_change = 0
         self.profit_factor = np.inf
 
@@ -61,7 +62,7 @@ class Stats:
         self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
         self.duration = self.end_date - self.start_date if self.start_date and self.end_date else None
 
-    def summary(self):
+    def summary(self, mode=""):
         self.total_trades = len(self.pess_trades)
         self.equity_peak = max(self.intraday_equity) if self.intraday_equity else 0
         self._calculate_win_rates()
@@ -69,34 +70,30 @@ class Stats:
         self._calculate_streaks()
         self._daily_pnls()
         
-        print(f"\n{self.symbol} PERFORMANCE SUMMARY")
+        if mode == "pess":
+            cash, win_rate, name = self.pess_cash, self.pess_win_rate, "PESSIMISTIC"
+        elif mode == "opt":
+            cash, win_rate, name = self.opt_cash, self.opt_win_rate, "OPTIMISTIC"
+        else:
+            cash, win_rate, name = self.avg_cash, self.avg_win_rate, "BASE"
+        
+        print("-" * 40)
+        print(f"\n{self.symbol} PERFORMANCE SUMMARY {name}")
         print("-" * 40)
         print(f"Start:                 {self.start_date}")
         print(f"End:                   {self.end_date}")
         print(f"Duration:              {self.duration}")
         print("-" * 40)
-        for scenario, cash, win_rate in [
-            ("Pessimistic", self.pess_cash, self.pess_win_rate),
-            ("Optimistic", self.opt_cash, self.opt_win_rate),
-            ("Average", self.avg_cash, self.avg_win_rate)
-        ]:
-            profit = cash - self.starting_cash
-            profit_pct = (profit / self.starting_cash) * 100 if self.starting_cash else 0
-            print(f"{scenario} Scenario:")
-            print(f"  Equity Final [$]: ${cash:.2f}")
-            print(f"  Return [%]: ${profit:.2f} ({profit_pct:.2f}%)")
-            print(f"  Win Rate [%]: {win_rate:.2%}" if win_rate is not None else "  No trades")
-            print()
-
-        print("-" * 40)
-        print(f"Equity Peak [$]:       {self.equity_peak:.2f}")
-        print(f"Max. Drawdown [%]:     {self.max_drawdown:.2f}%")
+        print(f"Win Rate:              {win_rate:.2%}" if win_rate is not None else "  No trades")
+        print(f"Equity Final:          ${cash:.2f}")
+        print(f"Equity Peak:           ${self.equity_peak:.2f}")
+        print(f"Max. Drawdown:         {self.max_drawdown:.2f}%")
         print(f"Consec Wins:           {self.max_win_streak} (${self.max_win_gain:.2f})")
         print(f"Consec Losses:         {self.max_loss_streak} (${self.max_loss_loss:.2f})")
-        print(f"# Trades:              {self.total_trades}")
+        print(f"# of Trades:           {self.total_trades}")
         print(f"Gross Profit:          ${self.gross_profit:.2f}")
-        print(f"Gross Loss:            ${self.gross_loss:.2f}")
-        print(f"Net Profit:            ${self.net_profit:.2f}")
+        print(f"Gross Loss:            $({self.gross_loss:.2f})")
+        print(f"Net Profit:            ${self.net_profit:.2f} ({self.net_profit_pct:.2f}%)")
         print(f"Avg Δ per step:        ${self.avg_change:.2f}")
         print(f"Profit Factor:         {self.profit_factor:.2f}")
 
@@ -165,8 +162,9 @@ class Stats:
         losses = changes[changes < 0]
 
         self.gross_profit = wins.sum()
-        self.gross_loss = losses.sum()
-        self.net_profit = self.gross_profit + self.gross_loss
+        self.gross_loss = abs(losses.sum())
+        self.net_profit = self.gross_profit - self.gross_loss
+        self.net_profit_pct = (self.net_profit / self.starting_cash) * 100
         self.avg_change = np.mean(changes)
         self.profit_factor = abs(self.gross_profit / self.gross_loss) if self.gross_loss != 0 else np.inf
 

@@ -6,7 +6,7 @@ EXIT = 0
 HOLD = None
 
 class Strategy:
-    def __init__(self, symbol, position_size=1.0, 
+    def __init__(self, symbol, position_size=1.0,
                  stop_loss=0.01, take_profit=0.02, trailing_ratio=0.5):
         self.symbol = symbol
         self.stop_loss = stop_loss
@@ -29,12 +29,9 @@ class Strategy:
         self.ts = None
 
         self.prices = []
-        self.volumes = []
+        self.volumes = [] 
 
-        self.risk = 0
-        self.pause = False
-        self.pause_timer = 0
-        
+        self.risk_manager = RiskManager(risk_threshold=5, pause_duration=5)
      
     def generate_signal(self, row=None):
         self.update(row)
@@ -111,6 +108,8 @@ class Strategy:
             self.trailing_stop_loss = (self.stop_price / self.entry_price) - 1
 
     def set_trailing_stop_safe(self, stability_window=20, min_dist_ratio=0.00075):
+        if len(self.prices) < stability_window:
+            return None
         avg_price = self.compute_ma(stability_window)
         distance = abs(self.stop_price - self.close)
         min_distance = avg_price * min_dist_ratio
@@ -130,25 +129,6 @@ class Strategy:
 
     def trade_window(self, start, end):
         return start <= (self.ts.hour, self.ts.minute) <= end
-        
-    def check_pnl(self, pnl):
-        if pnl < 0:
-            self.risk += 1
-        elif pnl > 0:
-            self.risk -= 1
-        self.risk = max(0, min(7, self.risk))
-
-    def check_risk(self):
-        if self.risk >= 5:
-            self.pause = True
-
-    def risk_timer(self):
-        if self.pause_timer < 5:
-            self.pause_timer += 1
-        else:
-            self.risk = 0
-            self.pause = False
-            self.pause_timer = 0
 
     def compute_ma(self, window):
         return np.mean(self.prices[-window:])
@@ -173,4 +153,54 @@ class Strategy:
     
     def update_entry_price(self, entry_price):
         self.entry_price = entry_price
+
+    def get_risk_manager(self):
+        return self.risk_manager
+
+
+class RiskManager:
+    def __init__(self, risk_threshold=5, pause_duration=5, pnl_target=200, pnl_loss=200):
+        self.risk_threshold = risk_threshold
+        self.pause_duration = pause_duration
+        self.pnl_target = pnl_target
+        self.pnl_loss = pnl_loss
+        self.pnl = 0
+        self.stop_day = False
+        self.risk = 0
+        self.pause = False
+        self._pause_counter = 0
+
+    def check_risk(self, pnl):
+        self.pnl += pnl
+        if not self.pause:
+            if pnl < 0:
+                self.risk += 1
+            elif pnl > 0:
+                self.risk = max(0, self.risk - 1)
+
+        if self.risk >= self.risk_threshold:
+            self.pause = True
+        
+        if self.pnl >= self.pnl_target or self.pnl <= -self.pnl_loss:
+            self.stop_day = True
+
+    def tick(self):
+        if self.pause:
+            self._pause_counter += 1
+            if self._pause_counter >= self.pause_duration:
+                self.risk = 0
+                self.pause = False
+                self._pause_counter = 0
+
+    def reset_risk(self):
+        self.pnl = 0
+        self.stop_day = False
+        self.risk = 0
+        self.pause = False
+        self._pause_counter = 0
+
+    def is_paused(self):
+        return self.pause
     
+    def daily_stop(self):
+        return self.stop_day
