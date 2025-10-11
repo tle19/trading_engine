@@ -59,6 +59,8 @@ class Equities:
             stop_loss = self.strategy.get_stop_loss()
             take_profit = self.strategy.get_take_profit()
             is_trailing = self.strategy.is_trailing()
+            position_size = self.strategy.get_position_size()
+            shares = max(1, round(self.shares * position_size))
 
             signal = self.strategy.generate_signal(row)
 
@@ -69,11 +71,8 @@ class Equities:
 
             self.interpret_signal(signal, stop_loss, take_profit, is_trailing, sl_change)
 
-            # curr_cash = ???
-            # if self.daily_stop_loss is not None:
+            # curr_cash = api call to broker
             #     cumulative_pnl = curr_cash - self.cash
-            #     if cumulative_pnl <= self.daily_stop_loss:
-            #         self.streamer.sto
             # p()  # skip rest of day
             # check risk after exiting position
             # self.risk_manager.check_risk(pnl)

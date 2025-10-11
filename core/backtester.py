@@ -31,6 +31,8 @@ class Backtest:
         for _, row in df.iterrows():
             stop_loss = self.strategy.get_stop_loss()
             take_profit = self.strategy.get_take_profit()
+            position_size = self.strategy.get_position_size()
+            shares = max(1, int(round(self.shares * position_size)))
 
             signal = self.strategy.generate_signal(row)
 
@@ -58,7 +60,7 @@ class Backtest:
 
                     # --- Force Close ---
                     if self.force_close and (ts.hour, ts.minute) >= (15, 58):
-                        pnl = (close * (1 - self.slippage) - entry_price) * self.shares
+                        pnl = (close * (1 - self.slippage) - entry_price) * shares
                         self.stats.update_trade(pnl, PESS)
                         self.stats.update_trade(pnl, OPT)
                         pess_cash += pnl
@@ -66,17 +68,17 @@ class Backtest:
                     else:
                         # --- Pessimistic Case ---
                         if low <= stop_price:
-                            pnl = (stop_price - entry_price) * self.shares
+                            pnl = (stop_price - entry_price) * shares
                         elif high >= profit_price:
-                            pnl = (profit_price - entry_price) * self.shares
+                            pnl = (profit_price - entry_price) * shares
                         self.stats.update_trade(pnl, PESS)
                         pess_cash += pnl
 
                         # --- Optimistic Case ---
                         if high >= profit_price:
-                            pnl = (profit_price - entry_price) * self.shares
+                            pnl = (profit_price - entry_price) * shares
                         elif low <= stop_price:
-                            pnl = (stop_price - entry_price) * self.shares
+                            pnl = (stop_price - entry_price) * shares
                         self.stats.update_trade(pnl, OPT)
                         opt_cash += pnl
 
@@ -89,7 +91,7 @@ class Backtest:
 
                     # --- Force Close ---   
                     if self.force_close and (ts.hour, ts.minute) >= (15, 58):
-                        pnl = (entry_price - close * (1 + self.slippage)) * self.shares
+                        pnl = (entry_price - close * (1 + self.slippage)) * shares
                         self.stats.update_trade(pnl, PESS)
                         self.stats.update_trade(pnl, OPT)
                         pess_cash += pnl
@@ -97,17 +99,17 @@ class Backtest:
                     else:
                         # --- Pessimistic Case ---
                         if high >= stop_price:
-                            pnl = (entry_price - stop_price) * self.shares
+                            pnl = (entry_price - stop_price) * shares
                         elif low <= profit_price:
-                            pnl = (entry_price - profit_price) * self.shares
+                            pnl = (entry_price - profit_price) * shares
                         self.stats.update_trade(pnl, PESS)
                         pess_cash += pnl
 
                         # --- Optimistic Case ---
                         if low <= profit_price:
-                            pnl = (entry_price - profit_price) * self.shares
+                            pnl = (entry_price - profit_price) * shares
                         elif high >= stop_price:
-                            pnl = (entry_price - stop_price) * self.shares
+                            pnl = (entry_price - stop_price) * shares
                         self.stats.update_trade(pnl, OPT)
                         opt_cash += pnl
 
@@ -117,7 +119,7 @@ class Backtest:
                 entry_price = None
                 avg_cash = (pess_cash + opt_cash) / 2
 
-            self.update_equity(position, pess_cash, opt_cash, avg_cash, close, entry_price)
+            self.update_equity(position, shares, pess_cash, opt_cash, avg_cash, close, entry_price)
 
         self.stats.update_cash_vals(self.cash, pess_cash, opt_cash, avg_cash)
         self.stats.update_dates(start_date, end_date)
@@ -126,7 +128,7 @@ class Backtest:
         self.stats.summary()
         self.plotting.plot_equity() if plot else None
 
-    def update_equity(self, position, pess_cash, opt_cash, avg_cash, close, entry_price, mode=""):
+    def update_equity(self, position, shares, pess_cash, opt_cash, avg_cash, close, entry_price, mode=""):
         if mode == "pess":
             cash = pess_cash
         elif mode == "opt":
@@ -136,9 +138,9 @@ class Backtest:
 
         current_equity = cash
         if position == "long":
-            current_equity = self.shares * (close - entry_price) + cash
+            current_equity = shares * (close - entry_price) + cash
         elif position == "short":
-            current_equity = self.shares * (entry_price - close) + cash
+            current_equity = shares * (entry_price - close) + cash
         self.stats.update_intraday_equity(current_equity)
         self.plotting.update_intraday_equity(current_equity)
 
