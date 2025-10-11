@@ -17,8 +17,8 @@ class Equities:
         self.cash = cash
         self.shares = shares
         self.margin = margin
-        self.daily_stop_loss = daily_stop_loss
-        self.force_close = force_close  
+        self.force_close = force_close
+        self.prev_stop = None
         self.position = None
 
         self.risk_manager = self.strategy.get_risk_manager()
@@ -64,13 +64,19 @@ class Equities:
 
             signal = self.strategy.generate_signal(row)
 
-            self.interpret_signal(signal, stop_loss, take_profit, is_trailing)
+            sl_change = True
+            if is_trailing and self.prev_stop == stop_loss:
+                sl_change = False
+            self.prev_stop = stop_loss
+
+            self.interpret_signal(signal, stop_loss, take_profit, is_trailing, sl_change)
 
             # curr_cash = ???
             # if self.daily_stop_loss is not None:
             #     cumulative_pnl = curr_cash - self.cash
             #     if cumulative_pnl <= self.daily_stop_loss:
-            #         self.streamer.stop()  # skip rest of day
+            #         self.streamer.sto
+            # p()  # skip rest of day
             # check risk after exiting position
             # self.risk_manager.check_risk(pnl)
 
@@ -81,7 +87,7 @@ class Equities:
         
         self.streamer.stop()
 
-    def interpret_signal(self, signal, stop_loss, take_profit, is_trailing=False):
+    def interpret_signal(self, signal, stop_loss, take_profit, is_trailing, sl_change):
 
         # --- Enter Long ---
         if signal == 1 and self.position is None:
@@ -96,7 +102,7 @@ class Equities:
             self.hold_response = self.short_bracket(self.shares, stop_loss, take_profit, self.entry_response)
         
         # --- Holding ---
-        elif signal is None and self.position is not None and is_trailing:
+        elif signal is None and self.position is not None and is_trailing and sl_change:
             if self.position == "long":
                 self.replace_order(self.shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
 
