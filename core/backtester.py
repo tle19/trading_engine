@@ -29,6 +29,7 @@ class Backtest:
         entry_price = None
 
         for _, row in df.iterrows():
+
             stop_loss = self.strategy.get_stop_loss()
             take_profit = self.strategy.get_take_profit()
             position_size = self.strategy.get_position_size()
@@ -40,6 +41,9 @@ class Backtest:
             high = row['high']
             low = row['low']
             ts = row["timestamp"]
+
+            # if (ts.hour, ts.minute) == (9, 30):
+            #     day_start_cash = avg_cash
 
             # --- Enter Long ---
             if signal == 1 and position is None:
@@ -120,6 +124,9 @@ class Backtest:
                 avg_cash = (pess_cash + opt_cash) / 2
 
             self.update_equity(position, shares, pess_cash, opt_cash, avg_cash, close, entry_price)
+            
+            # if (ts.hour, ts.minute) == (15, 59):
+            #     print(avg_cash - day_start_cash)
 
         self.stats.update_cash_vals(self.cash, pess_cash, opt_cash, avg_cash)
         self.stats.update_dates(start_date, end_date)
