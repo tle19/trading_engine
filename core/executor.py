@@ -17,6 +17,7 @@ class Equities:
         self.margin = margin
         self.force_close = force_close
         self.prev_stop = None
+        self.prev_profit = None
         self.position = None
 
         self.risk_manager = self.strategy.get_risk_manager()

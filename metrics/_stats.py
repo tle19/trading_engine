@@ -98,7 +98,7 @@ class Stats:
         print(f"Equity Peak:                ${self.equity_peak:.2f}")
         print(f"Max Drawdown:               {self.max_drawdown:.2f}%")
         print(f"Win Rate:                   {win_rate:.2%}" if win_rate is not None else "No trades")
-        print(f"Daily Win Rate              {self.daily_win_rate:.2%}" if self.daily_win_rate is not None else "No trades")
+        print(f"Daily Win Rate:             {self.daily_win_rate:.2%}" if self.daily_win_rate is not None else "No trades")
         print("-" * 50)
 
         # --- Trade statistics ---
@@ -138,7 +138,7 @@ class Stats:
         drawdowns = (cum_max - intraday_equity) / cum_max
         self.max_drawdown = np.max(drawdowns) * 100
 
-    def _calculate_streaks(self, intraday_equity):
+    def _calculate_streaks(self, intraday_equity): #may need to recalculate
         changes = np.diff(intraday_equity)
 
         # Wins
@@ -224,6 +224,11 @@ class Stats:
                 current_win = current_loss = 0
                 current_win_sum = current_loss_sum = 0
 
+    def get_time_loss(self):
+        # find time of day where loss is irrecoverable, set loss there
+        # dont want to stop out day if loss is in very beggining of day (could recover)
+        raise NotImplementedError
+    
     def get_data_dict(self):
         profit = self.avg_cash - self.starting_cash
         profit_pct = (profit / self.starting_cash) * 100 if self.starting_cash else 0

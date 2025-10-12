@@ -188,14 +188,14 @@ class RiskManager:
         self.pnl_target = pnl_target
         self.pnl_loss = pnl_loss
         self.pnl = 0
-        self.day_stop = False
+        self.day_pause = False
         self.risk = 0
         self.pause = False
         self._pause_counter = 0
 
     def check_risk(self, pnl):
         self.pnl += pnl
-        if not self.pause:
+        if not self.is_trade_pause():
             if pnl < 0:
                 self.risk += 1
             elif pnl > 0:
@@ -205,34 +205,38 @@ class RiskManager:
         if self.risk >= self.risk_threshold:
             self.pause = True
 
-    def daily_risk(self):    
-        if self.pnl >= self.pnl_target or self.pnl <= -self.pnl_loss:
-            self.day_stop = True
-
     def tick(self):
-        if self.pause:
+        if self.is_trade_pause():
             self._pause_counter += 1
             if self._pause_counter >= self.pause_duration:
                 self.risk = 0
                 self.pause = False
                 self._pause_counter = 0
+
+    def daily_risk_target(self):    
+        if self.pnl >= self.pnl_target:
+            self.day_pause = True
+
+    def daily_risk_stop(self):    
+        if self.pnl <= -self.pnl_loss:
+            self.day_pause = True
     
     def dynamic_position_sizing(self, position_size):
         if self.pnl >= self.pnl_target:
             ratio = self.pnl / self.pnl_target
-            scale = 0.5 / ratio
+            scale = 0.75 / ratio
             return position_size * scale
         return position_size
 
     def reset_risk(self):
         self.pnl = 0
-        self.day_stop = False
+        self.day_pause = False
         self.risk = 0
         self.pause = False
         self._pause_counter = 0
 
-    def is_paused(self):
+    def is_trade_pause(self):
         return self.pause
     
-    def is_day_stop(self):
-        return self.day_stop
+    def is_day_pause(self):
+        return self.day_pause
