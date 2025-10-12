@@ -42,8 +42,6 @@ class Backtest:
             low = row['low']
             ts = row["timestamp"]
 
-            # if (ts.hour, ts.minute) == (9, 30):
-            #     day_start_cash = avg_cash
 
             # --- Enter Long ---
             if signal == 1 and position is None:
@@ -57,10 +55,10 @@ class Backtest:
 
             # --- Exit ---
             elif signal == 0 and position is not None:
+                pnl = 0
                 if position == "long":
                     stop_price = entry_price * (1 - stop_loss) * (1 - self.slippage)
                     profit_price = entry_price * (1 + take_profit)
-                    pnl = 0
 
                     # --- Force Close ---
                     if self.force_close and (ts.hour, ts.minute) >= (15, 58):
@@ -86,12 +84,9 @@ class Backtest:
                         self.stats.update_trade(pnl, OPT)
                         opt_cash += pnl
 
-                    self.risk_manager.check_risk(pnl)
-                   
                 elif position == "short":
                     stop_price = entry_price * (1 + stop_loss) * (1 + self.slippage)
                     profit_price = entry_price * (1 - take_profit)
-                    pnl = 0
 
                     # --- Force Close ---   
                     if self.force_close and (ts.hour, ts.minute) >= (15, 58):
@@ -117,16 +112,13 @@ class Backtest:
                         self.stats.update_trade(pnl, OPT)
                         opt_cash += pnl
 
-                    self.risk_manager.check_risk(pnl)
-
                 position = None
                 entry_price = None
                 avg_cash = (pess_cash + opt_cash) / 2
+                self.risk_manager.check_risk(pnl)
 
-            self.update_equity(position, shares, pess_cash, opt_cash, avg_cash, close, entry_price)
-            
-            # if (ts.hour, ts.minute) == (15, 59):
-            #     print(avg_cash - day_start_cash)
+            cash = self.mode_switch(pess_cash, opt_cash, avg_cash)
+            self.update_equity(cash, position, shares, close, entry_price, ts)
 
         self.stats.update_cash_vals(self.cash, pess_cash, opt_cash, avg_cash)
         self.stats.update_dates(start_date, end_date)
@@ -135,21 +127,23 @@ class Backtest:
         self.stats.summary()
         self.plotting.plot_equity() if plot else None
 
-    def update_equity(self, position, shares, pess_cash, opt_cash, avg_cash, close, entry_price, mode=""):
+    def update_equity(self, cash, position, shares, close, entry_price, ts):
+        current_equity = cash
+        if position == "long":
+            current_equity = shares * (close - entry_price) + cash
+        elif position == "short":
+            current_equity = shares * (entry_price - close) + cash
+        self.stats.update_intraday_equity(ts, current_equity)
+        self.plotting.update_intraday_equity(current_equity)
+
+    def mode_switch(self, pess_cash, opt_cash, avg_cash, mode=""):
         if mode == "pess":
             cash = pess_cash
         elif mode == "opt":
             cash = opt_cash
         else:
             cash = avg_cash
-
-        current_equity = cash
-        if position == "long":
-            current_equity = shares * (close - entry_price) + cash
-        elif position == "short":
-            current_equity = shares * (entry_price - close) + cash
-        self.stats.update_intraday_equity(current_equity)
-        self.plotting.update_intraday_equity(current_equity)
+        return cash
 
     def get_stats_class(self):
         return self.stats
