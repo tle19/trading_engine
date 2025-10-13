@@ -21,8 +21,8 @@ def fetch_multiple_symbols():
 def run_one_backtest(symbol):
     start_time = time.perf_counter()
 
-    strat = SMACrossoverIndicator(symbol, fast_window=10, slow_window=20, position_size=1.0, 
-                                stop_loss=0.005, take_profit=0.015, trailing_ratio=0.2)
+    strat = SMACrossoverIndicator(symbol, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, 
+                                stop_loss=0.005, take_profit=0.015, trailing_ratio=0.15)
     bt = Backtest(symbol, strat, cash=25_000, margin=1.0, shares=30, 
                 commission=0.0, slippage=0.0002)
     bt.run(start_date="2023-10-02", end_date="2024-10-02", plot=True)
@@ -33,8 +33,8 @@ def run_one_backtest(symbol):
 
 # grid search
 def grid_search(symbol):
-    take_profits = [0.01, 0.0125, 0.015, 0.0175, 0.02]
-    stop_losses = [0.0025, 0.005, 0.0075, 0.01]
+    stop_losses = [0.0025, 0.005, 0.0075, 0.01, 0.0125]
+    take_profits = [0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02]
     trailing_ratios = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
 
     grid_lists = [stop_losses, take_profits, trailing_ratios]
@@ -82,8 +82,9 @@ def grid_search_results():
     best_run = max(results, key=lambda x: x["Net Profit [$]"])
 
     print("=== Best Grid Search Result ===")
-    print(f"Take Profit: {best_run['take_profit']}")
-    print(f"Stop Loss: {best_run['stop_loss']}")
+    print(f"Take Profit: {best_run['tp']}")
+    print(f"Stop Loss: {best_run['sl']}")
+    print(f"Trailing Ratio: {best_run['tr']}")
     print(f"Net Profit [$]: {best_run['Net Profit [$]']}")
     print(f"Avg Δ per step [$]: {best_run.get('Avg Δ per step [$]', 'N/A')}")
     print(f"Win Rate [%]: {best_run.get('Win Rate [%]', 'N/A')}")
@@ -105,6 +106,6 @@ run_one_backtest(curr_symbol)
 # grid_search_results()
 
 
-# walk forward optimization / OOS
+# walk forward optimization for more robust parameters
 
     

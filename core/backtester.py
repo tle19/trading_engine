@@ -42,7 +42,6 @@ class Backtest:
             low = row['low']
             ts = row["timestamp"]
 
-
             # --- Enter Long ---
             if signal == 1 and position is None:
                 position = "long"

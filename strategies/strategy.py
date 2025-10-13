@@ -16,11 +16,15 @@ class Strategy:
         self.position_size = position_size
 
         self.position = None
-        self.trailing = False
+        self.trailing_stop = False
+        self.trailing_profit = False
         self.trailing_stop_loss = None
+        self.trailing_take_profit = None
         self.entry_price = None
         self.stop_price = None
         self.profit_price = None
+        self.sl_change = False
+        self.tp_change = False
 
         self.open = None
         self.close = None
@@ -95,14 +99,19 @@ class Strategy:
     def flatten(self):
         self.position_size = self.default_position_size
         self.position = None
-        self.trailing = False
+        self.trailing_stop = False
+        self.trailing_profit = False
         self.trailing_stop_loss = None
+        self.trailing_take_profit = None
         self.entry_price = None
         self.stop_price = None
         self.profit_price = None
+        self.sl_change = False
+        self.tp_change = False
 
     def set_trailing_stop(self, trailing_ratio):
-        self.trailing = True
+        self.trailing_stop = True
+        self.sl_change = False
         self.trailing_stop_loss = self.stop_loss
         adjustment = trailing_ratio * abs(self.stop_price - self.close)
 
@@ -110,40 +119,72 @@ class Strategy:
             new_stop = self.stop_price + adjustment
             self.stop_price = new_stop
             self.trailing_stop_loss = 1 - (self.stop_price / self.entry_price)
+            self.sl_change = True
 
         elif self.position == "short" and self.close < self.entry_price:
             new_stop = self.stop_price - adjustment
             self.stop_price = new_stop
             self.trailing_stop_loss = (self.stop_price / self.entry_price) - 1
+            self.sl_change = True
 
-    def set_trailing_stop_safe(self, stability_window=15, min_dist_ratio=0.00075):
-        if len(self.prices) < stability_window:
+    def set_trailing_stop_safe(self):
+        if not self.in_safe_range():
             return None
-        avg_price = self.compute_ma(self.prices, stability_window)
-        stop_distance = abs(self.stop_price - self.close)
-        profit_distance = abs(self.profit_price - self.close)
-        min_distance = avg_price * min_dist_ratio
 
-        if stop_distance < min_distance and profit_distance < min_distance:
-            return
+        min_distance = self.compute_min_distance()
+        stop_distance = abs(self.stop_price - self.close)
 
         max_ratio = 1 - (min_distance / stop_distance)
         trailing_ratio = min(self.trailing_ratio, max_ratio)
         
         self.set_trailing_stop(trailing_ratio)
 
-    def set_trailing_profit():
-        raise NotImplementedError
+    def set_trailing_profit(self, trailing_ratio):
+        self.trailing_profit = True
+        self.tp_change = False
+        self.trailing_take_profit = self.take_profit
+        adjustment = trailing_ratio * abs(self.profit_price - self.close)
+
+        if self.position == "long" and self.close > self.entry_price:
+            new_profit = self.profit_price + adjustment
+            self.profit_price = new_profit
+            self.trailing_take_profit = 1 - (self.profit_price / self.entry_price)
+            self.tp_change = True
+
+        elif self.position == "short" and self.close < self.entry_price:
+            new_profit = self.profit_price - adjustment
+            self.profit_price = new_profit
+            self.trailing_take_profit = (self.profit_price / self.entry_price) - 1
+            self.tp_change = True
     
-    def compute_min_distance(self, stability_window=15, min_dist_ratio=0.00075):
+    def set_trailing_profit_safe(self):
+        if not self.in_safe_range():
+            return None
+
+        min_distance = self.compute_min_distance()
+        profit_distance = abs(self.profit_price - self.close)
+
+        max_ratio = 1 - (min_distance / profit_distance)
+        trailing_ratio = min(self.trailing_ratio, max_ratio)
+        
+        self.set_trailing_profit(trailing_ratio)
+    
+    def compute_min_distance(self, stability_window=10, min_dist_ratio=0.00075):
         if len(self.prices) < stability_window:
             return None
         avg_price = self.compute_ma(self.prices, stability_window)
-        distance = abs(self.stop_price - self.close)
         min_distance = avg_price * min_dist_ratio
+        return min_distance
 
-        if distance < min_distance:
-            return
+    def in_safe_range(self):
+        min_distance = self.compute_min_distance()
+        stop_distance = abs(self.stop_price - self.close)
+        profit_distance = abs(self.profit_price - self.close)
+
+        if min_distance is None:
+            return False
+        elif stop_distance > min_distance or profit_distance > min_distance:
+            return True
         
     def reset_data(self):
         if (self.ts.hour, self.ts.minute) == (9, 30):
@@ -155,15 +196,21 @@ class Strategy:
 
     def compute_ma(self, items, window):
         return np.mean(items[-window:])
+    
+    def stop_loss_changed(self):
+        return self.sl_change
 
-    def is_trailing(self):
-        return self.trailing
+    def is_trailing_profit(self):
+        return self.trailing_profit
+    
+    def is_trailing_stop(self):
+        return self.trailing_stop
     
     def get_stop_loss(self):
-        return self.trailing_stop_loss if self.is_trailing() else self.stop_loss
+        return self.trailing_stop_loss if self.is_trailing_stop() else self.stop_loss
     
     def get_take_profit(self):
-        return self.take_profit
+        return self.trailing_take_profit if self.is_trailing_profit() else self.take_profit
     
     def get_position(self):
         return self.position

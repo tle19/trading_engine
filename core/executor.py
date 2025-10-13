@@ -9,15 +9,13 @@ import schwabdev
 from utils import *
 
 class Equities:
-    def __init__(self, symbol, strategy_class, cash=30_000, margin=1.0, shares=1, force_close=True):
+    def __init__(self, symbol, strategy_class, cash=30_000, margin=1.0, shares=5, force_close=True):
         self.symbol = symbol
         self.strategy = strategy_class
         self.cash = cash
         self.shares = shares * margin
         self.margin = margin
         self.force_close = force_close
-        self.prev_stop = None
-        self.prev_profit = None
         self.position = None
 
         self.risk_manager = self.strategy.get_risk_manager()
@@ -35,7 +33,7 @@ class Equities:
         self.entry_response = None
         self.hold_response = None
 
-    def start(self, duration=23520):
+    def run(self, duration=23520):
         def response_handler(response):
             data = json.loads(response).get("data", [])
 
@@ -59,33 +57,30 @@ class Equities:
 
             stop_loss = self.strategy.get_stop_loss()
             take_profit = self.strategy.get_take_profit()
-            is_trailing = self.strategy.is_trailing()
+            sl_change = self.strategy.stop_loss_changed()
             position_size = self.strategy.get_position_size()
             shares = max(1, round(self.shares * position_size))
 
             signal = self.strategy.generate_signal(row)
 
-            sl_change = True
-            if is_trailing and self.prev_stop == stop_loss:
-                sl_change = False
-            self.prev_stop = stop_loss
+            self.interpret_signal(signal, stop_loss, take_profit, sl_change)
 
-            self.interpret_signal(signal, stop_loss, take_profit, is_trailing, sl_change)
+            # if self.position is None:
+            #     curr_cash = api call to broker
+            #     pnl = curr_cash - self.cash
+            #     self.cash = curr_cash
+            #     self.risk_manager.check_risk(pnl)
 
-            # curr_cash = api call to broker
-            #     cumulative_pnl = curr_cash - self.cash
-            # p()  # skip rest of day
-            # check risk after exiting position
-            # self.risk_manager.check_risk(pnl)
+        #self.cash = api call to broker
 
-        self.streamer.start(response_handler)
+        self.streamer.run(response_handler)
         
         self.streamer.send(self.streamer.chart_equity(self.symbol, "0,1,2,3,4,5,6", command="SUBS"))
         time.sleep(duration) # stream duration
         
         self.streamer.stop()
 
-    def interpret_signal(self, signal, stop_loss, take_profit, is_trailing, sl_change):
+    def interpret_signal(self, signal, stop_loss, take_profit, sl_change):
 
         # --- Enter Long ---
         if signal == 1 and self.position is None:
@@ -100,7 +95,7 @@ class Equities:
             self.hold_response = self.short_bracket(self.shares, stop_loss, take_profit, self.entry_response)
         
         # --- Holding ---
-        elif signal is None and self.position is not None and is_trailing and sl_change:
+        elif signal is None and self.position is not None and sl_change:
             if self.position == "long":
                 self.replace_order(self.shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
 
@@ -296,8 +291,8 @@ class Equities:
 
 # from strategies import SMACrossoverIndicator
 
-# pr = Equities("TSLA", SMACrossoverIndicator)
-# entry_response = pr.sell_market(1)
-# hold_response = pr.short_bracket(1, 0.001, 0.001, entry_response)
+# eq = Equities("TSLA", SMACrossoverIndicator)
+# entry_response = eq.sell_market(1)
+# hold_response = eq.short_bracket(1, 0.001, 0.001, entry_response)
 # time.sleep(5)
-# pr.replace_order(1, 0.002, 0.002, entry_response, hold_response, "short")
+# eq.replace_order(1, 0.002, 0.002, entry_response, hold_response, "short")

@@ -16,8 +16,8 @@ def main():
         raise ValueError(f"Unknown strategy: {args.strategy}")
     
     if args.live:
-        pr = Equities(args.symbol, strategy_class(args.symbol))
-        pr.start()
+        eq = Equities(args.symbol, strategy_class(args.symbol))
+        eq.run()
     elif args.backtest:
         bt = Backtest(args.symbol, strategy_class(args.symbol))
         bt.run()

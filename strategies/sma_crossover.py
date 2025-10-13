@@ -3,7 +3,7 @@ import numpy as np
 
 class SMACrossoverIndicator(Strategy):
     def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, 
-                 stop_loss=0.005, take_profit=0.015, trailing_ratio=0.2, 
+                 stop_loss=0.005, take_profit=0.015, trailing_ratio=0.15, 
                  rt=5, pd=7, target=350, loss=125):
         super().__init__(symbol, position_size, stop_loss, take_profit, trailing_ratio)
         self.fast_window = fast_window
@@ -40,6 +40,7 @@ class SMACrossoverIndicator(Strategy):
             return self.enter_trade()
         else:
             self.set_trailing_stop_safe() #min hold period?
+            # self.set_trailing_profit()
         return None
     
     def enter_trade(self):
@@ -48,10 +49,10 @@ class SMACrossoverIndicator(Strategy):
         slow_ma = self.compute_ma(self.prices, self.slow_window)
         htf_ma = self.compute_ma(self.prices, self.htf_window)
 
-        trend_strength = abs(fast_ma - slow_ma)
-        min_trend = 0.01 #consider percetage based
-        if trend_strength < min_trend:
-            return None
+        # trend_strength = abs(fast_ma - slow_ma)
+        # min_trend = 0.01 #consider percetage based
+        # if trend_strength < min_trend:
+        #     return None
         
         if fast_ma > slow_ma >= htf_ma and self.close < self.open:
             return self.buy()
