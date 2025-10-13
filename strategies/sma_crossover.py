@@ -28,7 +28,7 @@ class SMACrossoverIndicator(Strategy):
             return None
 
         self.risk_manager.intraday_risk()
-        self.risk_manager.daily_risk_stop()
+        self.risk_manager.daily_risk_stop()  #percentage based daily stops !!!!!
         # self.position_size = self.risk_manager.dynamic_position_sizing(self.default_position_size)
         if self.risk_manager.is_day_pause():
             return None
@@ -43,16 +43,18 @@ class SMACrossoverIndicator(Strategy):
         return None
     
     def enter_trade(self):
+        # volume and volatility (np.std) filters?
         # avg_vol = self.compute_ma(self.volumes, self.slow_window)
         fast_ma = self.compute_ma(self.prices, self.fast_window)
         slow_ma = self.compute_ma(self.prices, self.slow_window)
         htf_ma = self.compute_ma(self.prices, self.htf_window)
 
         # trend_strength = abs(fast_ma - slow_ma)
-        # min_trend = 0.01 #consider percetage based
+        # min_trend = 0.01 #consider percentage based
         # if trend_strength < min_trend:
         #     return None
         
+        # candle strength as well as direction
         if fast_ma > slow_ma >= htf_ma and self.close < self.open:
             return self.buy()
         elif fast_ma < slow_ma <= htf_ma and self.close > self.open:

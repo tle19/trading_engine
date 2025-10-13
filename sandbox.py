@@ -77,7 +77,7 @@ def grid_search(symbol):
         json.dump(all_results, f, indent=4)
 
 # best grid search parameters
-def grid_search_results():   
+def grid_search_results():    #change to match summary statement
     with open("grid_search_result.json", "r") as f:
         results = json.load(f)
     best_run = max(results, key=lambda x: x["Net Profit [$]"])
@@ -91,6 +91,9 @@ def grid_search_results():
     print(f"Win Rate [%]: {best_run.get('Win Rate [%]', 'N/A')}")
     print(f"# Trades: {best_run.get('# Trades', 'N/A')}")
 
+def walk_forward_optimize(symbol):
+    # stop_loss, take_profit, trailing_ratio, fast_window, slow_window, htf_window, rt, pd
+    raise NotImplementedError
 
 symbols = ["SPY", "QQQ", 
            "TSLA", "NVDA", 
@@ -105,6 +108,7 @@ curr_symbol = symbols[8]
 run_one_backtest(curr_symbol)
 # grid_search(curr_symbol)
 # grid_search_results()
+# walk_forward_optimize(curr_symbol)
 
 
 # walk forward optimization for more robust parameters

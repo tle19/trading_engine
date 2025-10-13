@@ -166,7 +166,7 @@ class Strategy:
 
         max_ratio = 1 - (min_distance / profit_distance)
         trailing_ratio = min(self.trailing_ratio, max_ratio)
-        
+
         self.set_trailing_profit(trailing_ratio)
     
     def compute_min_distance(self, stability_window=10, min_dist_ratio=0.00075):
@@ -271,7 +271,7 @@ class RiskManager:
     def dynamic_position_sizing(self, position_size):
         if self.pnl >= self.pnl_target:
             ratio = self.pnl / self.pnl_target
-            scale = 0.75 / ratio
+            scale = 0.5 / ratio
             return position_size * scale
         return position_size
 
