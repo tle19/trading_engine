@@ -23,7 +23,7 @@ def run_one_backtest(symbol):
 
     strat = SMACrossoverIndicator(symbol, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, 
                                 stop_loss=0.005, take_profit=0.015, trailing_ratio=0.15)
-    bt = Backtest(symbol, strat, cash=25_000, margin=1.0, shares=30, 
+    bt = Backtest(symbol, strat, cash=25_000, shares=30, margin=1.0, 
                 commission=0.0, slippage=0.0002)
     bt.run(start_date="2023-10-02", end_date="2024-10-02", plot=True)
 
@@ -76,6 +76,7 @@ def grid_search(symbol):
     with open("grid_search_result.json", "w") as f:
         json.dump(all_results, f, indent=4)
 
+# best grid search parameters
 def grid_search_results():   
     with open("grid_search_result.json", "r") as f:
         results = json.load(f)
@@ -90,6 +91,7 @@ def grid_search_results():
     print(f"Win Rate [%]: {best_run.get('Win Rate [%]', 'N/A')}")
     print(f"# Trades: {best_run.get('# Trades', 'N/A')}")
 
+
 symbols = ["SPY", "QQQ", 
            "TSLA", "NVDA", 
            "AMD", "AMZN", 
@@ -98,7 +100,6 @@ symbols = ["SPY", "QQQ",
            "TSM", "CSCO", 
            "INTC", "ADBE"]
 curr_symbol = symbols[8]
-
 
 # fetch_multiple_symbols(symbols)
 run_one_backtest(curr_symbol)

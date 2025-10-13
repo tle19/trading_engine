@@ -144,7 +144,7 @@ class Strategy:
         self.tp_change = False
         self.trailing_take_profit = self.take_profit
         adjustment = trailing_ratio * abs(self.profit_price - self.close)
-
+        
         if self.position == "long" and self.close > self.entry_price:
             new_profit = self.profit_price + adjustment
             self.profit_price = new_profit
@@ -183,7 +183,7 @@ class Strategy:
 
         if min_distance is None:
             return False
-        elif stop_distance > min_distance or profit_distance > min_distance:
+        elif stop_distance > min_distance and profit_distance > min_distance:
             return True
         
     def reset_data(self):

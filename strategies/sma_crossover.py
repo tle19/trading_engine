@@ -39,8 +39,7 @@ class SMACrossoverIndicator(Strategy):
         if self.position is None:
             return self.enter_trade()
         else:
-            self.set_trailing_stop_safe() #min hold period?
-            # self.set_trailing_profit()
+            self.set_trailing_stop_safe()
         return None
     
     def enter_trade(self):
