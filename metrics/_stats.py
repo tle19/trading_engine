@@ -229,35 +229,49 @@ class Stats:
         # dont want to stop out day if loss is in very beggining of day (could recover)
         raise NotImplementedError
     
+    def get_average_spread(self, symbol, date):
+        # find average spread of specified index relative to its average price that day
+        raise NotImplementedError
+    
     def get_data_dict(self):
-        profit = self.avg_cash - self.starting_cash
-        profit_pct = (profit / self.starting_cash) * 100 if self.starting_cash else 0
-
         data = {
-            "Equity Final [$]": float(self.avg_cash),
-            "Return [$]": profit,
-            "Return [%]": profit_pct,
-            "Win Rate [%]": float(self.avg_win_rate * 100) if self.avg_win_rate is not None else None,
-            "Daily Win Rate [%]": float(self.daily_win_rate * 100) if getattr(self, "daily_win_rate", None) is not None else None,
-            "Equity Peak [$]": float(self.equity_peak),
-            "Max Drawdown [%]": float(self.max_drawdown),
-            "Consec Wins": int(self.win_streak),
-            "Max Win Gain [$]": float(self.max_gain_streak),
-            "Consec Losses": int(self.loss_streak),
-            "Max Loss [$]": float(self.max_loss_streak),
-            "# Trades": int(self.total_trades),
-            "Gross Profit [$]": float(self.gross_profit),
-            "Gross Loss [$]": float(self.gross_loss),
-            "Net Profit [$]": float(self.net_profit),
-            "Avg Δ per step [$]": float(self.avg_change),
+            # --- General info ---
+            "Symbol": self.symbol,
+            "Start": str(self.start_date),
+            "End": str(self.end_date),
+            "Duration": str(self.duration),
+
+            # --- Equity / Performance ---
+            "Final Equity": float(self.avg_cash),
+            "Equity Peak": float(self.equity_peak),
+            "Max Drawdown": float(self.max_drawdown),
+            "Win Rate": float(self.avg_win_rate),
+            "Daily Win Rate": float(self.daily_win_rate),
+
+            # --- Trade statistics ---
+            "Total Trades": int(self.total_trades),
+            "Consecutive Wins": int(self.win_streak),
+            "Max Win Gain": float(self.max_gain_streak),
+            "Consecutive Losses": int(self.loss_streak),
+            "Max Loss": float(self.max_loss_streak),
+
+            # --- PnL / Risk stats ---
+            "Gross Profit": float(self.gross_profit),
+            "Gross Loss": float(self.gross_loss),
+            "Net Profit": float(self.net_profit),
+            "Net Profit %": float(self.net_profit_pct),
+            "Avg Δ per step": float(self.avg_change),
             "Profit Factor": float(self.profit_factor),
-            "Best Daily PnL [$]": float(self.best_day),
-            "Worst Daily PnL [$]": float(self.worst_day),
-            "Average Daily PnL [$]": float(self.avg_day),
+
+            # --- Daily stats ---
+            "Best Daily PnL": float(self.best_day),
+            "Worst Daily PnL": float(self.worst_day),
+            "Average Daily PnL": float(self.avg_day),
             "Consecutive Daily Wins": int(self.day_win_streak),
-            "Max Daily Gain [$]": float(getattr(self, "max_day_gain_streak", 0)),
+            "Max Daily Gain": float(self.max_day_gain_streak),
             "Consecutive Daily Losses": int(self.day_loss_streak),
-            "Max Daily Loss [$]": float(getattr(self, "max_day_loss_streak", 0))
+            "Max Daily Loss": float(self.max_day_loss_streak)
         }
+
         return data
     

@@ -1,11 +1,12 @@
 import time
 import json
 from itertools import product
+import numpy as np
+import pandas as pd
 
 from core import *
 from strategies import *
 
-# multiple symbol fetch
 def fetch_multiple_symbols():
     dh = DataHandler()
     for symbol in symbols:
@@ -15,85 +16,168 @@ def fetch_multiple_symbols():
 
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
-        print(f"Elapsed time: {elapsed_time:.6f} seconds")
+        print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
 
-# once backtest run
-def run_one_backtest(symbol):
+def run_one_backtest(symbol, start, end, fast_window, slow_window, htf_window, position_size, stop_loss, take_profit, trailing_ratio, plot):
     start_time = time.perf_counter()
 
-    strat = SMACrossoverIndicator(symbol, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, 
-                                stop_loss=0.005, take_profit=0.015, trailing_ratio=0.15)
-    bt = Backtest(symbol, strat, cash=25_000, shares=30, margin=1.0, 
-                commission=0.0, slippage=0.0002)
-    bt.run(start_date="2023-10-02", end_date="2024-10-02", plot=True)
+    strat = SMACrossoverIndicator(
+        symbol, 
+        fast_window=fast_window, 
+        slow_window=slow_window, 
+        htf_window=htf_window, 
+        position_size=position_size, 
+        stop_loss=stop_loss, 
+        take_profit=take_profit, 
+        trailing_ratio=trailing_ratio)
+    
+    bt = Backtest(
+        symbol, 
+        strat, 
+        cash=25_000, 
+        shares=30, 
+        margin=1.0, 
+        commission=0.0, 
+        slippage=0.0003)
+    
+    bt.run(start_date=start, end_date=end, plot=plot)
 
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
-    print(f"Elapsed time: {elapsed_time:.6f} seconds")
+    print(f"Elapsed Backtest Time: {elapsed_time:.6f} seconds")
 
-# grid search
-def grid_search(symbol):
-    stop_losses = [0.0025, 0.005, 0.0075, 0.01, 0.0125]
-    take_profits = [0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02]
-    trailing_ratios = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
-
-    grid_lists = [stop_losses, take_profits, trailing_ratios]
-    all_results = []
-
-    for combo in product(*grid_lists):
-        sl, tp, tr = combo
-
-        start_time = time.perf_counter()
-        
-        strat = SMACrossoverIndicator(
-            symbol,
-            fast_window=10,
-            slow_window=20,
-            htf_window=40,
-            position_size=1.0,
-            stop_loss=sl,
-            take_profit=tp,
-            trailing_ratio=tr
-        )
-
-        bt = Backtest(symbol, strat, cash=25_000, margin=1.0, shares=30, 
-                    commission=0.0, slippage=0.0002
-        )
-        bt.run(start_date="2023-10-02", end_date="2024-10-02")
-
-        stats = bt.get_stats_class()
-        data = stats.get_data_dict()
-        data["sl"] = sl
-        data["tp"] = tp
-        data["tr"] = tr
-        all_results.append(data)
-
-        end_time = time.perf_counter()
-        elapsed_time = end_time - start_time
-        print(f"Elapsed time: {elapsed_time:.6f} seconds")
-        print(f"stop_loss: {sl}, take_profit: {tp}, trailing_ratio: {tr}")
-
-    with open("grid_search_result.json", "w") as f:
-        json.dump(all_results, f, indent=4)
-
-# best grid search parameters
-def grid_search_results():    #change to match summary statement
-    with open("grid_search_result.json", "r") as f:
-        results = json.load(f)
-    best_run = max(results, key=lambda x: x["Net Profit [$]"])
-
-    print("=== Best Grid Search Result ===")
-    print(f"Take Profit: {best_run['tp']}")
-    print(f"Stop Loss: {best_run['sl']}")
-    print(f"Trailing Ratio: {best_run['tr']}")
-    print(f"Net Profit [$]: {best_run['Net Profit [$]']}")
-    print(f"Avg Δ per step [$]: {best_run.get('Avg Δ per step [$]', 'N/A')}")
-    print(f"Win Rate [%]: {best_run.get('Win Rate [%]', 'N/A')}")
-    print(f"# Trades: {best_run.get('# Trades', 'N/A')}")
+    return bt.get_stats_class()
 
 def walk_forward_optimize(symbol):
-    # stop_loss, take_profit, trailing_ratio, fast_window, slow_window, htf_window, rt, pd
-    raise NotImplementedError
+    start = pd.Timestamp("2023-10-02")
+    end = pd.Timestamp("2025-10-02")
+
+    train_months = 6
+    test_months = 3
+    step_months = 3
+
+    results = []
+    current_start = start
+
+    while True:
+        train_start = current_start
+        train_end = train_start + pd.DateOffset(months=train_months)
+        test_end = train_end + pd.DateOffset(months=test_months)
+        
+        if test_end > end:
+            break
+
+        print(f"Training: {train_start.date()} → {train_end.date()} | Testing: {train_end.date()} → {test_end.date()}")
+
+        best_params = optimize_params(
+            symbol, 
+            train_start.strftime("%Y-%m-%d"), 
+            train_end.strftime("%Y-%m-%d"))
+
+        perf = run_one_backtest(
+            symbol, 
+            train_end.strftime("%Y-%m-%d"), 
+            test_end.strftime("%Y-%m-%d"), 
+            **best_params,
+            plot=False)
+        
+        perf_dict = perf.get_data_dict()
+
+        fold_result = {
+            "train_start": train_start.strftime("%Y-%m-%d"),
+            "train_end": train_end.strftime("%Y-%m-%d"),
+            "test_start": train_end.strftime("%Y-%m-%d"),
+            "test_end": test_end.strftime("%Y-%m-%d"),
+            "params": best_params,
+            "perf": perf_dict
+        }
+
+        results.append(fold_result)
+        current_start += pd.DateOffset(months=step_months)
+        print()
+
+    with open("wfo_results.json", "w") as f:
+        json.dump(results, f, indent=4)
+    print(f"Saved WFO results to wfo_results.json")
+    
+    return results
+
+def grid_search(symbol, start="2023-10-02", end="2024-10-02"):
+    best_params = optimize_params(symbol, start, end)
+    print(best_params)
+    
+def optimize_params(symbol, start, end):
+    start_time = time.perf_counter()
+
+    param_grid = {
+        "fast_window": [5, 10, 15],
+        "slow_window": [15, 20, 30],
+        "htf_window": [40, 50, 60],
+        "position_size": [1.0],
+        "stop_loss": [0.0025, 0.005, 0.0075],
+        "take_profit": [0.0125, 0.015, 0.0175],
+        "trailing_ratio": [0.1, 0.15, 0.2],
+    }
+
+    param_grid = {
+        "fast_window": [10, 15],
+        "slow_window": [15, 20],
+        "htf_window": [40, 60],
+        "position_size": [1.0],
+        "stop_loss": [0.005, 0.0075],
+        "take_profit": [0.0125, 0.015, 0.0175],
+        "trailing_ratio": [0.1, 0.15, 0.2],
+    }
+
+    best_score = -np.inf
+    best_params = None
+
+    for combo in product(*param_grid.values()):
+        params = dict(zip(param_grid.keys(), combo))
+        perf = run_one_backtest(symbol, start, end, **params, plot=False)
+        perf_dict = perf.get_data_dict()
+        pnl = perf_dict["Net Profit"]
+        if pnl > best_score:
+            best_score = pnl
+            best_params = params
+
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed Parameter Optimize Time: {elapsed_time:.6f} seconds")
+    
+    return best_params
+
+def test_order(symbol):
+    eq = Equities(symbol, SMACrossoverIndicator)
+    entry_response = eq.sell_market(1)
+    hold_response = eq.short_bracket(1, 0.001, 0.001, entry_response)
+    time.sleep(5)
+    eq.replace_order(1, 0.002, 0.002, entry_response, hold_response, "short")
+
+def test_order_timed(symbol):
+    eq = Equities(symbol, SMACrossoverIndicator)
+
+    start_time = time.perf_counter()
+    entry_response = eq.sell_market(1)
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed Order Time: {elapsed_time:.6f} seconds")
+
+    start_time = time.perf_counter()
+    hold_response = eq.short_bracket(1, 0.001, 0.001, entry_response)
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed Order Time: {elapsed_time:.6f} seconds")
+
+    time.sleep(5)
+    start_time = time.perf_counter()
+    eq.replace_order(1, 0.002, 0.002, entry_response, hold_response, "short")
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed Order Time: {elapsed_time:.6f} seconds")
+
+# play around with replace_order if succesful
+# client.order_replace(account_hash, orderID, order)
 
 symbols = ["SPY", "QQQ", 
            "TSLA", "NVDA", 
@@ -104,13 +188,11 @@ symbols = ["SPY", "QQQ",
            "INTC", "ADBE"]
 curr_symbol = symbols[8]
 
+
 # fetch_multiple_symbols(symbols)
-run_one_backtest(curr_symbol)
+
+# run_one_backtest(curr_symbol)
 # grid_search(curr_symbol)
-# grid_search_results()
-# walk_forward_optimize(curr_symbol)
+walk_forward_optimize(curr_symbol)
 
-
-# walk forward optimization for more robust parameters
-
-    
+# test_order_timed(curr_symbol)    

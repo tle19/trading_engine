@@ -199,13 +199,16 @@ class Strategy:
     
     def stop_loss_changed(self):
         return self.sl_change
-
-    def is_trailing_profit(self):
-        return self.trailing_profit
     
+    def take_profit_changed(self):
+        return self.tp_change
+
     def is_trailing_stop(self):
         return self.trailing_stop
-    
+  
+    def is_trailing_profit(self):
+        return self.trailing_profit
+      
     def get_stop_loss(self):
         return self.trailing_stop_loss if self.is_trailing_stop() else self.stop_loss
     

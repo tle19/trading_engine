@@ -23,12 +23,12 @@ class SMACrossoverIndicator(Strategy):
         
         if len(self.prices) < self.slow_window:
             return None
-        if not self.trade_window((9, 30), (15, 30)):
+        if not self.trade_window((9, 30), (15, 00)):
             self.risk_manager.reset_risk()
             return None
 
-        self.risk_manager.intraday_risk()
-        self.risk_manager.daily_risk_stop()  #percentage based daily stops !!!!!
+        # self.risk_manager.intraday_risk()
+        # self.risk_manager.daily_risk_stop()  #percentage based daily stops !!!!!
         # self.position_size = self.risk_manager.dynamic_position_sizing(self.default_position_size)
         if self.risk_manager.is_day_pause():
             return None
@@ -48,7 +48,9 @@ class SMACrossoverIndicator(Strategy):
         fast_ma = self.compute_ma(self.prices, self.fast_window)
         slow_ma = self.compute_ma(self.prices, self.slow_window)
         htf_ma = self.compute_ma(self.prices, self.htf_window)
-
+        
+        # enter on low spread? high-low tracker
+        # donchian channel?
         # trend_strength = abs(fast_ma - slow_ma)
         # min_trend = 0.01 #consider percentage based
         # if trend_strength < min_trend:

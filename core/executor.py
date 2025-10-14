@@ -58,20 +58,21 @@ class Equities:
             stop_loss = self.strategy.get_stop_loss()
             take_profit = self.strategy.get_take_profit()
             sl_change = self.strategy.stop_loss_changed()
+            tp_change = self.strategy.take_profit_changed()
             position_size = self.strategy.get_position_size()
             shares = max(1, round(self.shares * position_size))
 
             signal = self.strategy.generate_signal(row)
 
-            self.interpret_signal(signal, stop_loss, take_profit, sl_change)
+            self.interpret_signal(signal, shares, stop_loss, take_profit, sl_change, tp_change)
 
-            # if self.position is None:
-            #     curr_cash = api call to broker
-            #     pnl = curr_cash - self.cash
-            #     self.cash = curr_cash
-            #     self.risk_manager.check_risk(pnl)
+            if self.position is None:
+                curr_cash = self.get_liquidation_value()
+                pnl = curr_cash - self.cash
+                self.cash = curr_cash
+                self.risk_manager.check_risk(pnl)
 
-        #self.cash = api call to broker
+        self.cash = self.get_cash_balance()
 
         self.streamer.run(response_handler)
         
@@ -80,37 +81,37 @@ class Equities:
         
         self.streamer.stop()
 
-    def interpret_signal(self, signal, stop_loss, take_profit, sl_change):
+    def interpret_signal(self, shares, signal, stop_loss, take_profit, sl_change, tp_change):
 
         # --- Enter Long ---
         if signal == 1 and self.position is None:
             self.position = "long"
-            self.entry_response = self.buy_market(self.shares)
-            self.hold_response = self.long_bracket(self.shares, stop_loss, take_profit, self.entry_response)
+            self.entry_response = self.buy_market(shares)
+            self.hold_response = self.long_bracket(shares, stop_loss, take_profit, self.entry_response)
 
         # --- Enter Short ---
         elif signal == -1 and self.position is None:
             self.position = "short"
-            self.entry_response = self.sell_market(self.shares)
-            self.hold_response = self.short_bracket(self.shares, stop_loss, take_profit, self.entry_response)
+            self.entry_response = self.sell_market(shares)
+            self.hold_response = self.short_bracket(shares, stop_loss, take_profit, self.entry_response)
         
         # --- Holding ---
-        elif signal is None and self.position is not None and sl_change:
+        elif signal is None and self.position is not None and sl_change or tp_change:
             if self.position == "long":
-                self.replace_order(self.shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
+                self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
 
             elif self.position == "short":
-                self.replace_order(self.shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
+                self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
 
             self.position = None
 
         # --- Exit Position ---
         elif signal == 0 and self.position is not None:
             if self.position == "long":
-                print(f"SELL -{self.shares} {self.symbol}")
+                print(f"SELL -{shares} {self.symbol}")
 
             elif self.position == "short":
-                print(f"BOT +{self.shares} {self.symbol}")
+                print(f"BOT +{shares} {self.symbol}")
 
             self.position = None
 
@@ -161,7 +162,7 @@ class Equities:
     def long_bracket(self, quantity, stop_loss, take_profit, response):
         order_dict, stop_price, profit_price = self.get_sell_order_dict(quantity, stop_loss, take_profit, response)
 
-        response = self.client.order_place(self.hash, order_dict)
+        response = self.client.order_place(self.hash, order_dict) # if order fail, sell immediately
         print(f"SET SL {stop_price} and TP {profit_price}")
         return response
 
@@ -268,8 +269,8 @@ class Equities:
 
         return order_dict, stop_price, profit_price
 
-    def get_fill_price(self, response):
-        order_id = response.headers.get('location', '/').split('/')[-1]
+    def get_fill_price(self, response): # potentially precompute fill_price for speed
+        order_id = response.headers.get('location', '/').split('/')[-1] #change
         details = self.client.order_details(self.hash, order_id)
         details_json = details.json()
 
@@ -279,20 +280,20 @@ class Equities:
 
     def replace_order(self, quantity, stop_loss, take_profit, entry_response, hold_response, position=None):
         self.cancel_order(hold_response)
+        # if order_replacement fails, exit position immediately (interpret return response)
+        # client.account_orders(accountHash, fromEnteredTime, toEnteredTime, maxResults=None, status=None)
+        # look for status == REJECTED
         if position == "long":
-            self.long_bracket(quantity, stop_loss, take_profit, entry_response)
+            return self.long_bracket(quantity, stop_loss, take_profit, entry_response)
         elif position == "short":
-            self.short_bracket(quantity, stop_loss, take_profit, entry_response)
+            return self.short_bracket(quantity, stop_loss, take_profit, entry_response)
 
     def cancel_order(self, response):
         order_id = response.headers.get('location', '/').split('/')[-1]
         self.client.order_cancel(self.hash, order_id)
 
-
-# from strategies import SMACrossoverIndicator
-
-# eq = Equities("TSLA", SMACrossoverIndicator)
-# entry_response = eq.sell_market(1)
-# hold_response = eq.short_bracket(1, 0.001, 0.001, entry_response)
-# time.sleep(5)
-# eq.replace_order(1, 0.002, 0.002, entry_response, hold_response, "short")
+    def get_liquidation_value(self):
+        details = self.client.account_details(self.hash)
+        details_json = details.json()
+        liquidationValue = details_json["securitiesAccount"]["currentBalances"]["liquidationValue"]
+        return liquidationValue

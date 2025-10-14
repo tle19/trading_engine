@@ -8,7 +8,7 @@ def main():
     parser.add_argument("--backtest", action="store_true")
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--strategy", type=str, default="sma")
-    parser.add_argument("--symbol", type=str, default="TSLA")
+    parser.add_argument("--symbol", type=str, default="MSFT")
     args = parser.parse_args()
 
     strategy_class = strategy_map.get(args.strategy)

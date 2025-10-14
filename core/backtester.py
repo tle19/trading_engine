@@ -6,8 +6,8 @@ PESS = "pess"
 OPT = "opt"
 
 class Backtest:
-    def __init__(self, symbol, strategy_class, cash=25_000, shares=10, 
-                 margin=1.0, commission=0.0, slippage=0.0005, force_close=True):
+    def __init__(self, symbol, strategy_class, cash=25_000, shares=30, 
+                 margin=1.0, commission=0.0, slippage=0.0003, force_close=True):
         self.symbol = symbol
         self.strategy = strategy_class
         self.cash = cash
@@ -41,6 +41,8 @@ class Backtest:
             high = row['high']
             low = row['low']
             ts = row["timestamp"]
+
+            shares = 25_000 // close
 
             # --- Enter Long ---
             if signal == 1 and position is None:
