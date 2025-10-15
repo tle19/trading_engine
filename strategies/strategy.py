@@ -36,6 +36,9 @@ class Strategy:
         self.prices = []
         self.volumes = [] 
 
+
+        self.current_date = None
+
         self.risk_manager = RiskManager()
      
     def generate_signal(self, row):
@@ -263,11 +266,11 @@ class RiskManager:
                 self.pause = False
                 self._pause_counter = 0
 
-    def daily_risk_target(self):    
+    def daily_risk_target(self):     #percentage based daily stops !!!!!
         if self.pnl >= self.pnl_target:
             self.day_pause = True
 
-    def daily_risk_stop(self):    
+    def daily_risk_stop(self):       #percentage based daily stops !!!!!
         if self.pnl <= -self.pnl_loss:
             self.day_pause = True
     
@@ -290,3 +293,12 @@ class RiskManager:
     
     def is_day_pause(self):
         return self.day_pause
+    
+    # self.risk_manager.intraday_risk()
+    # self.risk_manager.daily_risk_stop()
+    # self.position_size = self.risk_manager.dynamic_position_sizing(self.default_position_size)
+    # if self.risk_manager.is_day_pause():
+    #     return None
+    # if self.risk_manager.is_trade_pause():
+    #     self.risk_manager.tick()
+    #     return None

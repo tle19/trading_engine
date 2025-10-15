@@ -18,7 +18,7 @@ def fetch_multiple_symbols():
         elapsed_time = end_time - start_time
         print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
 
-def run_one_backtest(symbol, start, end, fast_window, slow_window, htf_window, position_size, stop_loss, take_profit, trailing_ratio, plot):
+def run_one_backtest(symbol, start, end, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, stop_loss=0.005, take_profit=0.0075, trailing_ratio=0.15, plot=True):
     start_time = time.perf_counter()
 
     strat = SMACrossoverIndicator(
@@ -104,29 +104,32 @@ def walk_forward_optimize(symbol):
 
 def grid_search(symbol, start="2023-10-02", end="2024-10-02"):
     best_params = optimize_params(symbol, start, end)
+    # with open("grid_results.json", "w") as f:
+    #     json.dump(best_params, f, indent=4)
+    # print(f"Saved GRID results to grid_results.json")
     print(best_params)
     
 def optimize_params(symbol, start, end):
     start_time = time.perf_counter()
 
-    param_grid = {
+    param_grid = { #bullish params
         "fast_window": [5, 10, 15],
-        "slow_window": [15, 20, 30],
-        "htf_window": [40, 50, 60],
+        "slow_window": [15, 20, 30, 40],
+        "htf_window": [40, 50, 60, 70],
         "position_size": [1.0],
-        "stop_loss": [0.0025, 0.005, 0.0075],
-        "take_profit": [0.0125, 0.015, 0.0175],
-        "trailing_ratio": [0.1, 0.15, 0.2],
+        "stop_loss": [0.005, 0.0075, 0.01, 0.0125],
+        "take_profit": [0.01, 0.0125, 0.015, 0.0175],
+        "trailing_ratio": [0.075, 0.1, 0.125],
     }
 
-    param_grid = {
+    param_grid = { #bearish params
         "fast_window": [10, 15],
-        "slow_window": [15, 20],
-        "htf_window": [40, 60],
+        "slow_window": [20, 30, 40],
+        "htf_window": [60, 70, 80],
         "position_size": [1.0],
-        "stop_loss": [0.005, 0.0075],
-        "take_profit": [0.0125, 0.015, 0.0175],
-        "trailing_ratio": [0.1, 0.15, 0.2],
+        "stop_loss": [0.01, 0.0125, 0.015],
+        "take_profit": [0.0075, 0.01, 0.0125],
+        "trailing_ratio": [0.075, 0.1, 0.125],
     }
 
     best_score = -np.inf
@@ -140,6 +143,10 @@ def optimize_params(symbol, start, end):
         if pnl > best_score:
             best_score = pnl
             best_params = params
+        print(params)
+
+        with open("grid_results.json", "w") as f:
+            json.dump(best_params, f, indent=4)
 
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
@@ -191,8 +198,20 @@ curr_symbol = symbols[8]
 
 # fetch_multiple_symbols(symbols)
 
-# run_one_backtest(curr_symbol)
-# grid_search(curr_symbol)
-walk_forward_optimize(curr_symbol)
+# run_one_backtest(
+#     curr_symbol, 
+#     start="2025-2-01", 
+#     end="2025-8-01", 
+#     fast_window=10, 
+#     slow_window=20, 
+#     htf_window=40, 
+#     position_size=1.0, 
+#     stop_loss=0.005, 
+#     take_profit=0.0175, 
+#     trailing_ratio=0.1)
+# run_one_backtest(curr_symbol, start="2025-3-15", end="2025-6-01") #bearish regime
+
+grid_search(curr_symbol, start="2024-11-01", end="2025-5-01")
+# walk_forward_optimize(curr_symbol)
 
 # test_order_timed(curr_symbol)    
