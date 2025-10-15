@@ -9,13 +9,13 @@ import schwabdev
 from utils import *
 
 class Equities:
-    def __init__(self, symbol, strategy_class, cash=30_000, margin=1.0, shares=5, force_close=True):
+    def __init__(self, symbol, strategy_class, cash=30_000, margin=1.0, shares=5):
         self.symbol = symbol
         self.strategy = strategy_class
         self.cash = cash
         self.shares = shares * margin
         self.margin = margin
-        self.force_close = force_close
+        self.force_close = False
         self.position = None
 
         self.risk_manager = self.strategy.get_risk_manager()
@@ -32,6 +32,7 @@ class Equities:
 
         self.entry_response = None
         self.hold_response = None
+        self.fill_price = None
 
     def run(self, duration=23520):
         def response_handler(response):
@@ -61,10 +62,11 @@ class Equities:
             tp_change = self.strategy.take_profit_changed()
             position_size = self.strategy.get_position_size()
             shares = max(1, round(self.shares * position_size))
-
+            if (row['timestamp'].hour, row['timestamp'].minute) >= (15, 58):
+                self.force_close = True
             signal = self.strategy.generate_signal(row)
 
-            self.interpret_signal(signal, shares, stop_loss, take_profit, sl_change, tp_change)
+            self.interpret_signal(signal, shares, stop_loss, take_profit, sl_change, tp_change, self.force_close)
 
             if self.position is None:
                 curr_cash = self.get_liquidation_value()
@@ -81,7 +83,7 @@ class Equities:
         
         self.streamer.stop()
 
-    def interpret_signal(self, shares, signal, stop_loss, take_profit, sl_change, tp_change):
+    def interpret_signal(self, shares, signal, stop_loss, take_profit, sl_change, tp_change, time):
 
         # --- Enter Long ---
         if signal == 1 and self.position is None:
@@ -96,14 +98,22 @@ class Equities:
             self.hold_response = self.short_bracket(shares, stop_loss, take_profit, self.entry_response)
         
         # --- Holding ---
-        elif signal is None and self.position is not None and sl_change or tp_change:
-            if self.position == "long":
-                self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
+        elif signal is None and self.position is not None:
+            if sl_change or tp_change:
+                if self.position == "long":
+                    self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
 
-            elif self.position == "short":
-                self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
+                elif self.position == "short":
+                    self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
 
-            self.position = None
+                self.position = None
+
+            elif self.force_close:
+                self.cancel_order(self.hold_response)
+                if self.position == "long":
+                    self.sell_market(shares)
+                elif self.position == "short":
+                    self.buy_market(shares)
 
         # --- Exit Position ---
         elif signal == 0 and self.position is not None:
@@ -114,6 +124,8 @@ class Equities:
                 print(f"BOT +{shares} {self.symbol}")
 
             self.position = None
+        
+
 
     def buy_market(self, quantity):
         order_dict = {

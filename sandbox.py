@@ -6,8 +6,9 @@ import pandas as pd
 
 from core import *
 from strategies import *
+from utils import *
 
-def fetch_multiple_symbols():
+def fetch_multiple_symbols(symbols):
     dh = DataHandler()
     for symbol in symbols:
         start_time = time.perf_counter()
@@ -18,7 +19,15 @@ def fetch_multiple_symbols():
         elapsed_time = end_time - start_time
         print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
 
-def run_one_backtest(symbol, start, end, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, stop_loss=0.005, take_profit=0.0075, trailing_ratio=0.15, plot=True):
+def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
+    for symbol in symbols:
+        data = open_data(symbol, start_date=start_date, end_date=end_date)
+        data["spread"] = data["high"] - data["low"]
+        data["normalized_spread"] = data["spread"] / data["close"]
+        avg_spread = data["normalized_spread"].mean()
+        print(symbol, avg_spread)
+
+def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, stop_loss=0.005, take_profit=0.0075, trailing_ratio=0.15, plot=True):
     start_time = time.perf_counter()
 
     strat = SMACrossoverIndicator(
@@ -40,7 +49,7 @@ def run_one_backtest(symbol, start, end, fast_window=10, slow_window=20, htf_win
         commission=0.0, 
         slippage=0.0003)
     
-    bt.run(start_date=start, end_date=end, plot=plot)
+    bt.run(start_date=start_date, end_date=end_date, plot=plot)
 
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
@@ -102,11 +111,8 @@ def walk_forward_optimize(symbol):
     
     return results
 
-def grid_search(symbol, start="2023-10-02", end="2024-10-02"):
-    best_params = optimize_params(symbol, start, end)
-    # with open("grid_results.json", "w") as f:
-    #     json.dump(best_params, f, indent=4)
-    # print(f"Saved GRID results to grid_results.json")
+def grid_search(symbol, start_date="2023-10-02", end_date="2024-10-02"):
+    best_params = optimize_params(symbol, start_date, end_date)
     print(best_params)
     
 def optimize_params(symbol, start, end):
@@ -132,8 +138,19 @@ def optimize_params(symbol, start, end):
         "trailing_ratio": [0.075, 0.1, 0.125],
     }
 
+    param_grid = { #trailing ratio params
+        "fast_window": [10],
+        "slow_window": [20],
+        "htf_window": [40],
+        "position_size": [1.0],
+        "stop_loss": [0.005],
+        "take_profit": [0.015],
+        "trailing_ratio": [0.05, 0.075, 0.1, 0.125, 0.15],
+    }
+
     best_score = -np.inf
     best_params = None
+    results = []
 
     for combo in product(*param_grid.values()):
         params = dict(zip(param_grid.keys(), combo))
@@ -144,9 +161,10 @@ def optimize_params(symbol, start, end):
             best_score = pnl
             best_params = params
         print(params)
+        results.append({"params": params, "perf": perf_dict})
 
-        with open("grid_results.json", "w") as f:
-            json.dump(best_params, f, indent=4)
+    with open("gs_results.json", "w") as f:
+        json.dump(results, f, indent=4)
 
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
@@ -197,21 +215,22 @@ curr_symbol = symbols[8]
 
 
 # fetch_multiple_symbols(symbols)
+# get_average_spread(curr_symbol, start_date="2023-10-02", end_date="2025-10-02")
 
 # run_one_backtest(
 #     curr_symbol, 
-#     start="2025-2-01", 
-#     end="2025-8-01", 
+#     start_date="2025-3-01", 
+#     end_date="2025-6-01", 
 #     fast_window=10, 
-#     slow_window=20, 
-#     htf_window=40, 
+#     slow_window=30, 
+#     htf_window=80, 
 #     position_size=1.0, 
-#     stop_loss=0.005, 
-#     take_profit=0.0175, 
+#     stop_loss=0.0125, 
+#     take_profit=0.0125, 
 #     trailing_ratio=0.1)
-# run_one_backtest(curr_symbol, start="2025-3-15", end="2025-6-01") #bearish regime
+run_one_backtest(curr_symbol, start_date="2023-10-01", end_date="2024-10-01")
 
-grid_search(curr_symbol, start="2024-11-01", end="2025-5-01")
+# grid_search(curr_symbol, start_date="2024-10-01", end_date="2025-10-01")
 # walk_forward_optimize(curr_symbol)
 
 # test_order_timed(curr_symbol)    

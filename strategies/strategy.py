@@ -36,9 +36,6 @@ class Strategy:
         self.prices = []
         self.volumes = [] 
 
-
-        self.current_date = None
-
         self.risk_manager = RiskManager()
      
     def generate_signal(self, row):

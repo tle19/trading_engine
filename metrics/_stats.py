@@ -229,10 +229,6 @@ class Stats:
         # dont want to stop out day if loss is in very beggining of day (could recover)
         raise NotImplementedError
     
-    def get_average_spread(self, symbol, date):
-        # find average spread of specified index relative to its average price that day
-        raise NotImplementedError
-    
     def get_data_dict(self):
         data = {
             # --- General info ---
