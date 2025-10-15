@@ -1,6 +1,7 @@
 import time
 import json
 from itertools import product
+from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 
@@ -18,6 +19,10 @@ def fetch_multiple_symbols(symbols):
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
         print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
+
+def fetch_schwab_data(symbol, current_date):
+    dh = DataHandler()
+    dh.schwab_data(symbol, end_date=(datetime.fromisoformat(current_date) - timedelta(days=1)).date().isoformat())
 
 def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
     for symbol in symbols:
@@ -173,30 +178,30 @@ def optimize_params(symbol, start, end):
     return best_params
 
 def test_order(symbol):
-    eq = Equities(symbol, SMACrossoverIndicator)
-    entry_response = eq.sell_market(1)
-    hold_response = eq.short_bracket(1, 0.001, 0.001, entry_response)
+    eq = Equities(symbol, SMACrossoverIndicator(symbol))
+    entry_response = eq.buy_market(1)
+    hold_response = eq.long_bracket(1, 0.001, 0.001, entry_response)
     time.sleep(5)
-    eq.replace_order(1, 0.002, 0.002, entry_response, hold_response, "short")
+    eq.replace_order(1, 0.002, 0.002, entry_response, hold_response, "long")
 
 def test_order_timed(symbol):
-    eq = Equities(symbol, SMACrossoverIndicator)
+    eq = Equities(symbol, SMACrossoverIndicator(symbol))
 
     start_time = time.perf_counter()
-    entry_response = eq.sell_market(1)
+    entry_response = eq.buy_market(1)
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
     print(f"Elapsed Order Time: {elapsed_time:.6f} seconds")
 
     start_time = time.perf_counter()
-    hold_response = eq.short_bracket(1, 0.001, 0.001, entry_response)
+    hold_response = eq.long_bracket(1, 0.001, 0.001, entry_response)
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
     print(f"Elapsed Order Time: {elapsed_time:.6f} seconds")
 
     time.sleep(5)
     start_time = time.perf_counter()
-    eq.replace_order(1, 0.002, 0.002, entry_response, hold_response, "short")
+    eq.replace_order(1, 0.002, 0.002, entry_response, hold_response, "long")
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
     print(f"Elapsed Order Time: {elapsed_time:.6f} seconds")
@@ -215,20 +220,21 @@ curr_symbol = symbols[8]
 
 
 # fetch_multiple_symbols(symbols)
+# 
+# fetch_schwab_data("2025-10-15") 
 # get_average_spread(curr_symbol, start_date="2023-10-02", end_date="2025-10-02")
 
-# run_one_backtest(
-#     curr_symbol, 
-#     start_date="2025-3-01", 
-#     end_date="2025-6-01", 
-#     fast_window=10, 
-#     slow_window=30, 
-#     htf_window=80, 
-#     position_size=1.0, 
-#     stop_loss=0.0125, 
-#     take_profit=0.0125, 
-#     trailing_ratio=0.1)
-run_one_backtest(curr_symbol, start_date="2023-10-01", end_date="2024-10-01")
+run_one_backtest(
+    curr_symbol, 
+    start_date="2024-1-01", 
+    end_date="2025-1-01", 
+    fast_window=10, 
+    slow_window=25, 
+    htf_window=45, 
+    position_size=1.0, 
+    stop_loss=0.0075, 
+    take_profit=0.015, 
+    trailing_ratio=0.1)
 
 # grid_search(curr_symbol, start_date="2024-10-01", end_date="2025-10-01")
 # walk_forward_optimize(curr_symbol)

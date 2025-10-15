@@ -7,7 +7,7 @@ from utils import *
 
 class SMACrossoverIndicator(Strategy):
     def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, 
-                 stop_loss=0.005, take_profit=0.0175, trailing_ratio=0.1, target=400, loss=200):
+                 stop_loss=0.0075, take_profit=0.01, trailing_ratio=0.1, target=400, loss=200):
         super().__init__(symbol, position_size, stop_loss, take_profit, trailing_ratio)
         self.fast_window = fast_window
         self.slow_window = slow_window
@@ -28,7 +28,7 @@ class SMACrossoverIndicator(Strategy):
         
         if len(self.prices) < self.slow_window:
             return None
-        if not self.trade_window((9, 30), (15, 00)):
+        if not self.trade_window((9, 30), (15, 00)) and self.position is None:
             # self.risk_manager.reset_risk()
             return None
         
@@ -76,7 +76,7 @@ class SMACrossoverIndicator(Strategy):
         long_ma  = daily['close'].iloc[-100:].mean()
         diff_short_long = (short_ma - long_ma) / long_ma
         regime = None
-        
+
         if diff_short_long > 0.03:
             regime = "STRONG_BULLISH" if short_ma > medium_ma else "MILD_BULLISH"
         elif 0 < diff_short_long <= 0.03:
@@ -88,7 +88,7 @@ class SMACrossoverIndicator(Strategy):
         elif diff_short_long < -0.03:
             regime = "STRONG_BEARISH" if short_ma < medium_ma else "MILD_BEARISH"
         print(regime)
-        if regime == "STRONG_BULLISH":
+        if regime == "STRONG_BULLISH": #slightly overfit
             self.fast_window = 10
             self.slow_window = 20
             self.htf_window = 40
@@ -98,16 +98,16 @@ class SMACrossoverIndicator(Strategy):
         elif regime == "MILD_BULLISH":
             self.fast_window = 10
             self.slow_window = 20
-            self.htf_window = 40
+            self.htf_window = 45
             self.stop_loss = 0.0075
             self.take_profit = 0.015
             self.trailing_ratio = 0.1
         elif regime == "STAGNANT":
             self.fast_window = 10
             self.slow_window = 20
-            self.htf_window = 50
-            self.stop_loss = 0.01
-            self.take_profit = 0.015
+            self.htf_window = 60
+            self.stop_loss = 0.0075
+            self.take_profit = 0.0075
             self.trailing_ratio = 0.1
         elif regime == "MILD_BEARISH":
             self.fast_window = 10

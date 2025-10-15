@@ -129,6 +129,7 @@ class Strategy:
 
     def set_trailing_stop_safe(self):
         if not self.in_safe_range():
+            self.sl_change = False
             return None
 
         min_distance = self.compute_min_distance()

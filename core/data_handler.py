@@ -29,7 +29,7 @@ class DataHandler:
         self.timezone = ZoneInfo("America/New_York")
 
 
-    def historical_data(self, symbol='GOOG', from_date='2023-10-01', to_date='2025-10-01',
+    def historical_data(self, symbol='MSFT', from_date='2023-10-01', to_date='2025-10-01',
                                 timespan='minute', multiplier=1, max_iter=10):
 
         data_list = []
@@ -82,7 +82,7 @@ class DataHandler:
         save_data(df, symbol)
 
 
-    def schwab_historical_data(self, symbol='TSLA', periodType="day", period=10, frequencyType="minute", frequency=1, 
+    def schwab_data(self, symbol='MSFT', periodType="month", period=6, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
 
         raw_data = self.client.price_history(
