@@ -6,7 +6,7 @@ EXIT = 0
 HOLD = None
 
 class Strategy:
-    def __init__(self, symbol, position_size=1.0,
+    def __init__(self, symbol, live=False, position_size=1.0,
                  stop_loss=0.01, take_profit=0.02, trailing_ratio=0.2):
         self.symbol = symbol
         self.stop_loss = stop_loss
@@ -14,6 +14,7 @@ class Strategy:
         self.trailing_ratio = trailing_ratio
         self.default_position_size = position_size
         self.position_size = position_size
+        self.live = live
 
         self.position = None
         self.trailing_stop = False
@@ -37,7 +38,7 @@ class Strategy:
         self.volumes = [] 
 
         self.risk_manager = RiskManager()
-     
+        
     def generate_signal(self, row):
         self.update(row)
         self.reset_data() # optional
@@ -139,6 +140,7 @@ class Strategy:
         trailing_ratio = min(self.trailing_ratio, max_ratio)
         
         self.set_trailing_stop(trailing_ratio)
+        print("EN", self.entry_price, "SL", self.stop_price, "TP", self.profit_price) #sanity check
 
     def set_trailing_profit(self, trailing_ratio):
         self.trailing_profit = True
@@ -170,7 +172,8 @@ class Strategy:
 
         self.set_trailing_profit(trailing_ratio)
     
-    def compute_min_distance(self, stability_window=10, min_dist_ratio=0.00075):
+    def compute_min_distance(self, stability_window=10, min_dist_ratio=0.00125):
+        # TSLA: 0.00175, AMD: 0.0015, NVDA: 0.00125, AAPL/GOOG/AMZN/META: 0.001, MSFT: 0.00075
         if len(self.prices) < stability_window:
             return None
         avg_price = self.compute_ma(self.prices, stability_window)
@@ -230,7 +233,11 @@ class Strategy:
 
     def get_risk_manager(self):
         return self.risk_manager
-
+    
+    def update_prices(self, entry, stop, profit):
+        self.entry_price = float(entry)
+        self.stop_price = float(stop)
+        self.profit_price = float(profit)
 
 class RiskManager:
     def __init__(self, risk_threshold=5, pause_duration=5, pnl_target=0.02, pnl_loss=-0.02):

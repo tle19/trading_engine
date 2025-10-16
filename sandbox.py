@@ -184,31 +184,6 @@ def test_order(symbol):
     time.sleep(5)
     eq.replace_order(1, 0.002, 0.002, entry_response, hold_response, "long")
 
-def test_order_timed(symbol):
-    eq = Equities(symbol, SMACrossoverIndicator(symbol))
-
-    start_time = time.perf_counter()
-    entry_response = eq.buy_market(1)
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
-    print(f"Elapsed Order Time: {elapsed_time:.6f} seconds")
-
-    start_time = time.perf_counter()
-    hold_response = eq.long_bracket(1, 0.001, 0.001, entry_response)
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
-    print(f"Elapsed Order Time: {elapsed_time:.6f} seconds")
-
-    time.sleep(5)
-    start_time = time.perf_counter()
-    eq.replace_order(1, 0.002, 0.002, entry_response, hold_response, "long")
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
-    print(f"Elapsed Order Time: {elapsed_time:.6f} seconds")
-
-# play around with replace_order if succesful
-# client.order_replace(account_hash, orderID, order)
-
 symbols = ["SPY", "QQQ", 
            "TSLA", "NVDA", 
            "AMD", "AMZN", 
@@ -253,4 +228,4 @@ run_one_backtest(
 # grid_search(curr_symbol, start_date="2024-10-01", end_date="2025-10-01")
 # walk_forward_optimize(curr_symbol)
 
-# test_order_timed(curr_symbol)    
+# test_order(curr_symbol)    

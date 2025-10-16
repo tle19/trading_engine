@@ -39,7 +39,6 @@ class Equities:
 
     def run(self, duration=23520):
         def response_handler(response):
-            global last_high, last_low
             data = json.loads(response).get("data", [])
             if not data:
                 return
@@ -54,8 +53,8 @@ class Equities:
                 close = content.get("5")
                 volume = content.get("6")
 
-                high = high if high not in (None, 0) else self.last_high
-                low = low if low not in (None, 0) else self.last_low
+                high = high if high is None else self.last_high
+                low = low if low is None else self.last_low
 
                 self.last_high = high
                 self.last_low = low
@@ -93,12 +92,12 @@ class Equities:
                 self.risk_manager.check_risk(pnl)
 
         self.cash = self.get_liquidation_value()
-        self.risk_manager.get_start_cash(self, self.cash)
+        self.risk_manager.get_start_cash(self.cash)
 
         self.streamer.start(response_handler)
         #start_auto for market open
         
-        self.streamer.send(self.streamer.chart_equity(self.symbol, "0,1,2,3,4,5,6", command="ADD"))
+        self.streamer.send(self.streamer.chart_equity(self.symbol, "0,1,2,3,4,5,6", command="SUBS"))
         time.sleep(duration) # stream duration
         
         self.streamer.stop()
@@ -109,13 +108,15 @@ class Equities:
             self.position = "long"
             self.entry_response = self.buy_market(shares)
             self.hold_response = self.long_bracket(shares, stop_loss, take_profit, self.entry_response)
+            self.strategy.update_prices(self.fill_price, self.stop_price, self.profit_price)
 
         # --- Enter Short ---
         elif signal == -1 and self.position is None:
             self.position = "short"
             self.entry_response = self.sell_market(shares)
             self.hold_response = self.short_bracket(shares, stop_loss, take_profit, self.entry_response)
-        
+            self.strategy.update_prices(self.fill_price, self.stop_price, self.profit_price)
+
         # --- Holding ---
         elif signal is None and self.position is not None:
             if sl_change or tp_change:
@@ -124,6 +125,7 @@ class Equities:
 
                 elif self.position == "short":
                     self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
+                self.strategy.update_prices(self.fill_price, self.stop_price, self.profit_price)
 
             if self.force_close:
                 self.cancel_order(self.hold_response)
@@ -149,6 +151,8 @@ class Equities:
         self.entry_response = None
         self.hold_response = None
         self.fill_price = None
+        self.stop_price = None
+        self.profit_price = None
         self.position = None
 
     def buy_market(self, quantity):
@@ -196,24 +200,24 @@ class Equities:
         return response
     
     def long_bracket(self, quantity, stop_loss, take_profit, response):
-        order_dict, stop_price, profit_price = self.get_sell_order_dict(quantity, stop_loss, take_profit, response)
+        order_dict = self.get_sell_order_dict(quantity, stop_loss, take_profit, response)
 
-        response = self.client.order_place(self.hash, order_dict) # if order fail, sell immediately
-        print(f"SET SL {stop_price} and TP {profit_price}")
+        response = self.client.order_place(self.hash, order_dict)
+        print(f"SET SL {self.stop_price} and TP {self.profit_price}")
         return response
 
     def short_bracket(self, quantity, stop_loss, take_profit, response):
-        order_dict, stop_price, profit_price = self.get_buy_order_dict(quantity, stop_loss, take_profit, response)
+        order_dict = self.get_buy_order_dict(quantity, stop_loss, take_profit, response)
 
-        response = self.client.order_place(self.hash, order_dict) # if order fail, buy immediately
-        print(f"SET SL {stop_price} and TP {profit_price}")
+        response = self.client.order_place(self.hash, order_dict)
+        print(f"SET SL {self.stop_price} and TP {self.profit_price}")
         return response
     
     def get_buy_order_dict(self, quantity, stop_loss, take_profit, response):
         if self.fill_price is None:
             self.fill_price = self.get_fill_price(response)
-        stop_price = str(round(self.fill_price * (1 + stop_loss), 2))
-        profit_price = str(round(self.fill_price * (1 - take_profit), 2))
+        self.stop_price = str(round(self.fill_price * (1 + stop_loss), 2))
+        self.profit_price = str(round(self.fill_price * (1 - take_profit), 2))
 
         order_dict = {
             "orderStrategyType": "OCO",
@@ -221,7 +225,7 @@ class Equities:
                 {
                     "orderType": "LIMIT",
                     "session": "NORMAL",
-                    "price": profit_price,
+                    "price": self.profit_price,
                     "duration": "DAY",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -238,7 +242,7 @@ class Equities:
                 {
                     "orderType": "STOP",
                     "session": "NORMAL",
-                    "stopPrice": stop_price,
+                    "stopPrice": self.stop_price,
                     "duration": "DAY",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -255,13 +259,13 @@ class Equities:
             ]
         }
 
-        return order_dict, stop_price, profit_price
+        return order_dict
     
     def get_sell_order_dict(self, quantity, stop_loss, take_profit, response):
         if self.fill_price is None:
             self.fill_price = self.get_fill_price(response)
-        stop_price = str(round(self.fill_price * (1 - stop_loss), 2))
-        profit_price = str(round(self.fill_price * (1 + take_profit), 2))
+        self.stop_price = str(round(self.fill_price * (1 - stop_loss), 2))
+        self.profit_price = str(round(self.fill_price * (1 + take_profit), 2))
 
         order_dict = {
             "orderStrategyType": "OCO",
@@ -269,7 +273,7 @@ class Equities:
                 {
                     "orderType": "LIMIT",
                     "session": "NORMAL",
-                    "price": profit_price,
+                    "price": self.profit_price,
                     "duration": "DAY",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -286,7 +290,7 @@ class Equities:
                 {
                     "orderType": "STOP",
                     "session": "NORMAL",
-                    "stopPrice": stop_price,
+                    "stopPrice": self.stop_price,
                     "duration": "DAY",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -303,15 +307,16 @@ class Equities:
             ]
         }
 
-        return order_dict, stop_price, profit_price
+        return order_dict
 
     def get_fill_price(self, response):
-        order_id = response.headers.get('location', '/').split('/')[-1] #change
+        order_id = response.headers.get('location', '/').split('/')[-1]
         details = self.client.order_details(self.hash, order_id)
         details_json = details.json()
 
         legs = details_json['orderActivityCollection'][0]['executionLegs']
         fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / sum(leg['quantity'] for leg in legs)
+        fill_price = round(fill_price, 2)
         return fill_price
 
     def replace_order(self, quantity, stop_loss, take_profit, entry_response, hold_response, position=None):
@@ -319,7 +324,7 @@ class Equities:
         # if order_replacement fails, exit position immediately (interpret return response)
         # client.account_orders(accountHash, fromEnteredTime, toEnteredTime, maxResults=None, status=None)
         # look for status == REJECTED
-        # time.sleep(0.01)
+        time.sleep(0.05)
         if position == "long":
             return self.long_bracket(quantity, stop_loss, take_profit, entry_response)
         elif position == "short":
