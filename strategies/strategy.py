@@ -233,16 +233,20 @@ class Strategy:
 
 
 class RiskManager:
-    def __init__(self, risk_threshold=5, pause_duration=5, pnl_target=200, pnl_loss=200):
+    def __init__(self, risk_threshold=5, pause_duration=5, pnl_target=0.02, pnl_loss=-0.02):
         self.risk_threshold = risk_threshold
         self.pause_duration = pause_duration
         self.pnl_target = pnl_target
         self.pnl_loss = pnl_loss
+        self.start_cash = 0
         self.pnl = 0
         self.day_pause = False
         self.risk = 0
         self.pause = False
         self._pause_counter = 0
+
+    def get_start_cash(self, cash):
+        self.start_cash = cash
 
     def check_risk(self, pnl):
         self.pnl += pnl
@@ -264,12 +268,14 @@ class RiskManager:
                 self.pause = False
                 self._pause_counter = 0
 
-    def daily_risk_target(self):     #percentage based daily stops !!!!!
-        if self.pnl >= self.pnl_target:
+    def daily_risk_target(self):
+        target = self.pnl / self.start_cash
+        if target >= self.pnl_target:
             self.day_pause = True
 
-    def daily_risk_stop(self):       #percentage based daily stops !!!!!
-        if self.pnl <= -self.pnl_loss:
+    def daily_risk_stop(self):
+        stop = self.pnl / self.start_cash
+        if stop <= self.pnl_loss:
             self.day_pause = True
     
     def dynamic_position_sizing(self, position_size):

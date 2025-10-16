@@ -93,6 +93,7 @@ class Equities:
                 self.risk_manager.check_risk(pnl)
 
         self.cash = self.get_liquidation_value()
+        self.risk_manager.get_start_cash(self, self.cash)
 
         self.streamer.start(response_handler)
         #start_auto for market open

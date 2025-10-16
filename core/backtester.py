@@ -34,6 +34,7 @@ class Backtest:
             take_profit = self.strategy.get_take_profit()
             position_size = self.strategy.get_position_size()
             shares = max(1, int(round(self.shares * position_size)))
+            self.risk_manager.get_start_cash(25_000)
 
             signal = self.strategy.generate_signal(row)
 
@@ -130,10 +131,12 @@ class Backtest:
 
     def update_equity(self, cash, position, shares, close, entry_price, ts):
         current_equity = cash
+        
         if position == "long":
-            current_equity = shares * (close - entry_price) + cash
+            current_equity += (close - entry_price) * shares
         elif position == "short":
-            current_equity = shares * (entry_price - close) + cash
+            current_equity += (entry_price - close) * shares
+
         self.stats.update_intraday_equity(ts, current_equity)
         self.plotting.update_intraday_equity(current_equity)
 

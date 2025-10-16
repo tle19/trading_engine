@@ -36,6 +36,7 @@ class Stats:
         self.net_profit_pct = 0
         self.avg_change = 0
         self.profit_factor = np.inf
+        self.sharpe_ratio = None
 
         self.daily_pnls = []
         self.best_day = self.worst_day = self.avg_day = 0
@@ -77,7 +78,7 @@ class Stats:
         self._calculate_pnls(intraday_equity)
         self._calculate_daily_pnls()
         self._calculate_win_rates()
-
+        self._calculate_sharpe_ratio()
         if mode == "pess":
             cash, win_rate, name = self.pess_cash, self.pess_win_rate, "PESSIMISTIC"
         elif mode == "opt":
@@ -113,6 +114,7 @@ class Stats:
         print(f"Net Profit:                 ${self.net_profit:.2f} ({self.net_profit_pct:.2f}%)")
         print(f"Avg Δ per step:             ${self.avg_change:.2f}")
         print(f"Profit Factor:              {self.profit_factor:.2f}")
+        print(f"Sharpe Ratio:               {self.sharpe_ratio:.2f}")
         print("-" * 50)
 
         # --- Daily stats ---
@@ -224,6 +226,16 @@ class Stats:
                 current_win = current_loss = 0
                 current_win_sum = current_loss_sum = 0
 
+    def _calculate_sharpe_ratio(self, risk_free_rate=0.05):
+        daily_returns = np.array(self.daily_pnls) / self.starting_cash
+        mean_daily_return = np.mean(daily_returns)
+        std_daily_return = np.std(daily_returns, ddof=1)
+
+        daily_rf = (1 + risk_free_rate) ** (1/252) - 1
+        excess_daily_return = mean_daily_return - daily_rf
+
+        self.sharpe_ratio = np.sqrt(252) * (excess_daily_return / std_daily_return)
+    
     def get_time_loss(self):
         # find time of day where loss is irrecoverable, set loss there
         # dont want to stop out day if loss is in very beggining of day (could recover)

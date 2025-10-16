@@ -216,25 +216,39 @@ symbols = ["SPY", "QQQ",
            "MSFT", "META", 
            "TSM", "CSCO", 
            "INTC", "ADBE"]
-curr_symbol = symbols[8]
+curr_symbol = symbols[3]
 
 
 # fetch_multiple_symbols(symbols)
-# 
 # fetch_schwab_data("2025-10-15") 
-# get_average_spread(curr_symbol, start_date="2023-10-02", end_date="2025-10-02")
+# min dist ratio based on this vvvv
+# get_average_spread(symbols, start_date="2025-8-01", end_date="2025-10-01")
 
 run_one_backtest(
     curr_symbol, 
-    start_date="2024-1-01", 
-    end_date="2025-1-01", 
+    start_date="2025-8-01", 
+    end_date="2025-10-01", 
     fast_window=10, 
-    slow_window=25, 
-    htf_window=45, 
+    slow_window=20, 
+    htf_window=40, 
     position_size=1.0, 
     stop_loss=0.0075, 
-    take_profit=0.015, 
+    take_profit=0.0175, 
     trailing_ratio=0.1)
+
+# for symbol in symbols[2:]:
+#     run_one_backtest(
+#         symbol, 
+#         start_date="2025-8-01", 
+#         end_date="2025-10-01", 
+#         fast_window=10, 
+#         slow_window=20, 
+#         htf_window=40, 
+#         position_size=1.0, 
+#         stop_loss=0.0075, 
+#         take_profit=0.0175, 
+#         trailing_ratio=0.1,
+#         plot=False)
 
 # grid_search(curr_symbol, start_date="2024-10-01", end_date="2025-10-01")
 # walk_forward_optimize(curr_symbol)

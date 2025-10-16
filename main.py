@@ -23,9 +23,9 @@ def main():
         bt.run()
     elif args.fetch:
         dh = DataHandler()
-        # dh.historical_data(args.symbol)
+        dh.historical_data(args.symbol, from_date='2025-1-01', to_date='2025-10-16')
         # dh.schwab_data(args.symbol)
-        dh.stream_data(args.symbol)
+        # dh.stream_data(args.symbol)
     
 if __name__ == "__main__":
     main()
