@@ -105,6 +105,8 @@ class DataHandler:
 
         save_data(df, symbol)
 
+        return df
+
 
     def stream_data(self, symbol, duration=300):
 

@@ -7,7 +7,7 @@ OPT = "opt"
 
 class Backtest:
     def __init__(self, symbol, strategy_class, cash=25_000, shares=30, 
-                 margin=1.0, commission=0.0, slippage=0.0003, force_close=True):
+                 margin=1.0, commission=0.0, slippage=0.0003):
         self.symbol = symbol
         self.strategy = strategy_class
         self.cash = cash
@@ -15,13 +15,13 @@ class Backtest:
         self.margin = margin
         self.commission = commission
         self.slippage = slippage
-        self.force_close = force_close
+        self.force_close = self.strategy.is_force_close()
 
         self.stats = Stats(symbol)
         self.plotting = Plotting(symbol)
         self.risk_manager = self.strategy.get_risk_manager()
 
-    def run(self, start_date="2023-10-02", end_date="2024-10-02", plot=False):
+    def run(self, start_date="2023-10-01", end_date="2024-10-01", plot=False):
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 
         pess_cash = opt_cash = avg_cash = self.cash
@@ -63,7 +63,7 @@ class Backtest:
                     profit_price = entry_price * (1 + take_profit)
 
                     # --- Force Close ---
-                    if self.force_close and (ts.hour, ts.minute) >= (15, 58):
+                    if self.force_close and (ts.hour, ts.minute) == (15, 58):
                         pnl = (close * (1 - self.slippage) - entry_price) * shares
                         self.stats.update_trade(pnl, PESS)
                         self.stats.update_trade(pnl, OPT)
@@ -91,7 +91,7 @@ class Backtest:
                     profit_price = entry_price * (1 - take_profit)
 
                     # --- Force Close ---   
-                    if self.force_close and (ts.hour, ts.minute) >= (15, 58):
+                    if self.force_close and (ts.hour, ts.minute) == (15, 58):
                         pnl = (entry_price - close * (1 + self.slippage)) * shares
                         self.stats.update_trade(pnl, PESS)
                         self.stats.update_trade(pnl, OPT)

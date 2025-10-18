@@ -10,19 +10,20 @@ HOLD = None
 
 class Strategy:
     def __init__(self, symbol, position_size=1.0,
-                 stop_loss=0.01, take_profit=0.02, trailing_ratio=0.15):
+                 stop_loss=0.01, take_profit=0.02, trailing_ratio=0.15, force_close=False):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.trailing_ratio = trailing_ratio
         self.default_position_size = position_size
         self.position_size = position_size
+        self.force_close = force_close
 
         self.position = None
         self.trailing_stop = False
         self.trailing_profit = False
-        self.trailing_stop_loss = None
-        self.trailing_take_profit = None
+        self.trailing_stop_loss = stop_loss
+        self.trailing_take_profit = take_profit
         self.entry_price = None
         self.stop_price = None
         self.profit_price = None
@@ -69,16 +70,16 @@ class Strategy:
         self.lows.append(self.low)
         # self.volumes.append(self.volume)
 
-    def check_status(self, force_close=True):
+    def check_status(self, force_close=False):
         if self.position == "long":
             if self.high >= self.profit_price or self.low <= self.stop_price:
                 return self.sell()
-            if force_close and (self.ts.hour, self.ts.minute) >= (15, 58): # not self.trade_window((9, 30), (15, 57))
+            if force_close and not self.trade_window((9, 30), (15, 57)):
                 return self.sell()
         elif self.position == "short":
             if self.low <= self.profit_price or self.high >= self.stop_price:
                 return self.buy()
-            if force_close and (self.ts.hour, self.ts.minute) >= (15, 58):
+            if force_close and not self.trade_window((9, 30), (15, 57)):
                 return self.buy()
             
     def buy(self):
@@ -108,8 +109,8 @@ class Strategy:
         self.position = None
         self.trailing_stop = False
         self.trailing_profit = False
-        self.trailing_stop_loss = None
-        self.trailing_take_profit = None
+        self.trailing_stop_loss = self.stop_loss
+        self.trailing_take_profit = self.take_profit
         self.entry_price = None
         self.stop_price = None
         self.profit_price = None
@@ -118,19 +119,15 @@ class Strategy:
 
     def set_trailing_stop(self, trailing_ratio):
         self.trailing_stop = True
-        self.sl_change = False
-        self.trailing_stop_loss = self.stop_loss
         adjustment = trailing_ratio * abs(self.stop_price - self.close)
 
         if self.position == "long" and self.close > self.entry_price:
-            new_stop = self.stop_price + adjustment
-            self.stop_price = new_stop
+            self.stop_price += adjustment
             self.trailing_stop_loss = 1 - (self.stop_price / self.entry_price)
             self.sl_change = True
 
         elif self.position == "short" and self.close < self.entry_price:
-            new_stop = self.stop_price - adjustment
-            self.stop_price = new_stop
+            self.stop_price -= adjustment
             self.trailing_stop_loss = (self.stop_price / self.entry_price) - 1
             self.sl_change = True
 
@@ -150,24 +147,21 @@ class Strategy:
 
     def set_trailing_profit(self, trailing_ratio):
         self.trailing_profit = True
-        self.tp_change = False
-        self.trailing_take_profit = self.take_profit
         adjustment = trailing_ratio * abs(self.profit_price - self.close)
         
         if self.position == "long" and self.close > self.entry_price:
-            new_profit = self.profit_price + adjustment
-            self.profit_price = new_profit
+            self.profit_price += adjustment
             self.trailing_take_profit = 1 - (self.profit_price / self.entry_price)
             self.tp_change = True
 
         elif self.position == "short" and self.close < self.entry_price:
-            new_profit = self.profit_price - adjustment
-            self.profit_price = new_profit
+            self.profit_price -= adjustment
             self.trailing_take_profit = (self.profit_price / self.entry_price) - 1
             self.tp_change = True
     
     def set_trailing_profit_safe(self):
         if not self.in_safe_range():
+            self.tp_change = False
             return None
 
         min_distance = self.compute_min_distance()
@@ -205,14 +199,18 @@ class Strategy:
     def compute_ma(self, items, window):
         return np.mean(items[-window:])
     
-    def compute_spread(self, stability_window=15):
+    def compute_spread(self, stability_window=10): #consider more reactive =5
         if len(self.prices) < stability_window:
             return None
+
         recent_highs = np.array(self.highs[-stability_window:])
         recent_lows = np.array(self.lows[-stability_window:])
         spread = np.mean(recent_highs - recent_lows)
         return spread
-
+    
+    def is_force_close(self):
+        return self.force_close
+    
     def stop_loss_changed(self):
         return self.sl_change
     
@@ -252,7 +250,7 @@ class Strategy:
         self.profit_price = float(profit)
 
 class RiskManager:
-    def __init__(self, risk_threshold=5, pause_duration=5, pnl_target=0.02, pnl_loss=-0.02):
+    def __init__(self, risk_threshold=5, pause_duration=5, pnl_target=0.02, pnl_loss=-0.001):
         self.risk_threshold = risk_threshold
         self.pause_duration = pause_duration
         self.pnl_target = pnl_target

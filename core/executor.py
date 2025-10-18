@@ -71,7 +71,7 @@ class Equities:
             print(f"Timestamp: {timestamp}")
             print(row) #sanity check
 
-            if (timestamp.hour, timestamp.minute) >= (15, 58):
+            if (timestamp.hour, timestamp.minute) == (15, 58):
                 self.force_close = True
                 
             signal = self.strategy.generate_signal(row)
@@ -128,12 +128,13 @@ class Equities:
                 self.strategy.update_prices(self.fill_price, self.stop_price, self.profit_price)
                 
             if self.force_close:
+                print('I EXECUTED HERE')
                 self.cancel_order(self.hold_response)
                 if self.position == "long":
-                    self.sell_market(shares)
+                    self.sell_market(shares) # order_dict doesnt work here
 
                 elif self.position == "short":
-                    self.buy_market(shares)
+                    self.buy_market(shares) # order_dict doesnt work here
 
                 self.reset()
 
@@ -321,10 +322,7 @@ class Equities:
 
     def replace_order(self, quantity, stop_loss, take_profit, entry_response, hold_response):
         self.cancel_order(hold_response)
-        # if order_replacement fails, exit position immediately (interpret return response)
-        # client.account_orders(accountHash, fromEnteredTime, toEnteredTime, maxResults=None, status=None)
-        # look for status == REJECTED
-        time.sleep(0.05)
+        time.sleep(0.05) # buffer time for order to cancel
         if self.position == "long":
             return self.long_bracket(quantity, stop_loss, take_profit, entry_response)
         elif self.position == "short":

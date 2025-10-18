@@ -32,7 +32,7 @@ def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
         avg_spread = data["normalized_spread"].mean()
         print(symbol, avg_spread)
 
-def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, stop_loss=0.005, take_profit=0.0075, trailing_ratio=0.15, plot=True):
+def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, stop_loss=0.01, take_profit=0.0175, trailing_ratio=0.125, plot=True):
     start_time = time.perf_counter()
 
     strat = SMACrossoverIndicator(
@@ -116,7 +116,7 @@ def walk_forward_optimize(symbol):
     
     return results
 
-def grid_search(symbol, start_date="2023-10-02", end_date="2024-10-02"):
+def grid_search(symbol, start_date="2023-10-01", end_date="2024-10-01"):
     best_params = optimize_params(symbol, start_date, end_date)
     print(best_params)
     
@@ -126,21 +126,11 @@ def optimize_params(symbol, start, end):
     param_grid = { # medium frequency (6-10 trades per day)
         "fast_window": [8, 10, 12],
         "slow_window": [15, 20, 25],
-        "htf_window": [35, 40, 45],
+        "htf_window": [40, 45, 50, 55],
         "position_size": [1.0],
-        "stop_loss": [0.0075, 0.01, 0.0125],
-        "take_profit": [0.0125, 0.015, 0.0175],
-        "trailing_ratio": [0.1, 0.125, 0.15],
-    }
-
-    param_grid = { # hold windows stable
-        "fast_window": [10],
-        "slow_window": [20],
-        "htf_window": [40],
-        "position_size": [1.0],
-        "stop_loss": [0.005, 0.0075, 0.01, 0.0125, 0.015],
-        "take_profit": [0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02],
-        "trailing_ratio": [0.0075, 0.1, 0.125, 0.15, 0.175, 0.2],
+        "stop_loss": [0.01],
+        "take_profit": [0.02],
+        "trailing_ratio": [0.15],
     }
 
     best_score = -np.inf
@@ -192,44 +182,31 @@ curr_symbol = symbols[3]
 
 run_one_backtest(
     curr_symbol, 
-    start_date="2024-1-01", 
-    end_date="2025-1-01", 
+    start_date="2023-10-01", 
+    end_date="2024-1-01", 
     fast_window=10, 
     slow_window=20, 
     htf_window=40, 
     position_size=1.0, 
-    stop_loss=0.01, 
-    take_profit=0.0175, 
-    trailing_ratio=0.125)
+    stop_loss=0.005, 
+    take_profit=0.005, 
+    trailing_ratio=0.25)
 
 # for symbol in symbols[2:]:
 #     run_one_backtest(
 #         symbol, 
-#         start_date="2024-10-01", 
+#         start_date="2025-9-01", 
 #         end_date="2025-10-01", 
 #         fast_window=10, 
 #         slow_window=20, 
 #         htf_window=40, 
 #         position_size=1.0, 
-#         stop_loss=0.0075, 
+#         stop_loss=0.01, 
 #         take_profit=0.0175, 
 #         trailing_ratio=0.125,
 #         plot=False)
 
-# grid_search(curr_symbol, start_date="2023-10-01", end_date="2024-10-01")
-
-# grid_search(curr_symbol, start_date="2025-6-01", end_date="2025-9-01")
-# run_one_backtest(
-#     curr_symbol, 
-#     start_date="2025-9-01", 
-#     end_date="2025-10-01", 
-#     fast_window=12, 
-#     slow_window=15, 
-#     htf_window=35, 
-#     position_size=1.0, 
-#     stop_loss=0.0125, 
-#     take_profit=0.0175, 
-#     trailing_ratio=0.125)
+# grid_search(curr_symbol, start_date="2023-10-01", end_date="2024-1-01")
 
 # walk_forward_optimize(curr_symbol)
 
