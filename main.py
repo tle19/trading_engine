@@ -13,12 +13,12 @@ def main():
 
     strategy_class = strategy_map.get(args.strategy)
     if strategy_class is None:
-        raise ValueError(f"Unknown strategy: {args.strategy}")
+        raise ValueError(f"Unknown Strategy: {args.strategy}")
     
     if args.live:
-        strat = strategy_class(args.symbol, True)
-        ex = Equities(args.symbol, strat)
-        ex.run()
+        strat = strategy_class(args.symbol)
+        eq = Equities(args.symbol, strat)
+        eq.run()
     elif args.backtest:
         strat = strategy_class(args.symbol)
         bt = Backtest(args.symbol, strat)

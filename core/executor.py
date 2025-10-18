@@ -53,8 +53,8 @@ class Equities:
                 close = content.get("5")
                 volume = content.get("6")
 
-                high = high if high is None else self.last_high
-                low = low if low is None else self.last_low
+                high = high if high is not None else self.last_high
+                low = low if low is not None else self.last_low
 
                 self.last_high = high
                 self.last_low = low
@@ -68,22 +68,22 @@ class Equities:
                     "volume": volume
                 }
 
-            stop_loss = self.strategy.get_stop_loss()
-            take_profit = self.strategy.get_take_profit()
-            position_size = self.strategy.get_position_size()
-            shares = max(1, round(self.shares * position_size))
+            print(f"Timestamp: {timestamp}")
+            print(row) #sanity check
 
             if (timestamp.hour, timestamp.minute) >= (15, 58):
                 self.force_close = True
                 
             signal = self.strategy.generate_signal(row)
+
+            shares = max(1, round(self.shares * position_size))
+            stop_loss = self.strategy.get_stop_loss()
+            take_profit = self.strategy.get_take_profit()
             sl_change = self.strategy.stop_loss_changed()
             tp_change = self.strategy.take_profit_changed()
+            position_size = self.strategy.get_position_size()
 
             self.interpret_signal(signal, shares, stop_loss, take_profit, sl_change, tp_change)
-
-            print(f"Timestamp: {timestamp}")
-            print(row) #sanity check
 
             if self.position is None:
                 curr_cash = self.get_liquidation_value()
@@ -121,12 +121,12 @@ class Equities:
         elif signal is None and self.position is not None:
             if sl_change or tp_change:
                 if self.position == "long":
-                    self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
+                    self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response)
 
                 elif self.position == "short":
-                    self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response, self.position)
+                    self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response)
                 self.strategy.update_prices(self.fill_price, self.stop_price, self.profit_price)
-
+                
             if self.force_close:
                 self.cancel_order(self.hold_response)
                 if self.position == "long":
@@ -137,7 +137,7 @@ class Equities:
 
                 self.reset()
 
-        # --- Exit Position ---
+        # --- Exit Position --- #bought here??
         elif signal == 0 and self.position is not None:
             if self.position == "long":
                 print(f"SELL -{shares} {self.symbol}")
@@ -319,15 +319,15 @@ class Equities:
         fill_price = round(fill_price, 2)
         return fill_price
 
-    def replace_order(self, quantity, stop_loss, take_profit, entry_response, hold_response, position=None):
+    def replace_order(self, quantity, stop_loss, take_profit, entry_response, hold_response):
         self.cancel_order(hold_response)
         # if order_replacement fails, exit position immediately (interpret return response)
         # client.account_orders(accountHash, fromEnteredTime, toEnteredTime, maxResults=None, status=None)
         # look for status == REJECTED
         time.sleep(0.05)
-        if position == "long":
+        if self.position == "long":
             return self.long_bracket(quantity, stop_loss, take_profit, entry_response)
-        elif position == "short":
+        elif self.position == "short":
             return self.short_bracket(quantity, stop_loss, take_profit, entry_response)
 
     def cancel_order(self, response):

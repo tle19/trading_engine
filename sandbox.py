@@ -63,8 +63,8 @@ def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=2
     return bt.get_stats_class()
 
 def walk_forward_optimize(symbol):
-    start = pd.Timestamp("2023-10-02")
-    end = pd.Timestamp("2025-10-02")
+    start = pd.Timestamp("2023-10-01")
+    end = pd.Timestamp("2025-10-01")
 
     train_months = 6
     test_months = 3
@@ -123,34 +123,24 @@ def grid_search(symbol, start_date="2023-10-02", end_date="2024-10-02"):
 def optimize_params(symbol, start, end):
     start_time = time.perf_counter()
 
-    param_grid = { #bullish params
-        "fast_window": [5, 10, 15],
-        "slow_window": [15, 20, 30, 40],
-        "htf_window": [40, 50, 60, 70],
+    param_grid = { # medium frequency (6-10 trades per day)
+        "fast_window": [8, 10, 12],
+        "slow_window": [15, 20, 25],
+        "htf_window": [35, 40, 45],
         "position_size": [1.0],
-        "stop_loss": [0.005, 0.0075, 0.01, 0.0125],
-        "take_profit": [0.01, 0.0125, 0.015, 0.0175],
-        "trailing_ratio": [0.075, 0.1, 0.125],
+        "stop_loss": [0.0075, 0.01, 0.0125],
+        "take_profit": [0.0125, 0.015, 0.0175],
+        "trailing_ratio": [0.1, 0.125, 0.15],
     }
 
-    param_grid = { #bearish params
-        "fast_window": [10, 15],
-        "slow_window": [20, 30, 40],
-        "htf_window": [60, 70, 80],
-        "position_size": [1.0],
-        "stop_loss": [0.01, 0.0125, 0.015],
-        "take_profit": [0.0075, 0.01, 0.0125],
-        "trailing_ratio": [0.075, 0.1, 0.125],
-    }
-
-    param_grid = { #trailing ratio params
+    param_grid = { # hold windows stable
         "fast_window": [10],
         "slow_window": [20],
         "htf_window": [40],
         "position_size": [1.0],
-        "stop_loss": [0.005],
-        "take_profit": [0.015],
-        "trailing_ratio": [0.05, 0.075, 0.1, 0.125, 0.15],
+        "stop_loss": [0.005, 0.0075, 0.01, 0.0125, 0.015],
+        "take_profit": [0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02],
+        "trailing_ratio": [0.0075, 0.1, 0.125, 0.15, 0.175, 0.2],
     }
 
     best_score = -np.inf
@@ -182,7 +172,8 @@ def test_order(symbol):
     entry_response = eq.buy_market(1)
     hold_response = eq.long_bracket(1, 0.001, 0.001, entry_response)
     time.sleep(5)
-    eq.replace_order(1, 0.002, 0.002, entry_response, hold_response, "long")
+    eq.position = "long"
+    eq.replace_order(1, 0.002, 0.002, entry_response, hold_response)
 
 symbols = ["SPY", "QQQ", 
            "TSLA", "NVDA", 
@@ -197,24 +188,24 @@ curr_symbol = symbols[3]
 # fetch_multiple_symbols(symbols)
 # fetch_schwab_data("2025-10-15") 
 # min dist ratio based on this vvvv
-# get_average_spread(symbols, start_date="2025-8-01", end_date="2025-10-01")
+# get_average_spread(symbols, start_date="2025-7-01", end_date="2025-10-01")
 
 run_one_backtest(
     curr_symbol, 
-    start_date="2025-8-01", 
-    end_date="2025-10-01", 
+    start_date="2024-1-01", 
+    end_date="2025-1-01", 
     fast_window=10, 
     slow_window=20, 
     htf_window=40, 
     position_size=1.0, 
-    stop_loss=0.0075, 
+    stop_loss=0.01, 
     take_profit=0.0175, 
-    trailing_ratio=0.1)
+    trailing_ratio=0.125)
 
 # for symbol in symbols[2:]:
 #     run_one_backtest(
 #         symbol, 
-#         start_date="2025-8-01", 
+#         start_date="2024-10-01", 
 #         end_date="2025-10-01", 
 #         fast_window=10, 
 #         slow_window=20, 
@@ -222,10 +213,24 @@ run_one_backtest(
 #         position_size=1.0, 
 #         stop_loss=0.0075, 
 #         take_profit=0.0175, 
-#         trailing_ratio=0.1,
+#         trailing_ratio=0.125,
 #         plot=False)
 
-# grid_search(curr_symbol, start_date="2024-10-01", end_date="2025-10-01")
+# grid_search(curr_symbol, start_date="2023-10-01", end_date="2024-10-01")
+
+# grid_search(curr_symbol, start_date="2025-6-01", end_date="2025-9-01")
+# run_one_backtest(
+#     curr_symbol, 
+#     start_date="2025-9-01", 
+#     end_date="2025-10-01", 
+#     fast_window=12, 
+#     slow_window=15, 
+#     htf_window=35, 
+#     position_size=1.0, 
+#     stop_loss=0.0125, 
+#     take_profit=0.0175, 
+#     trailing_ratio=0.125)
+
 # walk_forward_optimize(curr_symbol)
 
 # test_order(curr_symbol)    

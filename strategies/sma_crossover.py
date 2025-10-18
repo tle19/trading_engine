@@ -7,7 +7,7 @@ from utils import *
 
 class SMACrossoverIndicator(Strategy):
     def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, 
-                 stop_loss=0.0075, take_profit=0.0175, trailing_ratio=0.1, target=0.02, loss=-0.008):
+                 stop_loss=0.01, take_profit=0.0175, trailing_ratio=0.125, target=0.02, loss=-0.008):
         super().__init__(symbol, position_size, stop_loss, take_profit, trailing_ratio)
         self.fast_window = fast_window
         self.slow_window = slow_window
@@ -18,17 +18,11 @@ class SMACrossoverIndicator(Strategy):
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
-        if self.trade_window((9, 30), (9, 30)):
-            self.risk_manager.reset_risk()
-            # self.detect_regime()
-
+        # if self.trade_window((9, 30), (9, 30)):
+        #     self.detect_regime()
         status = self.check_status()
         if status is not None:
             return status
-        
-        self.risk_manager.daily_risk_stop()
-        if self.risk_manager.is_day_pause():
-            return None
         
         if len(self.prices) < self.slow_window:
             return None
@@ -39,6 +33,9 @@ class SMACrossoverIndicator(Strategy):
             return self.enter_trade()
         else:
             self.set_trailing_stop_safe()
+            # after certain amount of holding time 
+            # and price is below entry, begin moving profit and/or stop
+            # donchian channel ?
         return None
     
     def enter_trade(self):
@@ -52,6 +49,7 @@ class SMACrossoverIndicator(Strategy):
             return self.sell()
 
     def volatility_adjustment(self):
+        # normalizing for volatility to make standard across stocks
         # average volatility on past data
         # candle strength as well as direction
         # enter on low spread? high-low moving average
@@ -61,14 +59,17 @@ class SMACrossoverIndicator(Strategy):
         
         # if 0 == 0:
         #     self.stop_loss = 0.0125
+        #     self.take_profit = 0.0125
         # elif 0 == 0:
+        #     self.stop_loss = 0.0125
         #     self.take_profit = 0.0125
         raise NotImplementedError
     
-    def detect_regime(self): 
+    def detect_regime(self):  
+        # consider regime shift based on stop loss/ take profit.
         # consider market regime and stock regime for taking only longs/shorts respectively
         current_date = self.ts.date().strftime("%Y-%m-%d")
-        data = open_data("SPY", start_date="2024-10-01", end_date=(datetime.fromisoformat(current_date) - timedelta(days=1)).date().isoformat())
+        data = open_data("SPY", start_date="2023-10-01", end_date=(datetime.fromisoformat(current_date) - timedelta(days=1)).date().isoformat())
         daily = data.resample('1D', on='timestamp').agg({
             'open':'first',
             'high':'max',
@@ -83,55 +84,37 @@ class SMACrossoverIndicator(Strategy):
         diff_short_long = (short_ma - long_ma) / long_ma
         regime = None
 
-        if diff_short_long > 0.03:
-            regime = "STRONG_BULLISH" if short_ma > medium_ma else "MILD_BULLISH"
-        elif 0 < diff_short_long <= 0.03:
-            regime = "MILD_BULLISH"
+        if diff_short_long > 0.01:
+            regime = "BULLISH"
         elif -0.01 <= diff_short_long <= 0.01:
             regime = "STAGNANT"
-        elif -0.03 <= diff_short_long < 0:
-            regime = "MILD_BEARISH"
-        elif diff_short_long < -0.03:
-            regime = "STRONG_BEARISH" if short_ma < medium_ma else "MILD_BEARISH"
+        elif diff_short_long < -0.01:
+            regime = "BEARISH"
         
-        print(self.ts)
+        print(self.ts.date())
         print(regime) #sanity check
 
         self.select_regime(regime)
 
     def select_regime(self, regime):
-        if regime == "STRONG_BULLISH":
+        if regime == "BULLISH":
             self.fast_window = 10
             self.slow_window = 20
             self.htf_window = 40
-            self.stop_loss = 0.0075
+            self.stop_loss = 0.01
             self.take_profit = 0.0175
-            self.trailing_ratio = 0.1
-        elif regime == "MILD_BULLISH":
-            self.fast_window = 10
-            self.slow_window = 20
-            self.htf_window = 45
-            self.stop_loss = 0.0075
-            self.take_profit = 0.015
-            self.trailing_ratio = 0.1
+            self.trailing_ratio = 0.125
         elif regime == "STAGNANT":
             self.fast_window = 10
-            self.slow_window = 20
-            self.htf_window = 50
-            self.stop_loss = 0.0075
-            self.take_profit = 0.0125
-            self.trailing_ratio = 0.1
-        elif regime == "MILD_BEARISH":
-            self.fast_window = 10
             self.slow_window = 25
-            self.htf_window = 60
-            self.stop_loss = 0.01
-            self.take_profit = 0.0125
-            self.trailing_ratio = 0.1
-        elif regime == "STRONG_BEARISH":
+            self.htf_window = 50
+            self.stop_loss = 0.0125
+            self.take_profit = 0.015
+            self.trailing_ratio = 0.125
+        elif regime == "BEARISH":
             self.fast_window = 10
             self.slow_window = 30
-            self.htf_window = 80
-            self.stop_loss = 0.0125
+            self.htf_window = 60
+            self.stop_loss = 0.015
             self.take_profit = 0.0125
-            self.trailing_ratio = 0.1
+            self.trailing_ratio = 0.125
