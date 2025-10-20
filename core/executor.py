@@ -1,7 +1,7 @@
 import os
 import json
 import time
-from datetime import datetime, timezone
+from collections import namedtuple
 from zoneinfo import ZoneInfo
 
 import schwabdev
@@ -32,11 +32,10 @@ class Equities:
 
         self.entry_response = None
         self.hold_response = None
-        self.stop_price = None
-        self.profit_price = None
         self.is_trailing_stop = False
         self.is_trailing_profit = False
 
+        self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
         self.last_high = None
         self.last_low = None
 
@@ -58,18 +57,19 @@ class Equities:
 
                 high = self.last_high if high is None else high
                 low = self.last_low if low is None else low
-
                 self.last_high = high
                 self.last_low = low
 
-                row = {
-                    "timestamp": timestamp,
-                    "open": open,
-                    "high": high,
-                    "low": low,
-                    "close": close,
-                    "volume": volume
-                }
+                # row = {
+                #     "timestamp": timestamp,
+                #     "open": open,
+                #     "high": high,
+                #     "low": low,
+                #     "close": close,
+                #     "volume": volume
+                # }
+
+                row = self.Row(timestamp, open, high, low, close, volume)
 
             print(f"Timestamp: {timestamp}")
             print(row) #sanity check
@@ -82,7 +82,7 @@ class Equities:
             stop_price = str(self.strategy.get_stop_price())
             profit_price = str(self.strategy.get_profit_price())
             self.is_trailing_stop = self.strategy.is_trailing_stop()
-            self.is_trailing_profit = self.strategy. is_trailing_profit()
+            self.is_trailing_profit = self.strategy.is_trailing_profit()
             position_size = self.strategy.get_position_size()
             shares = max(1, round(self.shares * position_size))
 
@@ -153,8 +153,6 @@ class Equities:
     def flatten(self):
         self.entry_response = None
         self.hold_response = None
-        self.stop_price = None
-        self.profit_price = None
         self.is_trailing_stop = False
         self.is_trailing_profit = False
         self.position = None
@@ -205,18 +203,18 @@ class Equities:
         print(f"SELL -{quantity} {self.symbol} @ {self.fill_price}")
         return response
     
-    def long_bracket(self, quantity, stop_loss, take_profit):
-        order_dict = self.get_sell_order_dict(quantity, stop_loss, take_profit)
-
+    def long_bracket(self, quantity, stop_price, profit_price):
+        order_dict = self.get_sell_order_dict(quantity, stop_price, profit_price)
         response = self.client.order_place(self.hash, order_dict)
-        print(f"SL @ {self.stop_price} and TP @ {self.profit_price}")
+
+        print(f"SL @ {stop_price} and TP @ {profit_price}")
         return response
 
-    def short_bracket(self, quantity, stop_loss, take_profit):
-        order_dict = self.get_buy_order_dict(quantity, stop_loss, take_profit)
-
+    def short_bracket(self, quantity, stop_price, profit_price):
+        order_dict = self.get_buy_order_dict(quantity, stop_price, profit_price)
         response = self.client.order_place(self.hash, order_dict)
-        print(f"SL @ {self.stop_price} and TP @ {self.profit_price}")
+        
+        print(f"SL @ {stop_price} and TP @ {profit_price}")
         return response
     
     def get_buy_order_dict(self, quantity, stop_price, profit_price):

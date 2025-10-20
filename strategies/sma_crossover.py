@@ -8,7 +8,7 @@ from utils import *
 
 class SMACrossoverIndicator(Strategy):
     def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, 
-                 stop_loss=0.005, take_profit=0.005, trailing_ratio=0.1, 
+                 stop_loss=0.005, take_profit=0.005, trailing_ratio=0.05, 
                  target=0.02, loss=-0.01, force_close=True):
         super().__init__(symbol, position_size, stop_loss, take_profit, trailing_ratio, force_close)
         self.fast_window = fast_window
@@ -23,7 +23,7 @@ class SMACrossoverIndicator(Strategy):
         # if self.trade_window((9, 30), (9, 30)):
         #     self.detect_regime()
 
-        status = self.check_status(self.force_close)
+        status = self.check_status()
         if status is not None:
             return status
         
@@ -41,22 +41,28 @@ class SMACrossoverIndicator(Strategy):
         if self.position is None:
             return self.enter_trade()
         else:
-            self.set_trailing_stop_safe()
+            # spread_adjustment
+            self.set_trailing_stop()
             # after certain amount of holding time 
             # and price is below entry, begin moving profit and/or stop
-            # donchian channel ?
         return None
     
     def enter_trade(self):
-        fast_ma = self.compute_ma(self.prices, self.fast_window)
-        slow_ma = self.compute_ma(self.prices, self.slow_window)
-        htf_ma = self.compute_ma(self.prices, self.htf_window)
+        arr = np.array(self.prices)
+        fast_ma = self.compute_ma(arr, self.fast_window)
+        slow_ma = self.compute_ma(arr, self.slow_window)
+        htf_ma = self.compute_ma(arr, self.htf_window)
 
-        if fast_ma > slow_ma >= htf_ma and self.close < self.open:
+        if fast_ma > slow_ma >= htf_ma and self.close < self.open: #consider deleting candle direction 
             return self.buy()
         elif fast_ma < slow_ma <= htf_ma and self.close > self.open:
             return self.sell()
 
+    def spread_adjustment(self):
+        # donchian channel? for stops and profits (10% within highs/lows)
+        # scale trailing stop based on donchian high - low
+        raise NotImplementedError
+    
     def volatility_adjustment(self):
         # normalizing for volatility to make standard across stocks
         # average volatility on past data
@@ -110,15 +116,15 @@ class SMACrossoverIndicator(Strategy):
     def select_regime(self, regime):
         if regime == "BULLISH":
             self.fast_window = 10
-            # self.slow_window = 20
-            # self.htf_window = 40
+            self.slow_window = 20
+            self.htf_window = 40
             self.stop_loss = 0.01
             self.take_profit = 0.02
             self.trailing_ratio = 0.15
         elif regime == "TRANSITION":
             self.fast_window = 10
-            # self.slow_window = 20
-            # self.htf_window = 45
+            self.slow_window = 20
+            self.htf_window = 45
             self.stop_loss = 0.0125
             self.take_profit = 0.0175
             self.trailing_ratio = 0.15

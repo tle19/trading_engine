@@ -2,15 +2,12 @@ import pandas as pd
 from metrics import *
 from utils import *
 
-PESS = "pess"
-OPT = "opt"
-
 class Backtest:
     def __init__(self, symbol, strategy_class, cash=25_000, shares=30, 
                  margin=1.0, commission=0.0, slippage=0.0003):
         self.symbol = symbol
         self.strategy = strategy_class
-        self.cash = cash
+        self.starting_cash = cash
         self.shares = shares * margin
         self.margin = margin
         self.commission = commission
@@ -24,13 +21,14 @@ class Backtest:
     def run(self, start_date="2023-10-01", end_date="2024-10-01", plot=False):
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 
-        self.risk_manager.get_start_cash(25_000)
+        self.risk_manager.get_start_cash(25_000) # for testing purposes
 
-        pess_cash = opt_cash = avg_cash = self.cash
+        curr_cash = self.starting_cash
         position = None
         entry_price = None
 
-        for _, row in df.iterrows():
+        rows = df.itertuples(index=False)
+        for row in rows:
             position_size = self.strategy.get_position_size()
             shares = max(1, int(round(self.shares * position_size)))
             
@@ -39,10 +37,15 @@ class Backtest:
             stop_price = self.strategy.get_stop_price()
             profit_price = self.strategy.get_profit_price()
 
-            close = row['close']
-            high = row['high']
-            low = row['low']
-            ts = row["timestamp"]
+            # close = row['close']
+            # high = row['high']
+            # low = row['low']
+            # ts = row["timestamp"]
+
+            close = row.close
+            high = row.high
+            low = row.low
+            ts = row.timestamp
 
             shares = 25_000 // close
 
@@ -62,66 +65,34 @@ class Backtest:
                 if position == "long":
                     stop_price = stop_price * (1 - self.slippage)
 
-                    # --- Force Close ---
                     if self.force_close and (ts.hour, ts.minute) == (15, 58):
                         pnl = (close * (1 - self.slippage) - entry_price) * shares
-                        self.stats.update_trade(pnl, PESS)
-                        self.stats.update_trade(pnl, OPT)
-                        pess_cash += pnl
-                        opt_cash += pnl
                     else:
-                        # --- Pessimistic Case ---
                         if low <= stop_price:
                             pnl = (stop_price - entry_price) * shares
                         elif high >= profit_price:
                             pnl = (profit_price - entry_price) * shares
-                        self.stats.update_trade(pnl, PESS)
-                        pess_cash += pnl
-
-                        # --- Optimistic Case ---
-                        if high >= profit_price:
-                            pnl = (profit_price - entry_price) * shares
-                        elif low <= stop_price:
-                            pnl = (stop_price - entry_price) * shares
-                        self.stats.update_trade(pnl, OPT)
-                        opt_cash += pnl
-
+                            
                 elif position == "short":
                     stop_price = stop_price * (1 + self.slippage)
 
-                    # --- Force Close ---   
                     if self.force_close and (ts.hour, ts.minute) == (15, 58):
                         pnl = (entry_price - close * (1 + self.slippage)) * shares
-                        self.stats.update_trade(pnl, PESS)
-                        self.stats.update_trade(pnl, OPT)
-                        pess_cash += pnl
-                        opt_cash += pnl
                     else:
-                        # --- Pessimistic Case ---
                         if high >= stop_price:
                             pnl = (entry_price - stop_price) * shares
                         elif low <= profit_price:
                             pnl = (entry_price - profit_price) * shares
-                        self.stats.update_trade(pnl, PESS)
-                        pess_cash += pnl
-
-                        # --- Optimistic Case ---
-                        if low <= profit_price:
-                            pnl = (entry_price - profit_price) * shares
-                        elif high >= stop_price:
-                            pnl = (entry_price - stop_price) * shares
-                        self.stats.update_trade(pnl, OPT)
-                        opt_cash += pnl
 
                 position = None
                 entry_price = None
-                avg_cash = (pess_cash + opt_cash) / 2
+                curr_cash += pnl
+                self.stats.update_trade(pnl)
                 self.risk_manager.check_risk(pnl)
 
-            cash = self.mode_switch(pess_cash, opt_cash, avg_cash)
-            self.update_equity(cash, position, shares, close, entry_price, ts)
+            self.update_equity(curr_cash, position, shares, close, entry_price, ts)
 
-        self.stats.update_cash_vals(self.cash, pess_cash, opt_cash, avg_cash)
+        self.stats.update_cash_vals(self.starting_cash, curr_cash)
         self.stats.update_dates(start_date, end_date)
         self.plotting.update_dates(start_date, end_date)
 
@@ -138,15 +109,6 @@ class Backtest:
 
         self.stats.update_intraday_equity(ts, current_equity)
         self.plotting.update_intraday_equity(current_equity)
-
-    def mode_switch(self, pess_cash, opt_cash, avg_cash, mode=""):
-        if mode == "pess":
-            cash = pess_cash
-        elif mode == "opt":
-            cash = opt_cash
-        else:
-            cash = avg_cash
-        return cash
 
     def get_stats_class(self):
         return self.stats

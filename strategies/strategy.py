@@ -43,9 +43,20 @@ class Strategy:
     def generate_signal(self, row):
         self.update(row)
         self.reset_data() # optional
+
         status = self.check_status()
         if status is not None:
             return status
+        
+        self.risk_manager.intraday_risk()
+        self.risk_manager.daily_risk_stop()
+        self.position_size = self.risk_manager.dynamic_position_sizing(self.default_position_size)
+        if self.risk_manager.is_day_pause():
+            return None
+        if self.risk_manager.is_trade_pause():
+            self.risk_manager.tick()
+            return None
+        
         return self.enter_trade()
     
     def enter_trade(self):
@@ -53,12 +64,19 @@ class Strategy:
     
     def update(self, row=None): 
         if row is not None:
-            self.open = row["open"]
-            self.close = row["close"]
-            self.high = row["high"]
-            self.low = row["low"]
-            self.volume = row["volume"]
-            self.ts = row["timestamp"]
+            # self.open = row['open']
+            # self.close = row['close']d
+            # self.high = row['high']
+            # self.low = row['low']
+            # self.volume = row['volume']
+            # self.ts = row["timestamp"]
+
+            self.open = row.open
+            self.close = row.close
+            self.high = row.high
+            self.low = row.low
+            self.volume = row.volume
+            self.ts = row.timestamp
 
         self.prices.append(self.close)
         # self.prices.append((self.close + self.high + self.low) / 3)
@@ -66,16 +84,16 @@ class Strategy:
         self.lows.append(self.low)
         # self.volumes.append(self.volume)
 
-    def check_status(self, force_close=False):
+    def check_status(self):
         if self.position == "long":
-            if self.high >= self.profit_price or self.low <= self.stop_price:
+            if self.low <= self.stop_price or self.high >= self.profit_price:
                 return self.sell()
-            if force_close and not self.trade_window((9, 30), (15, 57)):
+            if self.force_close and not self.trade_window((9, 30), (15, 57)):
                 return self.sell()
         elif self.position == "short":
-            if self.low <= self.profit_price or self.high >= self.stop_price:
+            if self.high >= self.stop_price or self.low <= self.profit_price:
                 return self.buy()
-            if force_close and not self.trade_window((9, 30), (15, 57)):
+            if self.force_close and not self.trade_window((9, 30), (15, 57)):
                 return self.buy()
             
     def buy(self):
@@ -107,7 +125,12 @@ class Strategy:
         self.trailing_profit = False
         self.entry_price = None
 
-    def set_trailing_stop(self, trailing_ratio):
+    def set_trailing_stop(self):
+        self.trailing_stop = False
+        if not self.in_safe_range():
+            return None
+        
+        trailing_ratio = self.get_trailing_ratio(self.stop_price)
         adjustment = trailing_ratio * abs(self.stop_price - self.close)
 
         if self.position == "long" and self.close > self.entry_price and self.close > self.open:
@@ -117,22 +140,14 @@ class Strategy:
         elif self.position == "short" and self.close < self.entry_price and self.close < self.open:
             self.stop_price = round(self.stop_price - adjustment, 2)
             self.trailing_stop = True
-
-    def set_trailing_stop_safe(self):
-        if not self.in_safe_range():
-            self.trailing_stop = False
-            return None
-
-        min_distance = self.compute_min_distance()
-        stop_distance = abs(self.stop_price - self.close)
-
-        max_ratio = 1 - (min_distance / stop_distance)
-        trailing_ratio = min(self.trailing_ratio, max_ratio)
-        
-        self.set_trailing_stop(trailing_ratio)
         # print("EN", self.entry_price, "SL", self.stop_price, "TP", self.profit_price) #sanity check
 
-    def set_trailing_profit(self, trailing_ratio):
+    def set_trailing_profit(self):
+        self.trailing_profit = False
+        if not self.in_safe_range():
+            return None
+        
+        trailing_ratio = self.get_trailing_ratio(self.profit_price)
         adjustment = trailing_ratio * abs(self.profit_price - self.close)
         
         if self.position == "long" and self.close > self.entry_price:
@@ -142,25 +157,28 @@ class Strategy:
         elif self.position == "short" and self.close < self.entry_price:
             self.profit_price = round(self.profit_price - adjustment, 2)
             self.trailing_profit = True
-    
-    def set_trailing_profit_safe(self):
-        if not self.in_safe_range():
-            self.trailing_profit = False
-            return None
 
+    def get_trailing_ratio(self, price):
         min_distance = self.compute_min_distance()
-        profit_distance = abs(self.profit_price - self.close)
+        distance = abs(price - self.close)
 
-        max_ratio = 1 - (min_distance / profit_distance)
+        max_ratio = 1 - (min_distance / distance)
         trailing_ratio = min(self.trailing_ratio, max_ratio)
 
-        self.set_trailing_profit(trailing_ratio)
+        return trailing_ratio
     
     def compute_min_distance(self, min_dist_ratio=0.5):
         spread = self.compute_spread()
         min_dist = spread * min_dist_ratio
         return min_dist
+    
+    def compute_spread(self, stability_window=10):
+        if len(self.prices) < stability_window:
+            return None
 
+        spread = self.compute_ma(self.highs, stability_window) - self.compute_ma(self.lows, stability_window)
+        return spread
+    
     def in_safe_range(self):
         min_distance = self.compute_min_distance()
         stop_distance = abs(self.stop_price - self.close)
@@ -170,7 +188,10 @@ class Strategy:
             return False
         elif stop_distance > min_distance and profit_distance > min_distance:
             return True
- 
+
+    def compute_ma(self, items, window):
+        return np.mean(items[-window:])
+    
     def trade_window(self, start, end):
         return start <= (self.ts.hour, self.ts.minute) <= end
            
@@ -180,18 +201,6 @@ class Strategy:
             self.volumes = []
             self.risk_manager.reset_risk()
 
-    def compute_ma(self, items, window):
-        return np.mean(items[-window:])
-    
-    def compute_spread(self, stability_window=10): #consider more reactive =5
-        if len(self.prices) < stability_window:
-            return None
-
-        recent_highs = np.array(self.highs[-stability_window:])
-        recent_lows = np.array(self.lows[-stability_window:])
-        spread = np.mean(recent_highs - recent_lows)
-        return spread
-    
     def is_force_close(self):
         return self.force_close
 
@@ -287,12 +296,3 @@ class RiskManager:
     
     def is_day_pause(self):
         return self.day_pause
-    
-    # self.risk_manager.intraday_risk()
-    # self.risk_manager.daily_risk_stop()
-    # self.position_size = self.risk_manager.dynamic_position_sizing(self.default_position_size)
-    # if self.risk_manager.is_day_pause():
-    #     return None
-    # if self.risk_manager.is_trade_pause():
-    #     self.risk_manager.tick()
-    #     return None

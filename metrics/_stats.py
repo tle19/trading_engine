@@ -6,21 +6,15 @@ class Stats:
     def __init__(self, symbol):
         self.symbol = symbol
 
-        self.pess_trades = []
-        self.opt_trades = []
-        self.pess_pnls = []
-        self.opt_pnls = []
+        self.trades = []
+        self.trade_pnls = []
         self.intraday_equity = {}
 
         self.starting_cash = 0
-        self.pess_cash = 0
-        self.opt_cash = 0
-        self.avg_cash = 0
+        self.curr_cash = 0
         self.equity_peak = 0
 
-        self.pess_win_rate = None
-        self.opt_win_rate = None
-        self.avg_win_rate = None
+        self.win_rate = None
         self.daily_win_rate = None
         self.total_trades = 0
 
@@ -47,31 +41,25 @@ class Stats:
         self.end_date = None
         self.duration = None
         
-    def update_trade(self, pnl, mode):
+    def update_trade(self, pnl):
         result = 1 if pnl > 0 else 0
-        if mode == "pess":
-            self.pess_trades.append(result)
-            self.pess_pnls.append(pnl)
-        elif mode == "opt":
-            self.opt_trades.append(result)
-            self.opt_pnls.append(pnl)
+        self.trades.append(result)
+        self.trade_pnls.append(pnl)
     
     def update_intraday_equity(self, ts, equity):
         self.intraday_equity[ts] = equity
 
-    def update_cash_vals(self, cash, pess_cash, opt_cash, avg_cash):
+    def update_cash_vals(self, cash, curr_cash):
         self.starting_cash = cash
-        self.pess_cash = pess_cash
-        self.opt_cash = opt_cash
-        self.avg_cash = avg_cash
+        self.curr_cash = curr_cash
 
     def update_dates(self, start_date="", end_date=""):
         self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
         self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
         self.duration = self.end_date - self.start_date if self.start_date and self.end_date else None
 
-    def summary(self, mode=""):
-        self.total_trades = len(self.pess_trades)
+    def summary(self):
+        self.total_trades = len(self.trades)
         intraday_equity = list(self.intraday_equity.values())
         self._calculate_drawdown(intraday_equity)
         self._calculate_streaks(intraday_equity)
@@ -79,15 +67,9 @@ class Stats:
         self._calculate_daily_pnls()
         self._calculate_win_rates()
         self._calculate_sharpe_ratio()
-        if mode == "pess":
-            cash, win_rate, name = self.pess_cash, self.pess_win_rate, "PESSIMISTIC"
-        elif mode == "opt":
-            cash, win_rate, name = self.opt_cash, self.opt_win_rate, "OPTIMISTIC"
-        else:
-            cash, win_rate, name = self.avg_cash, self.avg_win_rate, "BASE"
 
         print("=" * 50)
-        print(f"{self.symbol} PERFORMANCE SUMMARY {name}")
+        print(f"{self.symbol} PERFORMANCE SUMMARY")
         print("=" * 50)
         print(f"Start:                      {self.start_date}")
         print(f"End:                        {self.end_date}")
@@ -95,10 +77,10 @@ class Stats:
         print("-" * 50)
 
         # --- Equity / Performance ---
-        print(f"Final Equity:               ${cash:.2f}")
+        print(f"Final Equity:               ${self.curr_cash:.2f}")
         print(f"Equity Peak:                ${self.equity_peak:.2f}")
         print(f"Max Drawdown:               {self.max_drawdown:.2f}%")
-        print(f"Win Rate:                   {win_rate:.2%}" if win_rate is not None else "No trades")
+        print(f"Win Rate:                   {self.win_rate:.2%}" if self.win_rate is not None else "No trades")
         print(f"Daily Win Rate:             {self.daily_win_rate:.2%}" if self.daily_win_rate is not None else "No trades")
         print("-" * 50)
 
@@ -126,10 +108,7 @@ class Stats:
         print("-" * 50)
 
     def _calculate_win_rates(self):
-        self.pess_win_rate = np.mean(self.pess_trades)
-        self.opt_win_rate = np.mean(self.opt_trades)
-        if self.pess_win_rate is not None and self.opt_win_rate is not None:
-            self.avg_win_rate = (self.pess_win_rate + self.opt_win_rate) / 2
+        self.win_rate = np.mean(self.trades)
 
         daily_pnls_array = np.array(self.daily_pnls)
         win_mask = (daily_pnls_array > 0).astype(int)
@@ -250,10 +229,10 @@ class Stats:
             "Duration": str(self.duration),
 
             # --- Equity / Performance ---
-            "Final Equity": float(self.avg_cash),
+            "Final Equity": float(self.curr_cash),
             "Equity Peak": float(self.equity_peak),
             "Max Drawdown": float(self.max_drawdown),
-            "Win Rate": float(self.avg_win_rate),
+            "Win Rate": float(self.win_rate),
             "Daily Win Rate": float(self.daily_win_rate),
 
             # --- Trade statistics ---
