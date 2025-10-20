@@ -130,10 +130,10 @@ class Equities:
 
                 self.flatten()
 
-        # --- Exit Position --- #bought here??
+        # --- Exit Position ---
         elif signal == 0 and self.position is not None:
             if self.position == "long":
-                print(f"SELL -{shares} {self.symbol}")
+                print(f"SELL -{shares} {self.symbol}") # @ price sold
 
             elif self.position == "short":
                 print(f"BOT +{shares} {self.symbol}")
@@ -197,14 +197,14 @@ class Equities:
         order_dict = self.get_sell_order_dict(quantity, stop_price, profit_price)
         response = self.client.order_place(self.hash, order_dict)
 
-        print(f"SL @ {stop_price} and TP @ {profit_price}")
+        print(f"SL @ {stop_price} & TP @ {profit_price}")
         return response
 
     def short_bracket(self, quantity, stop_price, profit_price):
         order_dict = self.get_buy_order_dict(quantity, stop_price, profit_price)
         response = self.client.order_place(self.hash, order_dict)
 
-        print(f"SL @ {stop_price} and TP @ {profit_price}")
+        print(f"SL @ {stop_price} & TP @ {profit_price}")
         return response
     
     def get_buy_order_dict(self, quantity, stop_price, profit_price):

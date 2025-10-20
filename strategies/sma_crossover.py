@@ -35,7 +35,6 @@ class SMACrossoverIndicator(Strategy):
         if len(self.prices) < self.slow_window:
             return None
         if not self.trade_window((9, 30), (15, 00)) and self.position is None:
-
             return None
         
         if self.position is None:
