@@ -9,7 +9,7 @@ import schwabdev
 from utils import *
 
 class Equities:
-    def __init__(self, symbol, strategy_class, cash=30_000, margin=1.0, shares=1):
+    def __init__(self, symbol, strategy_class, cash=25_000, margin=1.0, shares=1):
         self.symbol = symbol
         self.strategy = strategy_class
         self.cash = cash
@@ -60,19 +60,9 @@ class Equities:
                 self.last_high = high
                 self.last_low = low
 
-                # row = {
-                #     "timestamp": timestamp,
-                #     "open": open,
-                #     "high": high,
-                #     "low": low,
-                #     "close": close,
-                #     "volume": volume
-                # }
-
                 row = self.Row(timestamp, open, high, low, close, volume)
 
-            print(f"Timestamp: {timestamp}")
-            print(row) #sanity check
+            print(row)
 
             if (timestamp.hour, timestamp.minute) == (15, 58):
                 self.force_close = True
@@ -95,7 +85,7 @@ class Equities:
                 self.risk_manager.check_risk(pnl)
 
         self.cash = self.get_liquidation_value()
-        self.risk_manager.get_start_cash(self.cash)
+        self.risk_manager.set_start_cash(self.cash)
 
         self.streamer.start(response_handler)
         #start_auto for market open
@@ -133,10 +123,10 @@ class Equities:
                 print('I EXECUTED HERE')
                 self.cancel_order(self.hold_response)
                 if self.position == "long":
-                    self.sell_market(shares) # order_dict doesnt work here
+                    self.sell_market(shares) # order_dict doesnt work here #SELL
 
                 elif self.position == "short":
-                    self.buy_market(shares) # order_dict doesnt work here
+                    self.buy_market(shares) # order_dict doesnt work here #BUY_TO_COVER
 
                 self.flatten()
 
@@ -176,7 +166,7 @@ class Equities:
         }
 
         response = self.client.order_place(self.hash, order_dict)
-        self.fill_price = self.get_fill_price(self.entry_response)
+        self.fill_price = self.get_fill_price(response)
         print(f"BOT +{quantity} {self.symbol} @ {self.fill_price}")
         return response
     
@@ -199,7 +189,7 @@ class Equities:
         }
 
         response = self.client.order_place(self.hash, order_dict)
-        self.fill_price = self.get_fill_price(self.entry_response)
+        self.fill_price = self.get_fill_price(response)
         print(f"SELL -{quantity} {self.symbol} @ {self.fill_price}")
         return response
     
@@ -213,7 +203,7 @@ class Equities:
     def short_bracket(self, quantity, stop_price, profit_price):
         order_dict = self.get_buy_order_dict(quantity, stop_price, profit_price)
         response = self.client.order_place(self.hash, order_dict)
-        
+
         print(f"SL @ {stop_price} and TP @ {profit_price}")
         return response
     

@@ -9,6 +9,7 @@ class Backtest:
         self.strategy = strategy_class
         self.starting_cash = cash
         self.shares = shares * margin
+        self.shares = shares
         self.margin = margin
         self.commission = commission
         self.slippage = slippage
@@ -21,7 +22,7 @@ class Backtest:
     def run(self, start_date="2023-10-01", end_date="2024-10-01", plot=False):
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 
-        self.risk_manager.get_start_cash(25_000) # for testing purposes
+        self.risk_manager.set_start_cash(25_000) # for testing purposes
 
         curr_cash = self.starting_cash
         position = None
@@ -29,6 +30,12 @@ class Backtest:
 
         rows = df.itertuples(index=False)
         for row in rows:
+            close = row.close
+            high = row.high
+            low = row.low
+            ts = row.timestamp
+
+            self.shares = 25_000 // close # for consistent testing
             position_size = self.strategy.get_position_size()
             shares = max(1, int(round(self.shares * position_size)))
             
@@ -36,18 +43,6 @@ class Backtest:
 
             stop_price = self.strategy.get_stop_price()
             profit_price = self.strategy.get_profit_price()
-
-            # close = row['close']
-            # high = row['high']
-            # low = row['low']
-            # ts = row["timestamp"]
-
-            close = row.close
-            high = row.high
-            low = row.low
-            ts = row.timestamp
-
-            shares = 25_000 // close
 
             # --- Enter Long ---
             if signal == 1 and position is None:
@@ -91,6 +86,8 @@ class Backtest:
                 self.risk_manager.check_risk(pnl)
 
             self.update_equity(curr_cash, position, shares, close, entry_price, ts)
+            if (ts.hour, ts.minute) == (15, 59):
+                self.risk_manager.reset_risk()
 
         self.stats.update_cash_vals(self.starting_cash, curr_cash)
         self.stats.update_dates(start_date, end_date)

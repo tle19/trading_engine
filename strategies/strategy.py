@@ -9,8 +9,8 @@ EXIT = 0
 HOLD = None
 
 class Strategy:
-    def __init__(self, symbol, position_size=1.0,
-                 stop_loss=0.01, take_profit=0.02, trailing_ratio=0.15, force_close=False):
+    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, trailing_ratio=0.15,  
+                 position_size=1.0, force_close=False):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
@@ -64,13 +64,6 @@ class Strategy:
     
     def update(self, row=None): 
         if row is not None:
-            # self.open = row['open']
-            # self.close = row['close']d
-            # self.high = row['high']
-            # self.low = row['low']
-            # self.volume = row['volume']
-            # self.ts = row["timestamp"]
-
             self.open = row.open
             self.close = row.close
             self.high = row.high
@@ -140,7 +133,6 @@ class Strategy:
         elif self.position == "short" and self.close < self.entry_price and self.close < self.open:
             self.stop_price = round(self.stop_price - adjustment, 2)
             self.trailing_stop = True
-        # print("EN", self.entry_price, "SL", self.stop_price, "TP", self.profit_price) #sanity check
 
     def set_trailing_profit(self):
         self.trailing_profit = False
@@ -244,7 +236,7 @@ class RiskManager:
         self.pause = False
         self._pause_counter = 0
 
-    def get_start_cash(self, cash):
+    def set_start_cash(self, cash):
         self.start_cash = cash
 
     def check_risk(self, pnl):
