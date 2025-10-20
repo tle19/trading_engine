@@ -124,13 +124,13 @@ def optimize_params(symbol, start, end):
     start_time = time.perf_counter()
 
     param_grid = { # medium frequency (6-10 trades per day)
-        "fast_window": [8, 10, 12],
-        "slow_window": [15, 20, 25],
-        "htf_window": [40, 45, 50, 55],
+        "fast_window": [8, 10],
+        "slow_window": [15, 18, 20],
+        "htf_window": [40, 45, 55, 60],
         "position_size": [1.0],
-        "stop_loss": [0.01],
-        "take_profit": [0.02],
-        "trailing_ratio": [0.15],
+        "stop_loss": [0.003, 0.004, 0.005, 0.007, 0.008],
+        "take_profit": [0.003, 0.004, 0.005, 0.007, 0.008],
+        "trailing_ratio": [0.075, 0.1, 0.125, 0.15],
     }
 
     best_score = -np.inf
@@ -172,7 +172,7 @@ symbols = ["SPY", "QQQ",
            "MSFT", "META", 
            "TSM", "CSCO", 
            "INTC", "ADBE"]
-curr_symbol = symbols[3]
+curr_symbol = symbols[8]
 
 
 # fetch_multiple_symbols(symbols)
@@ -183,14 +183,14 @@ curr_symbol = symbols[3]
 run_one_backtest(
     curr_symbol, 
     start_date="2023-10-01", 
-    end_date="2024-1-01", 
+    end_date="2024-10-01", 
     fast_window=10, 
     slow_window=20, 
     htf_window=40, 
     position_size=1.0, 
     stop_loss=0.005, 
     take_profit=0.005, 
-    trailing_ratio=0.25)
+    trailing_ratio=0.1)
 
 # for symbol in symbols[2:]:
 #     run_one_backtest(
@@ -206,7 +206,7 @@ run_one_backtest(
 #         trailing_ratio=0.125,
 #         plot=False)
 
-# grid_search(curr_symbol, start_date="2023-10-01", end_date="2024-1-01")
+# grid_search(curr_symbol, start_date="2023-10-01", end_date="2024-10-01")
 
 # walk_forward_optimize(curr_symbol)
 

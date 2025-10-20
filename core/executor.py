@@ -32,7 +32,10 @@ class Equities:
 
         self.entry_response = None
         self.hold_response = None
-        self.fill_price = None
+        self.stop_price = None
+        self.profit_price = None
+        self.is_trailing_stop = False
+        self.is_trailing_profit = False
 
         self.last_high = None
         self.last_low = None
@@ -53,8 +56,8 @@ class Equities:
                 close = content.get("5")
                 volume = content.get("6")
 
-                high = high if high is not None else self.last_high
-                low = low if low is not None else self.last_low
+                high = self.last_high if high is None else high
+                low = self.last_low if low is None else low
 
                 self.last_high = high
                 self.last_low = low
@@ -76,14 +79,14 @@ class Equities:
                 
             signal = self.strategy.generate_signal(row)
 
-            shares = max(1, round(self.shares * position_size))
-            stop_loss = self.strategy.get_stop_loss()
-            take_profit = self.strategy.get_take_profit()
-            sl_change = self.strategy.stop_loss_changed()
-            tp_change = self.strategy.take_profit_changed()
+            stop_price = str(self.strategy.get_stop_price())
+            profit_price = str(self.strategy.get_profit_price())
+            self.is_trailing_stop = self.strategy.is_trailing_stop()
+            self.is_trailing_profit = self.strategy. is_trailing_profit()
             position_size = self.strategy.get_position_size()
+            shares = max(1, round(self.shares * position_size))
 
-            self.interpret_signal(signal, shares, stop_loss, take_profit, sl_change, tp_change)
+            self.interpret_signal(signal, shares, stop_price, profit_price)
 
             if self.position is None:
                 curr_cash = self.get_liquidation_value()
@@ -102,30 +105,29 @@ class Equities:
         
         self.streamer.stop()
 
-    def interpret_signal(self, signal, shares, stop_loss, take_profit, sl_change, tp_change):
+    def interpret_signal(self, signal, shares, stop_price, profit_price):
         # --- Enter Long ---
         if signal == 1 and self.position is None:
             self.position = "long"
             self.entry_response = self.buy_market(shares)
-            self.hold_response = self.long_bracket(shares, stop_loss, take_profit, self.entry_response)
-            self.strategy.update_prices(self.fill_price, self.stop_price, self.profit_price)
+            self.hold_response = self.long_bracket(shares, stop_price, profit_price)
+            self.strategy.update_entry_price(self.fill_price)
 
         # --- Enter Short ---
         elif signal == -1 and self.position is None:
             self.position = "short"
             self.entry_response = self.sell_market(shares)
-            self.hold_response = self.short_bracket(shares, stop_loss, take_profit, self.entry_response)
-            self.strategy.update_prices(self.fill_price, self.stop_price, self.profit_price)
+            self.hold_response = self.short_bracket(shares, stop_price, profit_price)
+            self.strategy.update_entry_price(self.fill_price)
 
         # --- Holding ---
         elif signal is None and self.position is not None:
-            if sl_change or tp_change:
+            if self.is_trailing_stop or self.is_trailing_profit:
                 if self.position == "long":
-                    self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response)
+                    self.hold_response = self.replace_order(shares, stop_price, profit_price, self.hold_response)
 
                 elif self.position == "short":
-                    self.hold_response = self.replace_order(shares, stop_loss, take_profit, self.entry_response, self.hold_response)
-                self.strategy.update_prices(self.fill_price, self.stop_price, self.profit_price)
+                    self.hold_response = self.replace_order(shares, stop_price, profit_price, self.hold_response)
                 
             if self.force_close:
                 print('I EXECUTED HERE')
@@ -136,7 +138,7 @@ class Equities:
                 elif self.position == "short":
                     self.buy_market(shares) # order_dict doesnt work here
 
-                self.reset()
+                self.flatten()
 
         # --- Exit Position --- #bought here??
         elif signal == 0 and self.position is not None:
@@ -146,14 +148,15 @@ class Equities:
             elif self.position == "short":
                 print(f"BOT +{shares} {self.symbol}")
 
-            self.reset()
+            self.flatten()
             
-    def reset(self):
+    def flatten(self):
         self.entry_response = None
         self.hold_response = None
-        self.fill_price = None
         self.stop_price = None
         self.profit_price = None
+        self.is_trailing_stop = False
+        self.is_trailing_profit = False
         self.position = None
 
     def buy_market(self, quantity):
@@ -175,7 +178,8 @@ class Equities:
         }
 
         response = self.client.order_place(self.hash, order_dict)
-        print(f"BOT +{quantity} {self.symbol}")
+        self.fill_price = self.get_fill_price(self.entry_response)
+        print(f"BOT +{quantity} {self.symbol} @ {self.fill_price}")
         return response
     
     def sell_market(self, quantity):
@@ -197,36 +201,32 @@ class Equities:
         }
 
         response = self.client.order_place(self.hash, order_dict)
-        print(f"SELL -{quantity} {self.symbol}")
+        self.fill_price = self.get_fill_price(self.entry_response)
+        print(f"SELL -{quantity} {self.symbol} @ {self.fill_price}")
         return response
     
-    def long_bracket(self, quantity, stop_loss, take_profit, response):
-        order_dict = self.get_sell_order_dict(quantity, stop_loss, take_profit, response)
+    def long_bracket(self, quantity, stop_loss, take_profit):
+        order_dict = self.get_sell_order_dict(quantity, stop_loss, take_profit)
 
         response = self.client.order_place(self.hash, order_dict)
-        print(f"SET SL {self.stop_price} and TP {self.profit_price}")
+        print(f"SL @ {self.stop_price} and TP @ {self.profit_price}")
         return response
 
-    def short_bracket(self, quantity, stop_loss, take_profit, response):
-        order_dict = self.get_buy_order_dict(quantity, stop_loss, take_profit, response)
+    def short_bracket(self, quantity, stop_loss, take_profit):
+        order_dict = self.get_buy_order_dict(quantity, stop_loss, take_profit)
 
         response = self.client.order_place(self.hash, order_dict)
-        print(f"SET SL {self.stop_price} and TP {self.profit_price}")
+        print(f"SL @ {self.stop_price} and TP @ {self.profit_price}")
         return response
     
-    def get_buy_order_dict(self, quantity, stop_loss, take_profit, response):
-        if self.fill_price is None:
-            self.fill_price = self.get_fill_price(response)
-        self.stop_price = str(round(self.fill_price * (1 + stop_loss), 2))
-        self.profit_price = str(round(self.fill_price * (1 - take_profit), 2))
-
+    def get_buy_order_dict(self, quantity, stop_price, profit_price):
         order_dict = {
             "orderStrategyType": "OCO",
             "childOrderStrategies": [
                 {
                     "orderType": "LIMIT",
                     "session": "NORMAL",
-                    "price": self.profit_price,
+                    "price": profit_price,
                     "duration": "DAY",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -243,7 +243,7 @@ class Equities:
                 {
                     "orderType": "STOP",
                     "session": "NORMAL",
-                    "stopPrice": self.stop_price,
+                    "stopPrice": stop_price,
                     "duration": "DAY",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -262,19 +262,14 @@ class Equities:
 
         return order_dict
     
-    def get_sell_order_dict(self, quantity, stop_loss, take_profit, response):
-        if self.fill_price is None:
-            self.fill_price = self.get_fill_price(response)
-        self.stop_price = str(round(self.fill_price * (1 - stop_loss), 2))
-        self.profit_price = str(round(self.fill_price * (1 + take_profit), 2))
-
+    def get_sell_order_dict(self, quantity, stop_price, profit_price):
         order_dict = {
             "orderStrategyType": "OCO",
             "childOrderStrategies": [
                 {
                     "orderType": "LIMIT",
                     "session": "NORMAL",
-                    "price": self.profit_price,
+                    "price": profit_price,
                     "duration": "DAY",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -291,7 +286,7 @@ class Equities:
                 {
                     "orderType": "STOP",
                     "session": "NORMAL",
-                    "stopPrice": self.stop_price,
+                    "stopPrice": stop_price,
                     "duration": "DAY",
                     "orderStrategyType": "SINGLE",
                     "orderLegCollection": [
@@ -320,13 +315,13 @@ class Equities:
         fill_price = round(fill_price, 2)
         return fill_price
 
-    def replace_order(self, quantity, stop_loss, take_profit, entry_response, hold_response):
-        self.cancel_order(hold_response)
+    def replace_order(self, quantity, stop_loss, take_profit, response):
+        self.cancel_order(response)
         time.sleep(0.05) # buffer time for order to cancel
         if self.position == "long":
-            return self.long_bracket(quantity, stop_loss, take_profit, entry_response)
+            return self.long_bracket(quantity, stop_loss, take_profit)
         elif self.position == "short":
-            return self.short_bracket(quantity, stop_loss, take_profit, entry_response)
+            return self.short_bracket(quantity, stop_loss, take_profit)
 
     def cancel_order(self, response):
         order_id = response.headers.get('location', '/').split('/')[-1]

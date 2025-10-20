@@ -24,19 +24,20 @@ class Backtest:
     def run(self, start_date="2023-10-01", end_date="2024-10-01", plot=False):
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 
+        self.risk_manager.get_start_cash(25_000)
+
         pess_cash = opt_cash = avg_cash = self.cash
         position = None
         entry_price = None
 
         for _, row in df.iterrows():
-
-            stop_loss = self.strategy.get_stop_loss()
-            take_profit = self.strategy.get_take_profit()
             position_size = self.strategy.get_position_size()
             shares = max(1, int(round(self.shares * position_size)))
-            self.risk_manager.get_start_cash(25_000)
-
+            
             signal = self.strategy.generate_signal(row)
+
+            stop_price = self.strategy.get_stop_price()
+            profit_price = self.strategy.get_profit_price()
 
             close = row['close']
             high = row['high']
@@ -59,8 +60,7 @@ class Backtest:
             elif signal == 0 and position is not None:
                 pnl = 0
                 if position == "long":
-                    stop_price = entry_price * (1 - stop_loss) * (1 - self.slippage)
-                    profit_price = entry_price * (1 + take_profit)
+                    stop_price = stop_price * (1 - self.slippage)
 
                     # --- Force Close ---
                     if self.force_close and (ts.hour, ts.minute) == (15, 58):
@@ -87,8 +87,7 @@ class Backtest:
                         opt_cash += pnl
 
                 elif position == "short":
-                    stop_price = entry_price * (1 + stop_loss) * (1 + self.slippage)
-                    profit_price = entry_price * (1 - take_profit)
+                    stop_price = stop_price * (1 + self.slippage)
 
                     # --- Force Close ---   
                     if self.force_close and (ts.hour, ts.minute) == (15, 58):

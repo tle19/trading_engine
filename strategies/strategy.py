@@ -22,13 +22,9 @@ class Strategy:
         self.position = None
         self.trailing_stop = False
         self.trailing_profit = False
-        self.trailing_stop_loss = stop_loss
-        self.trailing_take_profit = take_profit
         self.entry_price = None
         self.stop_price = None
         self.profit_price = None
-        self.sl_change = False
-        self.tp_change = False
 
         self.open = None
         self.close = None
@@ -85,9 +81,9 @@ class Strategy:
     def buy(self):
         if self.position is None:
             self.position = "long"
-            self.entry_price = self.close
-            self.stop_price = self.entry_price * (1 - self.stop_loss)
-            self.profit_price = self.entry_price * (1 + self.take_profit)
+            self.entry_price = round(self.close, 2)
+            self.stop_price = round(self.entry_price * (1 - self.stop_loss), 2)
+            self.profit_price = round(self.entry_price * (1 + self.take_profit), 2)
             return LONG
         elif self.position == "short":
             self.flatten()
@@ -96,9 +92,9 @@ class Strategy:
     def sell(self):
         if self.position is None:
             self.position = "short"
-            self.entry_price = self.close
-            self.stop_price = self.entry_price * (1 + self.stop_loss)
-            self.profit_price = self.entry_price * (1 - self.take_profit)
+            self.entry_price = round(self.close, 2)
+            self.stop_price = round(self.entry_price * (1 + self.stop_loss), 2)
+            self.profit_price = round(self.entry_price * (1 - self.take_profit), 2)
             return SHORT
         elif self.position == "long":
             self.flatten()
@@ -109,31 +105,22 @@ class Strategy:
         self.position = None
         self.trailing_stop = False
         self.trailing_profit = False
-        self.trailing_stop_loss = self.stop_loss
-        self.trailing_take_profit = self.take_profit
         self.entry_price = None
-        self.stop_price = None
-        self.profit_price = None
-        self.sl_change = False
-        self.tp_change = False
 
     def set_trailing_stop(self, trailing_ratio):
-        self.trailing_stop = True
         adjustment = trailing_ratio * abs(self.stop_price - self.close)
 
-        if self.position == "long" and self.close > self.entry_price:
-            self.stop_price += adjustment
-            self.trailing_stop_loss = 1 - (self.stop_price / self.entry_price)
-            self.sl_change = True
+        if self.position == "long" and self.close > self.entry_price and self.close > self.open:
+            self.stop_price = round(self.stop_price + adjustment, 2)
+            self.trailing_stop = True
 
-        elif self.position == "short" and self.close < self.entry_price:
-            self.stop_price -= adjustment
-            self.trailing_stop_loss = (self.stop_price / self.entry_price) - 1
-            self.sl_change = True
+        elif self.position == "short" and self.close < self.entry_price and self.close < self.open:
+            self.stop_price = round(self.stop_price - adjustment, 2)
+            self.trailing_stop = True
 
     def set_trailing_stop_safe(self):
         if not self.in_safe_range():
-            self.sl_change = False
+            self.trailing_stop = False
             return None
 
         min_distance = self.compute_min_distance()
@@ -146,22 +133,19 @@ class Strategy:
         # print("EN", self.entry_price, "SL", self.stop_price, "TP", self.profit_price) #sanity check
 
     def set_trailing_profit(self, trailing_ratio):
-        self.trailing_profit = True
         adjustment = trailing_ratio * abs(self.profit_price - self.close)
         
         if self.position == "long" and self.close > self.entry_price:
-            self.profit_price += adjustment
-            self.trailing_take_profit = 1 - (self.profit_price / self.entry_price)
-            self.tp_change = True
+            self.profit_price = round(self.profit_price + adjustment, 2)
+            self.trailing_profit = True
 
         elif self.position == "short" and self.close < self.entry_price:
-            self.profit_price -= adjustment
-            self.trailing_take_profit = (self.profit_price / self.entry_price) - 1
-            self.tp_change = True
+            self.profit_price = round(self.profit_price - adjustment, 2)
+            self.trailing_profit = True
     
     def set_trailing_profit_safe(self):
         if not self.in_safe_range():
-            self.tp_change = False
+            self.trailing_profit = False
             return None
 
         min_distance = self.compute_min_distance()
@@ -210,24 +194,18 @@ class Strategy:
     
     def is_force_close(self):
         return self.force_close
-    
-    def stop_loss_changed(self):
-        return self.sl_change
-    
-    def take_profit_changed(self):
-        return self.tp_change
 
     def is_trailing_stop(self):
         return self.trailing_stop
   
     def is_trailing_profit(self):
         return self.trailing_profit
-      
-    def get_stop_loss(self):
-        return self.trailing_stop_loss if self.is_trailing_stop() else self.stop_loss
     
-    def get_take_profit(self):
-        return self.trailing_take_profit if self.is_trailing_profit() else self.take_profit
+    def get_stop_price(self):
+        return self.stop_price
+    
+    def get_profit_price(self):
+        return self.profit_price
     
     def get_position(self):
         return self.position
@@ -241,13 +219,8 @@ class Strategy:
     def get_risk_manager(self):
         return self.risk_manager
        
-    def update_entry_price(self, entry_price):
-        self.entry_price = entry_price
-
-    def update_prices(self, entry, stop, profit):
-        self.entry_price = float(entry)
-        self.stop_price = float(stop)
-        self.profit_price = float(profit)
+    def update_entry_price(self, fill_price):
+        self.entry_price = float(fill_price)
 
 class RiskManager:
     def __init__(self, risk_threshold=5, pause_duration=5, pnl_target=0.02, pnl_loss=-0.001):
