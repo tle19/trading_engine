@@ -32,7 +32,8 @@ def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
         avg_spread = data["normalized_spread"].mean()
         print(symbol, avg_spread)
 
-def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=20, htf_window=40, position_size=1.0, stop_loss=0.01, take_profit=0.005, trailing_ratio=0.005, donch_smoothing=0.7, plot=True):
+def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=20, htf_window=40, donch_smoothing=0.3, 
+                     stop_loss=0.005, take_profit=0.005, trailing_ratio=0.05, position_size=1.0, plot=True):
     start_time = time.perf_counter()
 
     strat = SMACrossoverIndicator(
@@ -53,7 +54,7 @@ def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=2
         shares=30, 
         margin=1.0, 
         commission=0.0, 
-        slippage=0.0003)
+        slippage=0.1)
     
     bt.run(start_date=start_date, end_date=end_date, plot=plot)
 
@@ -125,10 +126,10 @@ def optimize_params(symbol, start, end):
     start_time = time.perf_counter()
 
     param_grid = { # medium frequency (6-10 trades per day)
-        "fast_window": [5, 6, 7, 8, 9, 10, 11, 12],
-        "slow_window": [15, 16, 17, 18, 19, 20],
-        "htf_window": [35, 40, 45, 50, 55, 60],
-        "donch_smoothing": [0.7],
+        "fast_window": [10, 15, 20, 25],
+        "slow_window": [20, 25, 30, 35, 40],
+        "htf_window": [40, 50, 60, 70, 80],
+        "donch_smoothing": [0.1],
         "stop_loss": [0.003],
         "take_profit": [0.003],
         "trailing_ratio": [0.05],
@@ -138,8 +139,8 @@ def optimize_params(symbol, start, end):
     # param_grid = {
     #     "fast_window": [10],
     #     "slow_window": [20],
-    #     "htf_window": [40],
-    #     "donch_smoothing": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+    #     "htf_window": [50],
+    #     "donch_smoothing": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
     #     "stop_loss": [0.003],
     #     "take_profit": [0.003],
     #     "trailing_ratio": [0.05],
@@ -187,8 +188,8 @@ def multiple_symbol_performance(symbols):
             end_date="2024-10-01", 
             fast_window=10, 
             slow_window=20, 
-            htf_window=40, 
-            donch_smoothing=0.7,
+            htf_window=50, 
+            donch_smoothing=0.1,
             stop_loss=0.003, 
             take_profit=0.003, 
             trailing_ratio=0.05,
@@ -216,7 +217,7 @@ symbols = ["SPY", "QQQ",
            "MSFT", "META", 
            "TSM", "CSCO", 
            "INTC", "ADBE"]
-curr_symbol = symbols[8]
+curr_symbol = symbols[2]
 
 # fetch_multiple_symbols(symbols)
 # fetch_schwab_data("2025-10-15") 
@@ -226,19 +227,19 @@ curr_symbol = symbols[8]
 #     curr_symbol, 
 #     start_date="2023-10-01", 
 #     end_date="2024-10-01", 
-#     fast_window=10, 
-#     slow_window=20, 
-#     htf_window=40, 
-#     donch_smoothing=0.7,
-#     stop_loss=0.003, 
-#     take_profit=0.003, 
+#     fast_window=20, 
+#     slow_window=40, 
+#     htf_window=80, 
+#     donch_smoothing=0.0,
+#     stop_loss=0.03, 
+#     take_profit=0.03, 
 #     trailing_ratio=0.05,
 #     position_size=1.0)
 
 # multiple_symbol_performance(symbols[2:])
 
-grid_search(curr_symbol, start_date="2023-10-01", end_date="2024-10-01")
+# grid_search(curr_symbol, start_date="2023-10-01", end_date="2024-10-01")
 
-# walk_forward_optimize(curr_symbol)
+walk_forward_optimize(curr_symbol)
 
 # test_order(curr_symbol)    

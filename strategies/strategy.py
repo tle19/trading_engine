@@ -126,11 +126,11 @@ class Strategy:
         trailing_ratio = self.get_trailing_ratio(self.stop_price)
         adjustment = trailing_ratio * abs(self.stop_price - self.close)
 
-        if self.position == "long" and self.close > self.entry_price and self.close > self.open:
+        if self.position == "long" and self.close > self.entry_price:
             self.stop_price = round(self.stop_price + adjustment, 2)
             self.trailing_stop = True
 
-        elif self.position == "short" and self.close < self.entry_price and self.close < self.open:
+        elif self.position == "short" and self.close < self.entry_price:
             self.stop_price = round(self.stop_price - adjustment, 2)
             self.trailing_stop = True
 
