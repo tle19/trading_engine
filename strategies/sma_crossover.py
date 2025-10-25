@@ -23,7 +23,6 @@ class SMACrossoverIndicator(Strategy):
 
         status = self.check_status()
         if status is not None:
-            self.hold_time = 0
             return status
 
         self.risk_manager.daily_risk_target()

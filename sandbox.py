@@ -9,29 +9,6 @@ from core import *
 from strategies import *
 from utils import *
 
-def fetch_multiple_symbols(symbols):
-    dh = DataHandler()
-    for symbol in symbols:
-        start_time = time.perf_counter()
-
-        dh.historical_data(symbol)
-
-        end_time = time.perf_counter()
-        elapsed_time = end_time - start_time
-        print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
-
-def fetch_schwab_data(symbol, current_date):
-    dh = DataHandler()
-    dh.schwab_data(symbol, end_date=(datetime.fromisoformat(current_date) - timedelta(days=1)).date().isoformat())
-
-def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
-    for symbol in symbols:
-        data = open_data(symbol, start_date=start_date, end_date=end_date)
-        data["spread"] = data["high"] - data["low"]
-        data["normalized_spread"] = data["spread"] / data["close"]
-        avg_spread = data["normalized_spread"].mean()
-        print(symbol, avg_spread)
-
 def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=20, htf_window=40, 
                      rsi_period=6, rsi_lower=30, rsi_upper=70, donch_smoothing=0.3, 
                      stop_loss=0.005, take_profit=0.005, trailing_ratio=0.05, position_size=1.0, plot=True):
@@ -68,6 +45,37 @@ def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=2
 
     return bt.get_stats_class()
 
+def multiple_symbol_performance(symbols):
+    ticker_pnls = []
+    for symbol in symbols:
+        stats = run_one_backtest(
+            symbol, 
+            start_date="2023-10-01", 
+            end_date="2024-10-01", 
+            fast_window=10, 
+            slow_window=20, 
+            htf_window=50, 
+            donch_smoothing=0.1,
+            stop_loss=0.003, 
+            take_profit=0.003, 
+            trailing_ratio=0.05,
+            position_size=1.0,
+            plot=False)
+        ticker_pnls.append(stats.daily_pnls)
+    
+    min_len = min(len(p) for p in ticker_pnls)
+    ticker_truncated = [p[:min_len] for p in ticker_pnls]
+
+    ticker_sums = np.sum(np.array(ticker_truncated), axis=0)
+    
+    num_wins = np.sum(ticker_sums > 0)
+    total_days = len(ticker_sums)
+    win_rate = num_wins / total_days * 100
+
+    print(f"Lengths after truncation: {[len(p) for p in ticker_truncated]}")
+    print("Ticker sums:", ticker_sums)
+    print(f"Daily Win rate: {win_rate:.2f}%")
+    
 def walk_forward_optimize(symbol):
     start = pd.Timestamp("2023-10-01")
     end = pd.Timestamp("2025-10-01")
@@ -195,45 +203,6 @@ def optimize_params(symbol, start, end):
     
     return best_params
 
-def test_order(symbol):
-    eq = Equities(symbol, SMACrossoverIndicator(symbol))
-    entry_response = eq.buy_market(1)
-    hold_response = eq.long_bracket(1, 0.001, 0.001, entry_response)
-    time.sleep(5)
-    eq.position = "long"
-    eq.replace_order(1, 0.002, 0.002, entry_response, hold_response)
-
-def multiple_symbol_performance(symbols):
-    ticker_pnls = []
-    for symbol in symbols:
-        stats = run_one_backtest(
-            symbol, 
-            start_date="2023-10-01", 
-            end_date="2024-10-01", 
-            fast_window=10, 
-            slow_window=20, 
-            htf_window=50, 
-            donch_smoothing=0.1,
-            stop_loss=0.003, 
-            take_profit=0.003, 
-            trailing_ratio=0.05,
-            position_size=1.0,
-            plot=False)
-        ticker_pnls.append(stats.daily_pnls)
-    
-    min_len = min(len(p) for p in ticker_pnls)
-    ticker_truncated = [p[:min_len] for p in ticker_pnls]
-
-    ticker_sums = np.sum(np.array(ticker_truncated), axis=0)
-    
-    num_wins = np.sum(ticker_sums > 0)
-    total_days = len(ticker_sums)
-    win_rate = num_wins / total_days * 100
-
-    print(f"Lengths after truncation: {[len(p) for p in ticker_truncated]}")
-    print("Ticker sums:", ticker_sums)
-    print(f"Daily Win rate: {win_rate:.2f}%")
-
 symbols = ["SPY", "QQQ", 
            "TSLA", "NVDA", 
            "AMD", "AMZN", 
@@ -243,10 +212,7 @@ symbols = ["SPY", "QQQ",
            "INTC", "ADBE"]
 curr_symbol = symbols[2]
 
-# fetch_multiple_symbols(symbols)
-# fetch_schwab_data("2025-10-15") 
-# get_average_spread(symbols, start_date="2025-7-01", end_date="2025-10-01")
-
+# strat = MomentumSMAIndicator
 run_one_backtest(
     curr_symbol, 
     start_date="2023-10-01", 
@@ -265,5 +231,3 @@ run_one_backtest(
 # grid_search(curr_symbol, start_date="2023-10-01", end_date="2024-10-01")
 
 # walk_forward_optimize(curr_symbol)
-
-# test_order(curr_symbol)    
