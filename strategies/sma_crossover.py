@@ -3,7 +3,7 @@ from strategies import Strategy, RiskManager
 
 class SMACrossoverIndicator(Strategy):
     def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=50, donch_smoothing=0.3, 
-                 rsi_period=6, rsi_lower=30, rsi_upper=70, hold_time=60,
+                 rsi_period=5, rsi_lower=35, rsi_upper=70, hold_time=60,
                  stop_loss=0.003, take_profit=0.003, trailing_ratio=0.05, position_size=1.0,
                  target=0.015, loss=-0.015, force_close=True):
         super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size, force_close)
@@ -30,7 +30,7 @@ class SMACrossoverIndicator(Strategy):
             return status
 
         self.risk_manager.daily_risk_target()
-        # self.risk_manager.daily_risk_stop()
+        self.risk_manager.daily_risk_stop()
         if self.risk_manager.is_day_pause():
             return None
         
@@ -55,7 +55,7 @@ class SMACrossoverIndicator(Strategy):
         slow_ma = self.compute_ma(arr, self.slow_window)
         htf_ma = self.compute_ma(arr, self.htf_window)
         rsi = self.compute_rsi()
-        
+
         if fast_ma > slow_ma >= htf_ma:
             if rsi <= self.rsi_lower and self.close < self.open:
                 self.donchian_range(self.htf_window, htf_ma, "long")

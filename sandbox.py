@@ -32,7 +32,8 @@ def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
         avg_spread = data["normalized_spread"].mean()
         print(symbol, avg_spread)
 
-def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=20, htf_window=40, donch_smoothing=0.3, 
+def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=20, htf_window=40, 
+                     rsi_period=6, rsi_lower=30, rsi_upper=70, donch_smoothing=0.3, 
                      stop_loss=0.005, take_profit=0.005, trailing_ratio=0.05, position_size=1.0, plot=True):
     start_time = time.perf_counter()
 
@@ -41,6 +42,9 @@ def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=2
         fast_window=fast_window, 
         slow_window=slow_window, 
         htf_window=htf_window, 
+        rsi_period=rsi_period, 
+        rsi_lower=rsi_lower, 
+        rsi_upper=rsi_upper,
         donch_smoothing=donch_smoothing,
         stop_loss=stop_loss, 
         take_profit=take_profit, 
@@ -125,11 +129,28 @@ def grid_search(symbol, start_date="2023-10-01", end_date="2024-10-01"):
 def optimize_params(symbol, start, end):
     start_time = time.perf_counter()
 
-    param_grid = { # medium frequency (6-10 trades per day)
+    param_grid = {
         "fast_window": [10, 15, 20, 25],
         "slow_window": [20, 25, 30, 35, 40],
         "htf_window": [40, 50, 60, 70, 80],
         "donch_smoothing": [0.1],
+        "rsi_period": [6],
+        "rsi_lower": [30],
+        "rsi_upper": [70],
+        "stop_loss": [0.003],
+        "take_profit": [0.003],
+        "trailing_ratio": [0.05],
+        "position_size": [1.0]
+    }
+
+    param_grid = {
+        "fast_window": [10],
+        "slow_window": [20],
+        "htf_window": [50],
+        "donch_smoothing": [0.1],
+        "rsi_period": [50],
+        "rsi_lower": [35],
+        "rsi_upper": [70],
         "stop_loss": [0.003],
         "take_profit": [0.003],
         "trailing_ratio": [0.05],
@@ -141,6 +162,9 @@ def optimize_params(symbol, start, end):
     #     "slow_window": [20],
     #     "htf_window": [50],
     #     "donch_smoothing": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+    #     "rsi_period": [6],
+    #     "rsi_lower": [30],
+    #     "rsi_upper": [70],
     #     "stop_loss": [0.003],
     #     "take_profit": [0.003],
     #     "trailing_ratio": [0.05],
@@ -223,23 +247,23 @@ curr_symbol = symbols[2]
 # fetch_schwab_data("2025-10-15") 
 # get_average_spread(symbols, start_date="2025-7-01", end_date="2025-10-01")
 
-# run_one_backtest(
-#     curr_symbol, 
-#     start_date="2023-10-01", 
-#     end_date="2024-10-01", 
-#     fast_window=20, 
-#     slow_window=40, 
-#     htf_window=80, 
-#     donch_smoothing=0.0,
-#     stop_loss=0.03, 
-#     take_profit=0.03, 
-#     trailing_ratio=0.05,
-#     position_size=1.0)
+run_one_backtest(
+    curr_symbol, 
+    start_date="2023-10-01", 
+    end_date="2024-10-01", 
+    fast_window=10, 
+    slow_window=20, 
+    htf_window=50, 
+    donch_smoothing=0.1,
+    stop_loss=0.03, 
+    take_profit=0.03, 
+    trailing_ratio=0.05,
+    position_size=1.0)
 
 # multiple_symbol_performance(symbols[2:])
 
 # grid_search(curr_symbol, start_date="2023-10-01", end_date="2024-10-01")
 
-walk_forward_optimize(curr_symbol)
+# walk_forward_optimize(curr_symbol)
 
 # test_order(curr_symbol)    

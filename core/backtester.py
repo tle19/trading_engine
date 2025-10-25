@@ -25,7 +25,7 @@ class Backtest:
         avg_spread = df["spread"].mean()
         self.slippage *= avg_spread # pct of spread
 
-        self.risk_manager.set_start_cash(25_000) # for testing purposes
+        self.risk_manager.set_start_cash(self.starting_cash) # for testing purposes
 
         curr_cash = self.starting_cash
         position = None
@@ -50,35 +50,31 @@ class Backtest:
             # --- Enter Long ---
             if signal == 1 and position is None:
                 position = "long"
-                entry_price = close
+                entry_price = close * (1 + self.slippage)
 
             # --- Enter Short ---
             elif signal == -1 and position is None:
                 position = "short"
-                entry_price = close
+                entry_price = close * (1 - self.slippage)
 
             # --- Exit ---
             elif signal == 0 and position is not None:
                 pnl = 0
                 if position == "long":
                     if self.force_close and (ts.hour, ts.minute) == (15, 58):
-                        pnl = (close - entry_price) * shares
-                        pnl *= (1 - self.slippage)
+                        pnl = ((close * (1 - self.slippage)) - entry_price) * shares
                     else:
                         if low <= stop_price:
-                            pnl = (stop_price - entry_price) * shares
-                            pnl *= (1 - self.slippage)
+                            pnl = ((stop_price * (1 - self.slippage)) - entry_price) * shares
                         elif high >= profit_price:
                             pnl = (profit_price - entry_price) * shares
                             
                 elif position == "short":
                     if self.force_close and (ts.hour, ts.minute) == (15, 58):
-                        pnl = (entry_price - close) * shares
-                        pnl *= (1 + self.slippage)
+                        pnl = (entry_price - (close * (1 + self.slippage))) * shares
                     else:
                         if high >= stop_price:
-                            pnl = (entry_price - stop_price) * shares
-                            pnl *= (1 - self.slippage)
+                            pnl = (entry_price - (stop_price * (1 + self.slippage))) * shares
                         elif low <= profit_price:
                             pnl = (entry_price - profit_price) * shares
 
