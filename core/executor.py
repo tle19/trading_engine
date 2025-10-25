@@ -16,7 +16,6 @@ class Equities:
         self.shares = shares * margin
         self.margin = margin
         self.force_close = False
-        self.position = None
 
         self.risk_manager = self.strategy.get_risk_manager()
 
@@ -63,26 +62,21 @@ class Equities:
                 row = self.Row(timestamp, open, high, low, close, volume)
 
             print(row)
+       
+            if (row.timestamp.hour, row.timestamp.minute) == (15, 58): # need to adjust
+                self.force_close = self.strategy.is_force_close()
 
-            if (timestamp.hour, timestamp.minute) == (15, 58):
-                self.force_close = True
-                
             signal = self.strategy.generate_signal(row)
 
             stop_price = str(self.strategy.get_stop_price())
             profit_price = str(self.strategy.get_profit_price())
             self.is_trailing_stop = self.strategy.is_trailing_stop()
             self.is_trailing_profit = self.strategy.is_trailing_profit()
+            position = self.strategy.get_position()
             position_size = self.strategy.get_position_size()
-            shares = max(1, round(self.shares * position_size))
+            shares = max(1, int(self.shares * position_size))
 
-            self.interpret_signal(signal, shares, stop_price, profit_price)
-
-            if self.position is None:
-                curr_cash = self.get_liquidation_value()
-                pnl = curr_cash - self.cash
-                self.cash = curr_cash
-                self.risk_manager.check_risk(pnl)
+            self.interpret_signal(signal, position, shares, stop_price, profit_price)
 
         self.cash = self.get_liquidation_value()
         self.risk_manager.set_start_cash(self.cash)
@@ -95,47 +89,46 @@ class Equities:
         
         self.streamer.stop()
 
-    def interpret_signal(self, signal, shares, stop_price, profit_price):
+    def interpret_signal(self, signal, position, shares, stop_price, profit_price):
         # --- Enter Long ---
-        if signal == 1 and self.position is None:
-            self.position = "long"
+        if signal == 1 and position == "long":
             self.entry_response = self.buy_market(shares)
             self.hold_response = self.long_bracket(shares, stop_price, profit_price)
             self.strategy.update_entry_price(self.fill_price)
 
         # --- Enter Short ---
-        elif signal == -1 and self.position is None:
-            self.position = "short"
+        elif signal == -1 and position == "short":
             self.entry_response = self.sell_market(shares)
             self.hold_response = self.short_bracket(shares, stop_price, profit_price)
             self.strategy.update_entry_price(self.fill_price)
 
         # --- Holding ---
-        elif signal is None and self.position is not None:
+        elif signal is None and position is not None:
             if self.is_trailing_stop or self.is_trailing_profit:
-                if self.position == "long":
-                    self.hold_response = self.replace_order(shares, stop_price, profit_price, self.hold_response)
+                if position == "long":
+                    self.hold_response = self.replace_order(shares, position, stop_price, profit_price, self.hold_response)
 
-                elif self.position == "short":
-                    self.hold_response = self.replace_order(shares, stop_price, profit_price, self.hold_response)
+                elif position == "short":
+                    self.hold_response = self.replace_order(shares, position, stop_price, profit_price, self.hold_response)
                 
             if self.force_close:
-                print('I EXECUTED HERE')
+                print('I EXECUTED HERE 1')
                 self.cancel_order(self.hold_response)
-                if self.position == "long":
+                print('I EXECUTED HERE 2')
+                if position == "long":
                     self.sell_market(shares) # order_dict doesnt work here #SELL
 
-                elif self.position == "short":
+                elif position == "short":
                     self.buy_market(shares) # order_dict doesnt work here #BUY_TO_COVER
 
                 self.flatten()
 
         # --- Exit Position ---
-        elif signal == 0 and self.position is not None:
-            if self.position == "long":
+        elif signal == 0 and position is not None:
+            if position == "long":
                 print(f"SELL -{shares} {self.symbol}") # @ price sold
 
-            elif self.position == "short":
+            elif position == "short":
                 print(f"BOT +{shares} {self.symbol}")
 
             self.flatten()
@@ -145,7 +138,10 @@ class Equities:
         self.hold_response = None
         self.is_trailing_stop = False
         self.is_trailing_profit = False
-        self.position = None
+        pnl = self.get_liquidation_value() - self.cash
+        self.cash += pnl
+        self.risk_manager.check_risk(pnl)
+        self.strategy.flatten()
 
     def buy_market(self, quantity):
         order_dict = {
@@ -303,12 +299,12 @@ class Equities:
         fill_price = round(fill_price, 2)
         return fill_price
 
-    def replace_order(self, quantity, stop_loss, take_profit, response):
+    def replace_order(self, position, quantity, stop_loss, take_profit, response):
         self.cancel_order(response)
         time.sleep(0.05) # buffer time for order to cancel
-        if self.position == "long":
+        if position == "long":
             return self.long_bracket(quantity, stop_loss, take_profit)
-        elif self.position == "short":
+        elif position == "short":
             return self.short_bracket(quantity, stop_loss, take_profit)
 
     def cancel_order(self, response):

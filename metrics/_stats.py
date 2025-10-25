@@ -29,7 +29,7 @@ class Stats:
         self.net_profit = 0
         self.net_profit_pct = 0
         self.avg_change = 0
-        self.profit_factor = np.inf
+        self.profit_factor = None
         self.sharpe_ratio = None
 
         self.daily_pnls = []
@@ -49,11 +49,7 @@ class Stats:
     def update_intraday_equity(self, ts, equity):
         self.intraday_equity[ts] = equity
 
-    def update_cash_vals(self, cash, curr_cash):
-        self.starting_cash = cash
-        self.curr_cash = curr_cash
-
-    def update_dates(self, start_date="", end_date=""):
+    def update_dates(self, start_date: str, end_date: str):
         self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
         self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
         self.duration = self.end_date - self.start_date if self.start_date and self.end_date else None
@@ -61,6 +57,8 @@ class Stats:
     def summary(self):
         self.total_trades = len(self.trades)
         intraday_equity = list(self.intraday_equity.values())
+        self.starting_cash = intraday_equity[0]
+        self.curr_cash = intraday_equity[-1]
         self._calculate_drawdown(intraday_equity)
         self._calculate_streaks(intraday_equity)
         self._calculate_pnls(intraday_equity)
@@ -119,33 +117,30 @@ class Stats:
         drawdowns = (cum_max - intraday_equity) / cum_max
         self.max_drawdown = np.max(drawdowns) * 100
 
-    def _calculate_streaks(self, intraday_equity): #may need to recalculate
+    def _calculate_streaks(self, intraday_equity):
         changes = np.diff(intraday_equity)
 
-        # Wins
-        win_mask = changes > 0
-        if win_mask.any():
-            win_labels = np.cumsum(~win_mask)
-            unique_labels = np.unique(win_labels[win_mask])
-            win_streaks = np.array([np.sum(win_mask[win_labels == lbl]) for lbl in unique_labels])
-            win_gains = np.array([np.sum(changes[win_labels == lbl]) for lbl in unique_labels])
-            self.win_streak = max(win_streaks)
-            self.max_gain_streak = max(win_gains)
-        else:
-            self.win_streak = self.max_gain_streak = 0
+        cur_wins = cur_losses = 0
+        cur_gain = cur_loss = 0.0
 
-        # Losses
-        loss_mask = changes < 0
-        if loss_mask.any():
-            loss_labels = np.cumsum(~loss_mask)
-            unique_labels = np.unique(loss_labels[loss_mask])
-            loss_streaks = np.array([np.sum(loss_mask[loss_labels == lbl]) for lbl in unique_labels])
-            loss_losses = np.array([np.sum(changes[loss_labels == lbl]) for lbl in unique_labels])
-            self.loss_streak = max(loss_streaks)
-            self.max_loss_streak = min(loss_losses)
-        else:
-            self.loss_streak = self.max_loss_streak = 0
-        
+        for ch in changes:
+            if ch > 0:
+                cur_wins += 1
+                cur_gain += ch
+                cur_losses = cur_loss = 0
+            elif ch < 0:
+                cur_losses += 1
+                cur_loss += ch
+                cur_wins = cur_gain = 0
+            else:
+                cur_wins = cur_losses = 0
+                cur_gain = cur_loss = 0
+
+            self.win_streak = max(self.win_streak, cur_wins)
+            self.loss_streak = max(self.loss_streak, cur_losses)
+            self.max_gain_streak = max(self.max_gain_streak, cur_gain)
+            self.max_loss_streak = min(self.max_loss_streak, cur_loss)
+
     def _calculate_pnls(self, intraday_equity):
         changes = np.diff(intraday_equity)
         wins = changes[changes > 0]
@@ -176,6 +171,7 @@ class Stats:
 
         current_win = current_loss = 0
         current_win_sum = current_loss_sum = 0
+
         for pnl in self.daily_pnls:
             if pnl > 0:
                 current_win += 1
@@ -207,13 +203,13 @@ class Stats:
 
     def _calculate_sharpe_ratio(self, risk_free_rate=0.05):
         daily_returns = np.array(self.daily_pnls) / self.starting_cash
-        mean_daily_return = np.mean(daily_returns)
-        std_daily_return = np.std(daily_returns, ddof=1)
+        mean = np.mean(daily_returns)
+        std = np.std(daily_returns, ddof=1)
 
         daily_rf = (1 + risk_free_rate) ** (1/252) - 1
-        excess_daily_return = mean_daily_return - daily_rf
+        excess_daily_return = mean - daily_rf
 
-        self.sharpe_ratio = np.sqrt(252) * (excess_daily_return / std_daily_return)
+        self.sharpe_ratio = np.sqrt(252) * (excess_daily_return / std)
     
     def get_time_loss(self):
         # find time of day where loss is irrecoverable, set loss there
