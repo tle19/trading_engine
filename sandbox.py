@@ -258,7 +258,7 @@ run_one_backtest(
     stop_loss=0.03, 
     take_profit=0.03, 
     trailing_ratio=0.05,
-    position_size=1.0)
+    position_size=1.0, plot=False)
 
 # multiple_symbol_performance(symbols[2:])
 

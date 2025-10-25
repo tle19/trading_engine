@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 import numpy as np
 
 from utils import *
@@ -181,6 +180,28 @@ class Strategy:
 
     def compute_ma(self, items, window):
         return np.mean(items[-window:])
+    
+    def compute_rsi(self, arr, period):
+        if len(arr) < period + 1:
+            return None
+
+        deltas = np.diff(arr[-(period + 1):])
+        gains = np.where(deltas > 0, deltas, 0)
+        losses = np.where(deltas < 0, -deltas, 0)
+
+        avg_gain = gains.mean()
+        avg_loss = losses.mean()
+
+        if avg_loss == 0:
+            return 100
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        return rsi
+        
+    def donchian_channel(self, window):
+        upper_band = max(self.highs[-window:])
+        lower_band = min(self.lows[-window:])
+        return upper_band, lower_band
     
     def trade_window(self, start, end):
         return start <= (self.ts.hour, self.ts.minute) <= end

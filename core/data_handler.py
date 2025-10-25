@@ -1,10 +1,8 @@
 import json
 import os
 import time
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
 import pandas as pd
+from zoneinfo import ZoneInfo
 
 import schwabdev
 from polygon import RESTClient
