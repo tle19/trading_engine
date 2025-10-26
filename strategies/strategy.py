@@ -77,7 +77,7 @@ class Strategy:
         # self.prices.append((self.close + self.high + self.low) / 3)
         self.highs.append(self.high)
         self.lows.append(self.low)
-        # self.volumes.append(self.volume)
+        self.volumes.append(self.volume)
 
     def check_status(self):
         if self.position == "long":
@@ -212,6 +212,8 @@ class Strategy:
     def reset_data(self):
         if self.trade_window((9, 30), (9, 30)):
             self.prices = []
+            self.highs = []
+            self.lows = []
             self.volumes = []
             self.risk_manager.reset_risk()
 

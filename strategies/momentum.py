@@ -33,8 +33,6 @@ class MomentumSMAIndicator(Strategy):
 
         if self.position is None:
             return self.enter_trade()
-        else:
-            self.set_trailing_stop()
         return None
     
     def enter_trade(self):
@@ -42,8 +40,6 @@ class MomentumSMAIndicator(Strategy):
         momentum, sma_momentum = self.compute_momentum_sma()
         if rsi < self.rsi_lower and momentum > sma_momentum:
             return self.buy()
-        elif rsi > self.rsi_upper and momentum < sma_momentum:
-            return self.sell()
     
     def compute_momentum_sma(self):
         momentum = self.prices[-1] - self.prices[-1 - self.momentum_window]

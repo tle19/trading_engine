@@ -45,8 +45,8 @@ def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, *
     total_days = len(ticker_sums)
     win_rate = num_wins / total_days * 100
 
-    print(f"Lengths after truncation: {[len(p) for p in ticker_truncated]}")
-    print("Ticker sums:", ticker_sums)
+    print(f"Length after truncation: {len(ticker_truncated[0])}")
+    print(f"Total Pnl: {np.sum(ticker_sums)}")
     print(f"Daily Win rate: {win_rate:.2f}%")
 
 def walk_forward_optimize(symbol, strategy_class):
@@ -138,6 +138,25 @@ def optimize_params(symbol, strategy_class, start, end):
         "position_size": [1.0]
     }
 
+    param_grid = { # for trend_follow
+        "fast_window": [30, 40, 50],
+        "slow_window": [80, 90, 100, 110, 120],
+        "htf_window": [120, 130, 140, 150],
+        "stop_loss": [0.0125],
+        "take_profit": [0.0125],
+        "trailing_ratio": [0.1],
+        "position_size": [1.0]
+    }
+    # param_grid = { # for trend_follow
+    #     "fast_window": [50],
+    #     "slow_window": [100],
+    #     "htf_window": [120],
+    #     "stop_loss": [0.005, 0.0075, 0.01, 0.0125, 0.015],
+    #     "take_profit": [0.005, 0.0075, 0.01, 0.0125, 0.015],
+    #     "trailing_ratio": [0.1],
+    #     "position_size": [1.0]
+    # }
+
     best_score = -np.inf
     best_params = None
     results = []
@@ -168,12 +187,12 @@ symbols = ["SPY", "QQQ",
            "MSFT", "META", 
            "TSM", "CSCO", 
            "INTC", "ADBE"]
-curr_symbol = symbols[8]
+curr_symbol = symbols[6]
 
 
 strategy_kwargs = { # momentum_sma
     "momentum_window": 10,
-    "sma_window": 20,
+    "sma_window": 5,
     "rsi_period": 5,
     "rsi_lower": 35,
     "rsi_upper": 70,
@@ -193,15 +212,23 @@ strategy_kwargs = { # momentum_sma
 #     "take_profit": 0.003,
 #     "trailing_ratio": 0.05
 # }
+# strategy_kwargs = { # trend_follow
+#     "fast_window": 30,
+#     "slow_window": 80,
+#     "htf_window": 120,
+#     "stop_loss": 0.0125,
+#     "take_profit": 0.0125,
+#     "trailing_ratio": 0.1
+# }
 
-# run_one_backtest(
-#     curr_symbol,
-#     MomentumSMAIndicator,
-#     start_date="2023-10-01",
-#     end_date="2024-10-01",
-#     plot=False,
-#     **strategy_kwargs
-# )
+run_one_backtest(
+    curr_symbol,
+    MomentumSMAIndicator,
+    start_date="2023-10-01",
+    end_date="2024-10-01",
+    plot=False,
+    **strategy_kwargs
+)
 # run_one_backtest(
 #     curr_symbol,
 #     SMACrossoverIndicator,
@@ -210,12 +237,22 @@ strategy_kwargs = { # momentum_sma
 #     plot=False,
 #     **strategy_kwargs
 # )
+# run_one_backtest(
+#     curr_symbol,
+#     TrendFollowIndicator,
+#     start_date="2023-10-01",
+#     end_date="2024-10-01",
+#     plot=False,
+#     **strategy_kwargs
+# )
 
-multiple_symbol_performance(symbols[2:], MomentumSMAIndicator, "2023-10-01", "2024-10-01", **strategy_kwargs)
+# multiple_symbol_performance(symbols[2:], MomentumSMAIndicator, "2023-10-01", "2024-10-01", **strategy_kwargs)
 # multiple_symbol_performance(symbols[2:], SMACrossoverIndicator, "2023-10-01", "2024-10-01", **strategy_kwargs)
+# multiple_symbol_performance(symbols[2:], TrendFollowIndicator, "2023-10-01", "2024-10-01", **strategy_kwargs)
 
 # walk_forward_optimize(curr_symbol, MomentumSMAIndicator)
 # walk_forward_optimize(curr_symbol, SMACrossoverIndicator)
 
 # grid_search(curr_symbol, MomentumSMAIndicator, start_date="2023-10-01", end_date="2024-10-01")
 # grid_search(curr_symbol, SMACrossoverIndicator, start_date="2023-10-01", end_date="2024-10-01")
+# grid_search(curr_symbol, TrendFollowIndicator, start_date="2023-10-01", end_date="2024-10-01")
