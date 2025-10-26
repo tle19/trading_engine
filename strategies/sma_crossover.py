@@ -2,18 +2,18 @@ import numpy as np
 from strategies import Strategy, RiskManager
 
 class SMACrossoverIndicator(Strategy):
-    def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=50, donch_smoothing=0.3, 
-                 rsi_period=5, rsi_lower=35, rsi_upper=70,
+    def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=50, 
+                 rsi_period=6, rsi_lower=30, rsi_upper=70, donch_smoothing=0.1,
                  stop_loss=0.003, take_profit=0.003, trailing_ratio=0.05, position_size=1.0,
                  target=0.015, loss=-0.015, force_close=True):
         super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size, force_close)
         self.fast_window = fast_window
         self.slow_window = slow_window
         self.htf_window = htf_window
-        self.donch_smoothing = donch_smoothing
         self.rsi_period = rsi_period
         self.rsi_lower = rsi_lower
         self.rsi_upper = rsi_upper
+        self.donch_smoothing = donch_smoothing
         
         self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
     

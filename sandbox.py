@@ -9,58 +9,31 @@ from core import *
 from strategies import *
 from utils import *
 
-def run_one_backtest(symbol, start_date, end_date, fast_window=10, slow_window=20, htf_window=40, 
-                     rsi_period=6, rsi_lower=30, rsi_upper=70, donch_smoothing=0.3, 
-                     stop_loss=0.005, take_profit=0.005, trailing_ratio=0.05, position_size=1.0, plot=True):
+def run_one_backtest(symbol, strategy_class, start_date, end_date, plot=True, **strategy_kwargs):
     start_time = time.perf_counter()
 
-    strat = SMACrossoverIndicator(
-        symbol, 
-        fast_window=fast_window, 
-        slow_window=slow_window, 
-        htf_window=htf_window, 
-        rsi_period=rsi_period, 
-        rsi_lower=rsi_lower, 
-        rsi_upper=rsi_upper,
-        donch_smoothing=donch_smoothing,
-        stop_loss=stop_loss, 
-        take_profit=take_profit, 
-        trailing_ratio=trailing_ratio,
-        position_size=position_size)
+    strat = strategy_class(symbol, **strategy_kwargs)
     
     bt = Backtest(
         symbol, 
         strat, 
         cash=25_000, 
-        shares=30, 
+        shares=50, 
         margin=1.0, 
         commission=0.0, 
         slippage=0.1)
     
     bt.run(start_date=start_date, end_date=end_date, plot=plot)
 
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
+    elapsed_time = time.perf_counter() - start_time
     print(f"Elapsed Backtest Time: {elapsed_time:.6f} seconds")
 
     return bt.get_stats_class()
 
-def multiple_symbol_performance(symbols):
+def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, **strategy_kwargs):
     ticker_pnls = []
     for symbol in symbols:
-        stats = run_one_backtest(
-            symbol, 
-            start_date="2023-10-01", 
-            end_date="2024-10-01", 
-            fast_window=10, 
-            slow_window=20, 
-            htf_window=50, 
-            donch_smoothing=0.1,
-            stop_loss=0.003, 
-            take_profit=0.003, 
-            trailing_ratio=0.05,
-            position_size=1.0,
-            plot=False)
+        stats = run_one_backtest(symbol, strategy_class, start_date, end_date, plot=False, **strategy_kwargs)
         ticker_pnls.append(stats.daily_pnls)
     
     min_len = min(len(p) for p in ticker_pnls)
@@ -75,8 +48,8 @@ def multiple_symbol_performance(symbols):
     print(f"Lengths after truncation: {[len(p) for p in ticker_truncated]}")
     print("Ticker sums:", ticker_sums)
     print(f"Daily Win rate: {win_rate:.2f}%")
-    
-def walk_forward_optimize(symbol):
+
+def walk_forward_optimize(symbol, strategy_class):
     start = pd.Timestamp("2023-10-01")
     end = pd.Timestamp("2025-10-01")
 
@@ -99,11 +72,13 @@ def walk_forward_optimize(symbol):
 
         best_params = optimize_params(
             symbol, 
+            strategy_class,
             train_start.strftime("%Y-%m-%d"), 
             train_end.strftime("%Y-%m-%d"))
 
         perf = run_one_backtest(
             symbol, 
+            strategy_class,
             train_end.strftime("%Y-%m-%d"), 
             test_end.strftime("%Y-%m-%d"), 
             **best_params,
@@ -130,14 +105,14 @@ def walk_forward_optimize(symbol):
     
     return results
 
-def grid_search(symbol, start_date="2023-10-01", end_date="2024-10-01"):
-    best_params = optimize_params(symbol, start_date, end_date)
+def grid_search(symbol, strategy_class, start_date="2023-10-01", end_date="2024-10-01"):
+    best_params = optimize_params(symbol, strategy_class, start_date, end_date)
     print(best_params)
     
-def optimize_params(symbol, start, end):
+def optimize_params(symbol, strategy_class, start, end):
     start_time = time.perf_counter()
 
-    param_grid = {
+    param_grid = { # for sma_crossover
         "fast_window": [10, 15, 20, 25],
         "slow_window": [20, 25, 30, 35, 40],
         "htf_window": [40, 50, 60, 70, 80],
@@ -151,13 +126,11 @@ def optimize_params(symbol, start, end):
         "position_size": [1.0]
     }
 
-    param_grid = {
-        "fast_window": [10],
-        "slow_window": [20],
-        "htf_window": [50],
-        "donch_smoothing": [0.1],
-        "rsi_period": [50],
-        "rsi_lower": [35],
+    param_grid = { # for momentum_sma
+        "momentum_window": [10], 
+        "sma_window": [8],
+        "rsi_period": [8],
+        "rsi_lower": [30],
         "rsi_upper": [70],
         "stop_loss": [0.003],
         "take_profit": [0.003],
@@ -165,27 +138,13 @@ def optimize_params(symbol, start, end):
         "position_size": [1.0]
     }
 
-    # param_grid = {
-    #     "fast_window": [10],
-    #     "slow_window": [20],
-    #     "htf_window": [50],
-    #     "donch_smoothing": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-    #     "rsi_period": [6],
-    #     "rsi_lower": [30],
-    #     "rsi_upper": [70],
-    #     "stop_loss": [0.003],
-    #     "take_profit": [0.003],
-    #     "trailing_ratio": [0.05],
-    #     "position_size": [1.0]
-    # }
-
     best_score = -np.inf
     best_params = None
     results = []
 
     for combo in product(*param_grid.values()):
         params = dict(zip(param_grid.keys(), combo))
-        perf = run_one_backtest(symbol, start, end, **params, plot=False)
+        perf = run_one_backtest(symbol, strategy_class, start, end, **params, plot=False)
         perf_dict = perf.get_data_dict()
         pnl = perf_dict["Net Profit"]
         if pnl > best_score:
@@ -197,8 +156,7 @@ def optimize_params(symbol, start, end):
     with open("gs_results.json", "w") as f:
         json.dump(results, f, indent=4)
 
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
+    elapsed_time = time.perf_counter() - start_time
     print(f"Elapsed Parameter Optimize Time: {elapsed_time:.6f} seconds")
     
     return best_params
@@ -210,24 +168,54 @@ symbols = ["SPY", "QQQ",
            "MSFT", "META", 
            "TSM", "CSCO", 
            "INTC", "ADBE"]
-curr_symbol = symbols[2]
+curr_symbol = symbols[8]
 
-# strat = MomentumSMAIndicator
-run_one_backtest(
-    curr_symbol, 
-    start_date="2023-10-01", 
-    end_date="2024-10-01", 
-    fast_window=10, 
-    slow_window=20, 
-    htf_window=50, 
-    donch_smoothing=0.1,
-    stop_loss=0.03, 
-    take_profit=0.03, 
-    trailing_ratio=0.05,
-    position_size=1.0, plot=False)
 
-# multiple_symbol_performance(symbols[2:])
+strategy_kwargs = { # momentum_sma
+    "momentum_window": 10,
+    "sma_window": 20,
+    "rsi_period": 5,
+    "rsi_lower": 35,
+    "rsi_upper": 70,
+    "stop_loss": 0.003,
+    "take_profit": 0.003,
+    "trailing_ratio": 0.05
+}
+# strategy_kwargs = { # sma_crossover
+#     "fast_window": 10,
+#     "slow_window": 20,
+#     "htf_window": 50,
+#     "rsi_period": 5,
+#     "rsi_lower": 35,
+#     "rsi_upper": 70,
+#     "donch_smoothing": 0.3,
+#     "stop_loss": 0.003,
+#     "take_profit": 0.003,
+#     "trailing_ratio": 0.05
+# }
 
-# grid_search(curr_symbol, start_date="2023-10-01", end_date="2024-10-01")
+# run_one_backtest(
+#     curr_symbol,
+#     MomentumSMAIndicator,
+#     start_date="2023-10-01",
+#     end_date="2024-10-01",
+#     plot=False,
+#     **strategy_kwargs
+# )
+# run_one_backtest(
+#     curr_symbol,
+#     SMACrossoverIndicator,
+#     start_date="2023-10-01",
+#     end_date="2024-10-01",
+#     plot=False,
+#     **strategy_kwargs
+# )
 
-# walk_forward_optimize(curr_symbol)
+multiple_symbol_performance(symbols[2:], MomentumSMAIndicator, "2023-10-01", "2024-10-01", **strategy_kwargs)
+# multiple_symbol_performance(symbols[2:], SMACrossoverIndicator, "2023-10-01", "2024-10-01", **strategy_kwargs)
+
+# walk_forward_optimize(curr_symbol, MomentumSMAIndicator)
+# walk_forward_optimize(curr_symbol, SMACrossoverIndicator)
+
+# grid_search(curr_symbol, MomentumSMAIndicator, start_date="2023-10-01", end_date="2024-10-01")
+# grid_search(curr_symbol, SMACrossoverIndicator, start_date="2023-10-01", end_date="2024-10-01")

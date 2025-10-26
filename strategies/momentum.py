@@ -2,16 +2,16 @@ import numpy as np
 from strategies import Strategy, RiskManager
 
 class MomentumSMAIndicator(Strategy):
-    def __init__(self, symbol, rsi_period=8, rsi_long=30, rsi_short=50,
-                 momentum_window=10, sma_window=8,
+    def __init__(self, symbol, momentum_window=10, sma_window=8, 
+                 rsi_period=8, rsi_lower=30, rsi_upper=70,
                  stop_loss=0.01, take_profit=0.01, trailing_ratio=0.5, position_size=1.0,
-                 target=0.01, loss=-0.03, force_close=True):
+                 target=0.03, loss=-0.03, force_close=True):
         super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size, force_close)
-        self.rsi_period = rsi_period
-        self.rsi_long = rsi_long
-        self.rsi_short = rsi_short
         self.momentum_window = momentum_window
         self.sma_window = sma_window
+        self.rsi_period = rsi_period
+        self.rsi_lower = rsi_lower
+        self.rsi_upper = rsi_upper
 
         self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
 
@@ -32,36 +32,18 @@ class MomentumSMAIndicator(Strategy):
             return None
 
         if self.position is None:
-            self.enter_trade()
+            return self.enter_trade()
         else:
             self.set_trailing_stop()
         return None
     
     def enter_trade(self):
-        rsi = self.compute_rsi()
+        rsi = self.compute_rsi(self.prices, self.rsi_period)
         momentum, sma_momentum = self.compute_momentum_sma()
-        if rsi < self.rsi_long and momentum > sma_momentum:
-                return self.buy()
-        elif rsi > self.rsi_short and momentum < sma_momentum:
+        if rsi < self.rsi_lower and momentum > sma_momentum:
+            return self.buy()
+        elif rsi > self.rsi_upper and momentum < sma_momentum:
             return self.sell()
-
-    def compute_rsi(self):
-        period = self.rsi_period
-        if len(self.prices) < period + 1:
-            return None
-
-        deltas = np.diff(self.prices[-(period + 1):])
-        gains = np.where(deltas > 0, deltas, 0)
-        losses = np.where(deltas < 0, -deltas, 0)
-
-        avg_gain = gains.mean()
-        avg_loss = losses.mean()
-
-        if avg_loss == 0:
-            return 100
-        rs = avg_gain / avg_loss
-        rsi = 100 - (100 / (1 + rs))
-        return rsi
     
     def compute_momentum_sma(self):
         momentum = self.prices[-1] - self.prices[-1 - self.momentum_window]

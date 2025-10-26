@@ -47,13 +47,16 @@ class Strategy:
         if status is not None:
             return status
         
-        self.risk_manager.intraday_risk()
-        self.risk_manager.daily_risk_stop()
-        self.position_size = self.risk_manager.dynamic_position_sizing(self.default_position_size)
-        if self.risk_manager.is_day_pause():
+        self.position_size = self.risk_manager.dynamic_position_sizing(self.default_position_size) # optional
+
+        self.risk_manager.daily_risk_target() # optional   
+        self.risk_manager.daily_risk_stop() # optional
+        if self.risk_manager.is_day_pause(): # optional
             return None
-        if self.risk_manager.is_trade_pause():
-            self.risk_manager.tick()
+        
+        self.risk_manager.intraday_risk() # optional
+        if self.risk_manager.is_trade_pause(): # optional
+            self.risk_manager.tick() # optional
             return None
         
         return self.enter_trade()
