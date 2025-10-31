@@ -38,28 +38,10 @@ class Strategy:
         self.volumes = [] 
 
         self.risk_manager = RiskManager()
+        self.mode = None
         
     def generate_signal(self, row):
-        self.update(row)
-        self.reset_data() # optional
-
-        status = self.check_status()
-        if status is not None:
-            return status
-        
-        self.position_size = self.risk_manager.dynamic_position_sizing(self.default_position_size) # optional
-
-        self.risk_manager.daily_risk_target() # optional   
-        self.risk_manager.daily_risk_stop() # optional
-        if self.risk_manager.is_day_pause(): # optional
-            return None
-        
-        self.risk_manager.intraday_risk() # optional
-        if self.risk_manager.is_trade_pause(): # optional
-            self.risk_manager.tick() # optional
-            return None
-        
-        return self.enter_trade()
+        raise NotImplementedError
     
     def enter_trade(self):
         raise NotImplementedError
@@ -216,6 +198,7 @@ class Strategy:
             self.lows = []
             self.volumes = []
             self.risk_manager.reset_risk()
+            self.mode = None
 
     def is_force_close(self):
         return self.force_close
@@ -248,7 +231,7 @@ class Strategy:
         self.entry_price = float(fill_price)
 
 class RiskManager:
-    def __init__(self, risk_threshold=5, pause_duration=5, pnl_target=0.02, pnl_loss=-0.001):
+    def __init__(self, risk_threshold=3, pause_duration=5, pnl_target=0.02, pnl_loss=-0.001):
         self.risk_threshold = risk_threshold
         self.pause_duration = pause_duration
         self.pnl_target = pnl_target

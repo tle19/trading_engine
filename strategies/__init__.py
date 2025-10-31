@@ -1,18 +1,15 @@
 from .strategy import Strategy, RiskManager
-from .trend_follow import TrendFollowIndicator
-from .momentum import MomentumSMAIndicator
+from .macd import MACDIndicator
 from .sma_crossover import SMACrossoverIndicator
 
 __all__ = [
-    "TrendFollowIndicator",
-    "MomentumSMAIndicator",
+    "MACDIndicator",
     "SMACrossoverIndicator",
     "strategy_map",
 ]
 
 strategy_map = {
-    "trend": TrendFollowIndicator,
-    "momentum": MomentumSMAIndicator,
+    "macd": MACDIndicator,
     "sma": SMACrossoverIndicator
 }
 

@@ -40,15 +40,13 @@ def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
         print(symbol, avg_spread)
 
 symbols = ["SPY", "QQQ", 
-           "TSLA", "NVDA", 
-           "AMD", "AMZN", 
-           "AAPL", "GOOG", 
-           "MSFT", "META", 
-           "TSM", "CSCO", 
-           "INTC", "ADBE"]
+           "AAPL", "MSFT", 
+           "NVDA", "AMD", 
+           "AMZN", "GOOG", 
+           "META", "TSLA"]
 curr_symbol = symbols[2]
 
 # fetch_multiple_symbols(symbols)
 # fetch_schwab_data("2025-10-15") 
-# get_average_spread(symbols, start_date="2025-7-01", end_date="2025-10-01")
+get_average_spread(symbols, start_date="2025-7-01", end_date="2025-10-01")
 # test_order(symbol)
