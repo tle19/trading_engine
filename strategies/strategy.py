@@ -46,6 +46,9 @@ class Strategy:
     def enter_trade(self):
         raise NotImplementedError
     
+    def exit_trade(self):
+        raise NotImplementedError
+    
     def update(self, row=None): 
         if row is not None:
             self.open = row.open
