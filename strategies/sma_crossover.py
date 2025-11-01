@@ -1,5 +1,5 @@
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from strategies import Strategy, RiskManager
 from utils import *
@@ -47,6 +47,7 @@ class SMACrossoverIndicator(Strategy):
         if len(self.prices) < self.slow_window:
             return None
         if not self.trade_window((9, 30), (15, 00)) and self.position is None:
+            self.mode = None
             return None
         
         if self.position is None:

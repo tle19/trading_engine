@@ -126,9 +126,9 @@ def optimize_params(symbol, strategy_class, start, end):
     }
 
     param_grid = { # MACD
-        "fast_window":  [5, 7, 9, 11, 13, 15],
-        "slow_window": [10, 12, 15, 20, 25, 30, 35, 40],
-        "signal_window": [3, 5, 7, 9, 11, 13],
+        "fast_window": [8, 10, 12, 15, 18, 20, 22, 24],
+        "slow_window": [5, 6, 8, 10, 12, 15],
+        "signal_window": [8, 10, 12, 15, 18, 20, 22, 24],
         "stop_loss": [0.01],
         "take_profit": [0.03],
         "trailing_ratio": [0.05]
@@ -162,15 +162,15 @@ symbols = ["SPY", "QQQ",
            "NVDA", "AMD", 
            "AMZN", "GOOG", 
            "META", "TSLA"]
-curr_symbol = symbols[2]
+curr_symbol = symbols[4]
 
 
 strategy_kwargs = { # MACD
     "fast_window": 8,
     "slow_window": 15,
-    "signal_window": 9, 
-    "stop_loss": 0.01,
-    "take_profit": 0.03,
+    "signal_window": 7, 
+    "stop_loss": 0.005,
+    "take_profit": 0.02,
     "trailing_ratio": 0.05
 }
 # strategy_kwargs = { # SMA
@@ -202,7 +202,7 @@ run_one_backtest( # MACD
 #     **strategy_kwargs
 # )
 
-# multiple_symbol_performance(symbols[2:], MACDIndicator, "2025-9-01", "2025-10-01", **strategy_kwargs)
+# multiple_symbol_performance(symbols[2:], MACDIndicator, "2023-10-01", "2024-10-01", **strategy_kwargs)
 # multiple_symbol_performance(symbols[2:], SMACrossoverIndicator, "2023-11-01", "2024-11-01", **strategy_kwargs)
 
 # walk_forward_optimize(curr_symbol, MACDIndicator)

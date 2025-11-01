@@ -125,7 +125,7 @@ class Equities:
 
         # --- Exit Position ---
         elif signal == 0 and position is not None:
-            if position == "long": #implement market sell
+            if position == "long": #implement market sell (if cancel hold_response returns object, then sell else do nothing)
                 print(f"SELL -{shares} {self.symbol}") # @ price sold
 
             elif position == "short":

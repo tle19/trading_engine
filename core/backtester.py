@@ -29,6 +29,7 @@ class Backtest:
         curr_cash = self.starting_cash
         self.risk_manager.set_start_cash(self.starting_cash) # for testing purposes
 
+        # total_entry_price = None
         entry_price = None
 
         rows = df.itertuples(index=False)
@@ -38,7 +39,7 @@ class Backtest:
             low = row.low
             ts = row.timestamp
 
-            self.shares = 25_000 // close # for consistent testing
+            self.shares = curr_cash // close # for consistent testing
 
             signal = self.strategy.generate_signal(row)
 
@@ -51,6 +52,12 @@ class Backtest:
             # --- Enter Long ---
             if signal == 1 and position == "long":
                 entry_price = close * slip_up
+                # if entry_price is None: # multiple positions
+                #     entry_price = close * slip_up
+                #     total_entry_price = entry_price
+                # else:
+                #     total_entry_price += close * slip_up
+                #     entry_price = round(total_entry_price / close)
 
             # --- Enter Short ---
             elif signal == -1 and position == "short":

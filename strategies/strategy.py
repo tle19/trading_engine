@@ -38,7 +38,6 @@ class Strategy:
         self.volumes = [] 
 
         self.risk_manager = RiskManager()
-        self.mode = None
         
     def generate_signal(self, row):
         raise NotImplementedError
@@ -102,6 +101,9 @@ class Strategy:
         self.trailing_stop = False
         self.trailing_profit = False
         self.entry_price = None
+        self.entry_price = None
+        self.stop_price = None
+        self.profit_price = None
 
     def set_trailing_stop(self):
         self.trailing_stop = False
@@ -201,7 +203,6 @@ class Strategy:
             self.lows = []
             self.volumes = []
             self.risk_manager.reset_risk()
-            self.mode = None
 
     def is_force_close(self):
         return self.force_close
