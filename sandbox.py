@@ -126,10 +126,10 @@ def optimize_params(symbol, strategy_class, start, end):
     }
 
     param_grid = { # MACD
-        "fast_window": [12],
-        "slow_window": [26],
-        "signal_window": [9],
-        "rsi_period": [14],
+        "fast_window": [8, 10, 12, 14, 16],
+        "slow_window": [18, 20, 26, 30, 34],
+        "signal_window": [6, 8, 9, 10, 12],
+        "rsi_period": [8, 10, 14, 16, 18, 20],
         "stop_loss": [0.005],
         "take_profit": [1.5],
         "trailing_ratio": [0.05]
@@ -189,22 +189,13 @@ strategy_kwargs = { # MACD
 # }
 
 run_one_backtest( # MACD
-    "RIOT",
+    "SOFI",
     MACDIndicator,
-    start_date="2023-10-01",
-    end_date="2025-10-31",
+    start_date="2023-11-01",
+    end_date="2025-11-01",
     plot=True,
     **strategy_kwargs
 )
-# grid_search("SOFI", MACDIndicator, start_date="2025-10-01", end_date="2025-10-31")
-# run_one_backtest( # MACD
-#     curr_symbol,
-#     MACDIndicator,
-#     start_date="2023-10-01",
-#     end_date="2024-10-01",
-#     plot=True,
-#     **strategy_kwargs
-# )
 # run_one_backtest( # SMA
 #     curr_symbol,
 #     SMACrossoverIndicator,

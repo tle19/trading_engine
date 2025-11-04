@@ -35,7 +35,7 @@ class MACDIndicator(Strategy):
         # if self.risk_manager.is_day_pause():
         #     return None
         
-        if not self.trade_window((9, 30), (16, 00)) and self.position is None:
+        if not self.trade_window((9, 30), (15, 30)) and self.position is None:
             self.fast_ema = None
             self.slow_ema = None
             self.signal_ema = None
@@ -44,8 +44,8 @@ class MACDIndicator(Strategy):
             return None
         
         stoch_k, stoch_d = self.compute_stochastic(self.highs, self.lows, self.prices)
-        hist = self.compute_macd(self.prices)
-        rsi = self.compute_rsi(self.prices)
+        hist = self.compute_macd(self.prices, self.fast_window, self.slow_window, self.signal_window)
+        rsi = self.compute_rsi(self.prices, self.rsi_period)
         
         signal = None
         if self.position is None and hist != 0:

@@ -67,12 +67,12 @@ class Strategy:
         if self.position == "long":
             if self.low <= self.stop_price or self.high >= self.profit_price:
                 return self.sell()
-            elif self.force_close and not self.trade_window((9, 30), (15, 54)):
+            elif self.force_close and not self.trade_window((9, 30), (15, 58)):
                 return self.sell()
         elif self.position == "short":
             if self.high >= self.stop_price or self.low <= self.profit_price:
                 return self.buy()
-            elif self.force_close and not self.trade_window((9, 30), (15, 54)):
+            elif self.force_close and not self.trade_window((9, 30), (15, 58)):
                 return self.buy()
             
     def buy(self):

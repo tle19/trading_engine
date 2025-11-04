@@ -27,8 +27,8 @@ class DataHandler:
         self.timezone = ZoneInfo("America/New_York")
 
 
-    def historical_data(self, symbol='SPY', from_date='2023-10-15', to_date='2025-10-15',
-                                timespan='minute', multiplier=1, max_iter=10):
+    def historical_data(self, symbol='SPY', from_date='2023-11-01', to_date='2025-11-01',
+                                timespan='minute', multiplier=5, max_iter=10):
 
         data_list = []
         current_from = from_date

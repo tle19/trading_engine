@@ -44,9 +44,14 @@ symbols = ["SPY", "QQQ",
            "NVDA", "AMD", 
            "AMZN", "GOOG", 
            "META", "TSLA"]
+symbols = ["RIOT", "YOU", "PEN", 
+           "ATKR", "DUOL", 
+           "SWAV", "EHC", 
+           "FFIV", "LII", 
+           "ADC", "AEIS"]
 curr_symbol = symbols[2]
 
-# fetch_multiple_symbols(symbols)
+fetch_multiple_symbols(symbols)
 # fetch_schwab_data("2025-10-15") 
-get_average_spread(symbols, start_date="2025-7-01", end_date="2025-10-01")
+# get_average_spread(symbols, start_date="2025-7-01", end_date="2025-10-01")
 # test_order(symbol)
