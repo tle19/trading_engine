@@ -59,14 +59,14 @@ class MACDIndicator(Strategy):
         elif stoch_k > 80 and stoch_d > 80:
             self.stoch_signal = "short"
        
-        if self.stoch_signal == "long" and 20 < stoch_k < 80 and 20 < stoch_d < 80 and rsi > 55 and hist > 0:
+        if self.stoch_signal == "long" and 20 < stoch_k < 80 and 20 < stoch_d < 80 and rsi > 50 and hist > 0:
             signal = self.buy() 
             self.stop_price = round(self.low * (1 - self.stop_loss), 2)
             stop_dist = self.entry_price - self.stop_price
             self.profit_price = round(self.entry_price + (stop_dist * self.take_profit), 2)
             # print(self.ts, self.stoch_signal, self.entry_price, self.stop_price, self.profit_price)
             return signal
-        if self.stoch_signal == "short" and 20 < stoch_k < 80 and 20 < stoch_d < 80 and rsi < 45 and hist < 0:
+        if self.stoch_signal == "short" and 20 < stoch_k < 80 and 20 < stoch_d < 80 and rsi < 50 and hist < 0:
             signal = self.sell() 
             self.stop_price = round(self.high * (1 + self.stop_loss), 2)
             stop_dist = self.stop_price - self.entry_price

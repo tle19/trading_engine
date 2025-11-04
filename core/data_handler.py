@@ -74,7 +74,7 @@ class DataHandler:
             if current_from > pd.to_datetime(to_date).strftime("%Y-%m-%d"):
                 break
             # Respect Polygon's rate limit (5 calls/minute)
-            time.sleep(13)
+            time.sleep(14)
 
         df = pd.DataFrame(data_list)
         save_data(df, symbol)

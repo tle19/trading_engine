@@ -20,7 +20,7 @@ class Backtest:
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 
         # Spread-Adjusted Slippage Calculation
-        avg_spread = ((df["high"] - df["low"]) / df["close"]).mean() #deque (size 10)
+        avg_spread = ((df["high"] - df["low"]) / df["close"]).mean() #deque (size 30)
         self.slippage *= avg_spread
         slip_up = 1 + self.slippage
         slip_dn = 1 - self.slippage

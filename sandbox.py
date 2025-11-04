@@ -129,7 +129,7 @@ def optimize_params(symbol, strategy_class, start, end):
         "fast_window": [8, 10, 12, 14, 16],
         "slow_window": [18, 20, 26, 30, 34],
         "signal_window": [6, 8, 9, 10, 12],
-        "rsi_period": [8, 10, 14, 16, 18, 20],
+        "rsi_period": [8, 10, 14, 16, 18],
         "k_period": [14],
         "k_smooth": [3],
         "d_period": [3],
@@ -156,6 +156,9 @@ def optimize_params(symbol, strategy_class, start, end):
         "slow_window": [26],
         "signal_window": [9],
         "rsi_period": [14],
+        "k_period": [14],
+        "k_smooth": [3],
+        "d_period": [3],
         "stop_loss": [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01],
         "take_profit": [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0],
         "trailing_ratio": [0.05]
@@ -217,14 +220,14 @@ strategy_kwargs = { # MACD
 #     "trailing_ratio": 0.05
 # }
 
-# run_one_backtest( # MACD
-#     "SOFI",
-#     MACDIndicator,
-#     start_date="2023-11-01",
-#     end_date="2024-11-01",
-#     plot=True,
-#     **strategy_kwargs
-# )
+run_one_backtest( # MACD
+    "UPST",
+    MACDIndicator,
+    start_date="2024-11-01",
+    end_date="2025-11-01",
+    plot=True,
+    **strategy_kwargs
+)
 # run_one_backtest( # SMA
 #     symbols[3],
 #     SMACrossoverIndicator,
@@ -234,10 +237,10 @@ strategy_kwargs = { # MACD
 #     **strategy_kwargs
 # )
 
-# multiple_symbol_performance(symbols, MACDIndicator, "2023-10-01", "2024-10-01", **strategy_kwargs)
+# multiple_symbol_performance(symbols, MACDIndicator, "2024-11-01", "2025-11-01", **strategy_kwargs)
 # multiple_symbol_performance(symbols[2:], SMACrossoverIndicator, "2023-11-01", "2024-11-01", **strategy_kwargs)
 
-walk_forward_optimize("SOFI", MACDIndicator) # parameter clustering
+# walk_forward_optimize("SOFI", MACDIndicator)
 # walk_forward_optimize(symbols[3], SMACrossoverIndicator)
 
 # grid_search("SOFI", MACDIndicator, start_date="2023-10-01", end_date="2024-10-01")
