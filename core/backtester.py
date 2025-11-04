@@ -34,9 +34,9 @@ class Backtest:
 
         rows = df.itertuples(index=False)
         for row in rows:
-            close = row.close
-            high = row.high
-            low = row.low
+            close = round(row.close, 2)
+            high = round(row.high, 2)
+            low = round(row.low, 2)
             ts = row.timestamp
 
             self.shares = curr_cash // close # for consistent testing
@@ -85,6 +85,7 @@ class Backtest:
                             pnl = (entry_price - profit_price) * shares
 
                 curr_cash += pnl
+                # print(pnl)
                 self.stats.update_trade(pnl)
                 self.risk_manager.check_risk(pnl)
                 self.strategy.flatten()

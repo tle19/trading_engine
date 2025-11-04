@@ -50,10 +50,10 @@ class Strategy:
     
     def update(self, row=None): 
         if row is not None:
-            self.open = row.open
-            self.close = row.close
-            self.high = row.high
-            self.low = row.low
+            self.open = round(row.open, 2)
+            self.close = round(row.close, 2)
+            self.high = round(row.high, 2)
+            self.low = round(row.low, 2)
             self.volume = row.volume
             self.ts = row.timestamp
 
@@ -78,7 +78,7 @@ class Strategy:
     def buy(self):
         if self.position is None:
             self.position = "long"
-            self.entry_price = round(self.close, 2)
+            self.entry_price = self.close
             self.stop_price = round(self.entry_price * (1 - self.stop_loss), 2)
             self.profit_price = round(self.entry_price * (1 + self.take_profit), 2)
             return LONG
@@ -88,7 +88,7 @@ class Strategy:
     def sell(self):
         if self.position is None:
             self.position = "short"
-            self.entry_price = round(self.close, 2)
+            self.entry_price = self.close
             self.stop_price = round(self.entry_price * (1 + self.stop_loss), 2)
             self.profit_price = round(self.entry_price * (1 - self.take_profit), 2)
             return SHORT
@@ -171,23 +171,44 @@ class Strategy:
     def compute_ma(self, items, window):
         return np.mean(items[-window:])
     
-    def compute_rsi(self, arr, period):
-        if len(arr) < period + 1:
+
+    def compute_rsi(self, prices, period, mode="wilder"):
+        p = np.asarray(prices, dtype=float)
+        if p.size < period + 1:
             return None
 
-        deltas = np.diff(arr[-(period + 1):])
-        gains = np.where(deltas > 0, deltas, 0)
-        losses = np.where(deltas < 0, -deltas, 0)
+        deltas = np.diff(p)
+        gains = np.where(deltas > 0, deltas, 0.0)
+        losses = np.where(deltas < 0, -deltas, 0.0)
+        if gains.size < period:
+            return None
 
-        avg_gain = gains.mean()
-        avg_loss = losses.mean()
+        seed_gain = gains[:period].mean()
+        seed_loss = losses[:period].mean()
+
+        if mode == "simple":
+            avg_gain = gains[-period:].mean()
+            avg_loss = losses[-period:].mean()
+        else:
+            avg_gain = seed_gain
+            avg_loss = seed_loss
+            if mode == "wilder":
+                for g, l in zip(gains[period:], losses[period:]):
+                    avg_gain = (avg_gain * (period - 1) + g) / period
+                    avg_loss = (avg_loss * (period - 1) + l) / period
+            elif mode == "exponential":
+                alpha = 2.0 / (period + 1)
+                for g, l in zip(gains[period:], losses[period:]):
+                    avg_gain = (1 - alpha) * avg_gain + alpha * g
+                    avg_loss = (1 - alpha) * avg_loss + alpha * l
+            else:
+                raise ValueError("mode must be 'simple','wilder' or 'exponential'")
 
         if avg_loss == 0:
-            return 100
+            return 100.0
         rs = avg_gain / avg_loss
-        rsi = 100 - (100 / (1 + rs))
-        return rsi
-        
+        return 100.0 - (100.0 / (1.0 + rs))
+
     def donchian_channel(self, window):
         upper_band = max(self.highs[-window:])
         lower_band = min(self.lows[-window:])

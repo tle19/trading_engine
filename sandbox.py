@@ -129,7 +129,7 @@ def optimize_params(symbol, strategy_class, start, end):
         "fast_window": [8, 10, 12, 15, 18, 20, 22, 24],
         "slow_window": [5, 6, 8, 10, 12, 15],
         "signal_window": [8, 10, 12, 15, 18, 20, 22, 24],
-        "stop_loss": [0.01],
+        "stop_loss": [0.005],
         "take_profit": [0.03],
         "trailing_ratio": [0.05]
     }
@@ -165,14 +165,16 @@ symbols = ["SPY", "QQQ",
 curr_symbol = symbols[4]
 
 
-strategy_kwargs = { # MACD
-    "fast_window": 8,
+strategy_kwargs = { # MACD 5,13,6  8,17,9
+    "fast_window": 9,
     "slow_window": 15,
     "signal_window": 7, 
     "stop_loss": 0.005,
-    "take_profit": 0.02,
+    "take_profit": 0.03,
     "trailing_ratio": 0.05
 }
+# 3,6,3 6/7
+# 8,17,9 5/7
 # strategy_kwargs = { # SMA
 #     "fast_window": 10,
 #     "slow_window": 20,
@@ -185,6 +187,15 @@ strategy_kwargs = { # MACD
 #     "trailing_ratio": 0.05
 # }
 
+# run_one_backtest( # MACD
+#     "SOFI",
+#     MACDIndicator,
+#     start_date="2025-10-01",
+#     end_date="2025-10-31",
+#     plot=True,
+#     **strategy_kwargs
+# )
+# grid_search("SOFI", MACDIndicator, start_date="2025-10-01", end_date="2025-10-31")
 run_one_backtest( # MACD
     curr_symbol,
     MACDIndicator,
