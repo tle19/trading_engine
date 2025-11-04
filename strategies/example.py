@@ -3,9 +3,8 @@ from strategies import Strategy, RiskManager
 
 class TrendFollowIndicator(Strategy):
     def __init__(self, symbol, stop_loss=0.0125, take_profit=0.0125, trailing_ratio=0.1, 
-                 position_size=1.0, target=0.0001, loss=-0.0001, risk_threshold=3, pause_duration=5, 
-                 force_close=True):
-        super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size, force_close)
+                 position_size=1.0, target=0.0001, loss=-0.0001, risk_threshold=3, pause_duration=5):
+        super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size)
         
         self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss, 
                                         risk_threshold=risk_threshold, pause_duration=pause_duration)

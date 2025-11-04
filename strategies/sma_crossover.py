@@ -8,8 +8,8 @@ class SMACrossoverIndicator(Strategy):
     def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=50, 
                  rsi_period=6, rsi_lower=30, rsi_upper=70,
                  stop_loss=0.01, take_profit=0.01, trailing_ratio=0.05, position_size=1.0,
-                 target=0.0000000001, loss=-0.0000000001, force_close=True):
-        super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size, force_close)
+                 target=0.0000000001, loss=-0.0000000001):
+        super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size)
         self.fast_window = fast_window
         self.slow_window = slow_window
         self.htf_window = htf_window

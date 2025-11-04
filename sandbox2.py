@@ -44,11 +44,10 @@ symbols = ["SPY", "QQQ",
            "NVDA", "AMD", 
            "AMZN", "GOOG", 
            "META", "TSLA"]
-symbols = ["RIOT", "YOU", "PEN", 
-           "ATKR", "DUOL", 
-           "SWAV", "EHC", 
-           "FFIV", "LII", 
-           "ADC", "AEIS"]
+symbols = ["AFRM", "HOOD", 
+           "UPST", "PYPL", 
+           "NU", "SQ", 
+           "FRC", "QFIN"]
 curr_symbol = symbols[2]
 
 fetch_multiple_symbols(symbols)

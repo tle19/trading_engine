@@ -1,7 +1,8 @@
 import os
 import json
 import time
-from collections import namedtuple
+import pandas as pd
+from collections import namedtuple, deque
 from zoneinfo import ZoneInfo
 
 import schwabdev
@@ -18,6 +19,7 @@ class Equities:
         self.force_close = False
 
         self.risk_manager = self.strategy.get_risk_manager()
+        self.tf = self.strategy.get_tf()
 
         config = load_config()
         self.app_key = config['app_key']
@@ -32,14 +34,16 @@ class Equities:
         self.entry_response = None
         self.hold_response = None
         self.is_trailing_stop = False
-        self.is_trailing_profit = False
 
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
-        self.last_high = None
-        self.last_low = None
 
     def run(self, duration=23520):
+        buffer = deque()
+        last_run = None
+
         def response_handler(response):
+            nonlocal last_run
+
             data = json.loads(response).get("data", [])
             if not data:
                 return
@@ -54,29 +58,59 @@ class Equities:
                 close = content.get("5")
                 volume = content.get("6")
 
-                high = self.last_high if high is None else high
-                low = self.last_low if low is None else low
-                self.last_high = high
-                self.last_low = low
-
                 row = self.Row(timestamp, open, high, low, close, volume)
+                buffer.append({
+                    "timestamp": timestamp,
+                    "open": open,
+                    "high": high,
+                    "low": low,
+                    "close": close,
+                    "volume": volume
+                })
 
             print(row)
        
-            if (row.timestamp.hour, row.timestamp.minute) == (15, 58): # need to adjust
-                self.force_close = self.strategy.is_force_close()
+            if (row.timestamp.hour, row.timestamp.minute) == (15, 58):
+                signal = self.strategy.generate_signal(row)
 
-            signal = self.strategy.generate_signal(row)
+                stop_price = str(self.strategy.get_stop_price())
+                profit_price = str(self.strategy.get_profit_price())
+                self.is_trailing_stop = self.strategy.is_trailing_stop()
+                position = self.strategy.get_position()
+                position_size = self.strategy.get_position_size()
+                shares = max(1, int(self.shares * position_size))
+                self.force_close = True
 
-            stop_price = str(self.strategy.get_stop_price())
-            profit_price = str(self.strategy.get_profit_price())
-            self.is_trailing_stop = self.strategy.is_trailing_stop()
-            self.is_trailing_profit = self.strategy.is_trailing_profit()
-            position = self.strategy.get_position()
-            position_size = self.strategy.get_position_size()
-            shares = max(1, int(self.shares * position_size))
+                self.interpret_signal(signal, position, shares, stop_price, profit_price)
 
-            self.interpret_signal(signal, position, shares, stop_price, profit_price)
+                self.streamer.stop()
+                return
+
+            interval_floor = row.timestamp.floor(f'{self.tf}T')
+            if last_run is None or interval_floor > last_run:
+                last_run = interval_floor
+
+                df = pd.DataFrame(buffer)
+                agg_row = self.Row(
+                    timestamp=interval_floor,
+                    open=df.iloc[0]['open'],
+                    high=df['high'].max(),
+                    low=df['low'].min(),
+                    close=df.iloc[-1]['close'],
+                    volume=df['volume'].sum()
+                )
+                buffer.clear()
+
+                signal = self.strategy.generate_signal(agg_row)
+
+                stop_price = str(self.strategy.get_stop_price())
+                profit_price = str(self.strategy.get_profit_price())
+                self.is_trailing_stop = self.strategy.is_trailing_stop()
+                position = self.strategy.get_position()
+                position_size = self.strategy.get_position_size()
+                shares = max(1, int(self.shares * position_size))
+
+                self.interpret_signal(signal, position, shares, stop_price, profit_price)
 
         self.cash = self.get_liquidation_value()
         self.risk_manager.set_start_cash(self.cash)
@@ -85,26 +119,26 @@ class Equities:
         #start_auto for market open
         
         self.streamer.send(self.streamer.chart_equity(self.symbol, "0,1,2,3,4,5,6", command="SUBS"))
-        time.sleep(duration) # stream duration
+        time.sleep(duration)
         
         self.streamer.stop()
 
     def interpret_signal(self, signal, position, shares, stop_price, profit_price):
         # --- Enter Long ---
         if signal == 1 and position == "long":
-            self.entry_response = self.buy_market(shares)
+            self.entry_response = self.buy_market(shares, "BUY")
             self.hold_response = self.long_bracket(shares, stop_price, profit_price)
             self.strategy.update_entry_price(self.fill_price)
 
         # --- Enter Short ---
         elif signal == -1 and position == "short":
-            self.entry_response = self.sell_market(shares)
+            self.entry_response = self.sell_market(shares, "SELL_SHORT")
             self.hold_response = self.short_bracket(shares, stop_price, profit_price)
             self.strategy.update_entry_price(self.fill_price)
 
         # --- Holding ---
         elif signal is None and position is not None:
-            if self.is_trailing_stop or self.is_trailing_profit:
+            if self.is_trailing_stop:
                 if position == "long":
                     self.hold_response = self.replace_order(shares, position, stop_price, profit_price, self.hold_response)
 
@@ -112,21 +146,19 @@ class Equities:
                     self.hold_response = self.replace_order(shares, position, stop_price, profit_price, self.hold_response)
                 
             if self.force_close:
-                print('I EXECUTED HERE 1')
                 self.cancel_order(self.hold_response)
-                print('I EXECUTED HERE 2')
                 if position == "long":
-                    self.sell_market(shares) # order_dict doesnt work here #SELL
+                    self.sell_market(shares, "SELL")
 
                 elif position == "short":
-                    self.buy_market(shares) # order_dict doesnt work here #BUY_TO_COVER
+                    self.buy_market(shares, "BUY_TO_COVER")
 
                 self.flatten()
 
         # --- Exit Position ---
         elif signal == 0 and position is not None:
             if position == "long": #implement market sell (if cancel hold_response returns object, then sell else do nothing)
-                print(f"SELL -{shares} {self.symbol}") # @ price sold
+                print(f"SELL -{shares} {self.symbol}") # @ price sold, check order details
 
             elif position == "short":
                 print(f"BOT +{shares} {self.symbol}")
@@ -137,13 +169,12 @@ class Equities:
         self.entry_response = None
         self.hold_response = None
         self.is_trailing_stop = False
-        self.is_trailing_profit = False
         pnl = self.get_liquidation_value() - self.cash
         self.cash += pnl
         self.risk_manager.check_risk(pnl)
         self.strategy.flatten()
 
-    def buy_market(self, quantity):
+    def buy_market(self, quantity, type="BUY"):
         order_dict = {
             "orderStrategyType": "SINGLE",
             "orderType": "MARKET",
@@ -151,7 +182,7 @@ class Equities:
             "duration": "DAY",
             "orderLegCollection": [
                 {
-                    "instruction": "BUY",
+                    "instruction": type,
                     "quantity": quantity,
                     "instrument": {
                         "symbol": self.symbol,
@@ -166,7 +197,7 @@ class Equities:
         print(f"BOT +{quantity} {self.symbol} @ {self.fill_price}")
         return response
     
-    def sell_market(self, quantity):
+    def sell_market(self, quantity, type="SELL"):
         order_dict = {
             "orderStrategyType": "SINGLE",
             "orderType": "MARKET",
@@ -174,7 +205,7 @@ class Equities:
             "duration": "DAY",
             "orderLegCollection": [
                 {
-                    "instruction": "SELL_SHORT",
+                    "instruction": type,
                     "quantity": quantity,
                     "instrument": {
                         "symbol": self.symbol,
