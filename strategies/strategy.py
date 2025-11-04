@@ -67,12 +67,12 @@ class Strategy:
         if self.position == "long":
             if self.low <= self.stop_price or self.high >= self.profit_price:
                 return self.sell()
-            elif self.force_close and not self.trade_window((9, 30), (15, 57)):
+            elif self.force_close and not self.trade_window((9, 30), (15, 54)):
                 return self.sell()
         elif self.position == "short":
             if self.high >= self.stop_price or self.low <= self.profit_price:
                 return self.buy()
-            elif self.force_close and not self.trade_window((9, 30), (15, 57)):
+            elif self.force_close and not self.trade_window((9, 30), (15, 54)):
                 return self.buy()
             
     def buy(self):
@@ -170,9 +170,8 @@ class Strategy:
 
     def compute_ma(self, items, window):
         return np.mean(items[-window:])
-    
 
-    def compute_rsi(self, prices, period, mode="wilder"):
+    def compute_rsi(self, prices, period=14, mode="wilder"):
         p = np.asarray(prices, dtype=float)
         if p.size < period + 1:
             return None

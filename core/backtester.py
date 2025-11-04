@@ -32,6 +32,15 @@ class Backtest:
         # total_entry_price = None
         entry_price = None
 
+        df.set_index('timestamp', inplace=True)
+        df = df.resample('5T').agg({
+            'open': 'first',
+            'high': 'max',
+            'low': 'min',
+            'close': 'last',
+            'volume': 'sum'
+        }).dropna().reset_index()
+
         rows = df.itertuples(index=False)
         for row in rows:
             close = round(row.close, 2)
@@ -67,7 +76,7 @@ class Backtest:
             elif signal == 0 and position is not None:
                 pnl = 0
                 if position == "long":
-                    if self.force_close and (ts.hour, ts.minute) == (15, 58):
+                    if self.force_close and (ts.hour, ts.minute) >= (15, 55):
                         pnl = ((close * slip_dn) - entry_price) * shares
                     else:
                         if low <= stop_price:
@@ -76,7 +85,7 @@ class Backtest:
                             pnl = (profit_price - entry_price) * shares
                             
                 elif position == "short":
-                    if self.force_close and (ts.hour, ts.minute) == (15, 58):
+                    if self.force_close and (ts.hour, ts.minute) >= (15, 55):
                         pnl = (entry_price - (close * slip_up)) * shares
                     else:
                         if high >= stop_price:
