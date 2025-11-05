@@ -1,14 +1,19 @@
 from .strategy import Strategy, RiskManager
-from .macd import MACDIndicator
+from .stochastic import StochasticIndicator
 from .sma_crossover import SMACrossoverIndicator
+from .orb import ORBIndicator
+from .macd import MACDIndicator
 
 __all__ = [
+    "ORBIndicator",
     "MACDIndicator",
     "SMACrossoverIndicator",
     "strategy_map",
 ]
 
 strategy_map = {
+    "stochastic": StochasticIndicator,
+    "orb": ORBIndicator,
     "macd": MACDIndicator,
     "sma": SMACrossoverIndicator
 }

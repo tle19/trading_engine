@@ -113,9 +113,9 @@ def optimize_params(symbol, strategy_class, start, end):
     start_time = time.perf_counter()
 
     param_grid = { # SMA
-        "fast_window": [10, 15, 20, 25],
-        "slow_window": [20, 25, 30, 35, 40],
-        "htf_window": [40, 50, 60, 70, 80],
+        "fast_window": [10],
+        "slow_window": [20],
+        "htf_window": [50],
         "rsi_period": [6],
         "rsi_lower": [30],
         "rsi_upper": [70],
@@ -125,16 +125,29 @@ def optimize_params(symbol, strategy_class, start, end):
         "position_size": [1.0]
     }
 
-    param_grid = { # MACD
-        "fast_window": [8, 10, 12, 14, 16],
-        "slow_window": [18, 20, 26, 30, 34],
-        "signal_window": [6, 8, 9, 10, 12],
-        "rsi_period": [8, 10, 14, 16, 18],
+    param_grid = { # Stochastic
+        "fast_window": [12],
+        "slow_window": [26],
+        "signal_window": [9],
+        "htf_window": [50], 
+        "rsi_period": [14],
         "k_period": [14],
         "k_smooth": [3],
         "d_period": [3],
+        "stoch_lower": [20],
+        "stoch_upper": [80],
+        "vol_fast_window": [7],
+        "vol_slow_window": [12],
+        "stop_loss": [0.0075],
+        "take_profit": [1.25],
+        "trailing_ratio": [0.05]
+    }
+
+    param_grid = { # ORB
+        "orb_window": [15],
+        "rsi_period": [14],
         "stop_loss": [0.005],
-        "take_profit": [1.5],
+        "take_profit": [0.01],
         "trailing_ratio": [0.05]
     }
 
@@ -143,24 +156,8 @@ def optimize_params(symbol, strategy_class, start, end):
         "slow_window": [26],
         "signal_window": [9],
         "rsi_period": [14],
-        "k_period": [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
-        "k_smooth": [1, 2, 3, 4, 5],
-        "d_period": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        "stop_loss": [0.005],
-        "take_profit": [1.5],
-        "trailing_ratio": [0.05]
-    }
-
-    param_grid = { # MACD
-        "fast_window": [12],
-        "slow_window": [26],
-        "signal_window": [9],
-        "rsi_period": [14],
-        "k_period": [14],
-        "k_smooth": [3],
-        "d_period": [3],
-        "stop_loss": [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01],
-        "take_profit": [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0],
+        "stop_loss": [0.01],
+        "take_profit": [0.01],
         "trailing_ratio": [0.05]
     }
 
@@ -192,31 +189,48 @@ symbols = ["SPY", "QQQ",
            "NVDA", "AMD", 
            "AMZN", "GOOG", 
            "META", "TSLA"]
-symbols = [
-    "SOFI", "UPST", "AFRM", "HOOD", "MQ", "LC",
-    "RUN", "PLUG", "ENPH", "BLDP", "FCEL", "BE",
-    "RIOT", "MARA", "CLSK", "BTDR", "COIN", "WGMI",
-    "IONQ", "FSLY", "SANA", "DNA", "CRSP", "EDIT",
-    "NKLA", "CVNA", "CHPT", "RIVN", "FUBO", "GME",
-    "AMC", "SPWR",
-]
+# symbols = [
+#     "SOFI", "UPST", "AFRM", "HOOD", "MQ", "LC",
+#     "RUN", "PLUG", "ENPH", "BLDP", "FCEL", "BE",
+#     "RIOT", "MARA", "CLSK", "BTDR", "COIN", "WGMI",
+#     "IONQ", "FSLY", "SANA", "DNA", "CRSP", "EDIT",
+#     "NKLA", "CVNA", "CHPT", "RIVN", "FUBO", "GME",
+#     "AMC", "SPWR",
+# ]
+
 strategy_kwargs = { # MACD
-    "fast_window": 12,
-    "slow_window": 26,
-    "signal_window": 9,
-    "htf_window": 50, 
-    "rsi_period": 14,
-    "k_period": 14,
-    "k_smooth": 3,
-    "d_period": 3,
-    "stoch_lower": 20,
-    "stoch_upper": 80,
-    "vol_fast_window": 7,
-    "vol_slow_window": 12,
-    "stop_loss": 0.0075,
-    "take_profit": 1.25,
-    "trailing_ratio": 0.05
+        "fast_window": 12,
+        "slow_window": 26,
+        "signal_window": 9,
+        "rsi_period": 14,
+        "stop_loss": 0.01,
+        "take_profit": 0.01,
+        "trailing_ratio": 0.05
 }
+# strategy_kwargs = { # ORB
+#     "orb_window": 15,
+#     "rsi_period": 14,
+#     "stop_loss": 0.005,
+#     "take_profit": 0.01,
+#     "trailing_ratio": 0.05
+# }
+# strategy_kwargs = { # Stochastic
+#     "fast_window": 12,
+#     "slow_window": 26,
+#     "signal_window": 9,
+#     "htf_window": 50, 
+#     "rsi_period": 14,
+#     "k_period": 14,
+#     "k_smooth": 3,
+#     "d_period": 3,
+#     "stoch_lower": 20,
+#     "stoch_upper": 80,
+#     "vol_fast_window": 7,
+#     "vol_slow_window": 12,
+#     "stop_loss": 0.0075,
+#     "take_profit": 1.25,
+#     "trailing_ratio": 0.05
+# }
 # strategy_kwargs = { # SMA
 #     "fast_window": 10,
 #     "slow_window": 20,
@@ -230,13 +244,29 @@ strategy_kwargs = { # MACD
 # }
 
 run_one_backtest( # MACD
-    "SOFI",
+    "NVDA",
     MACDIndicator,
-    start_date="2025-10-01",
-    end_date="2025-10-31",
+    start_date="2025-9-01",
+    end_date="2025-10-01",
     plot=True,
     **strategy_kwargs
 )
+# run_one_backtest( # ORB
+#     "NVDA",
+#     ORBIndicator,
+#     start_date="2024-11-01",
+#     end_date="2025-11-01",
+#     plot=True,
+#     **strategy_kwargs
+# )
+# run_one_backtest( # Stochastic
+#     "SOFI",
+#     StochasticIndicator,
+#     start_date="2024-11-01",
+#     end_date="2025-11-01",
+#     plot=True,
+#     **strategy_kwargs
+# )
 # run_one_backtest( # SMA
 #     symbols[3],
 #     SMACrossoverIndicator,
@@ -246,11 +276,8 @@ run_one_backtest( # MACD
 #     **strategy_kwargs
 # )
 
-# multiple_symbol_performance(symbols, MACDIndicator, "2023-11-01", "2024-11-01", **strategy_kwargs)
-# multiple_symbol_performance(symbols[2:], SMACrossoverIndicator, "2023-11-01", "2024-11-01", **strategy_kwargs)
+# multiple_symbol_performance(symbols, StochasticIndicator, "2024-11-01", "2025-11-01", **strategy_kwargs)
+# grid_search("SOFI", StochasticIndicator, start_date="2023-10-01", end_date="2024-10-01")
+# walk_forward_optimize("SOFI", StochasticIndicator)
 
-# walk_forward_optimize("SOFI", MACDIndicator)
-# walk_forward_optimize(symbols[3], SMACrossoverIndicator)
 
-# grid_search("SOFI", MACDIndicator, start_date="2023-10-01", end_date="2024-10-01")
-# grid_search(symbols[3], SMACrossoverIndicator, start_date="2023-10-01", end_date="2024-10-01")

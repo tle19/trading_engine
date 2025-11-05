@@ -95,6 +95,8 @@ class Backtest:
 
                 curr_cash += pnl
                 # print(pnl)
+                # if pnl < 0:
+                #     print(ts, pnl)
                 self.stats.update_trade(pnl)
                 self.risk_manager.check_risk(pnl)
                 self.strategy.flatten()
