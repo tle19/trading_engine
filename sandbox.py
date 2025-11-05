@@ -203,7 +203,7 @@ strategy_kwargs = { # MACD
         "slow_window": 26,
         "signal_window": 9,
         "rsi_period": 14,
-        "stop_loss": 0.01,
+        "stop_loss": 0.001,
         "take_profit": 0.01,
         "trailing_ratio": 0.05
 }
@@ -246,9 +246,9 @@ strategy_kwargs = { # MACD
 run_one_backtest( # MACD
     "NVDA",
     MACDIndicator,
-    start_date="2025-9-01",
-    end_date="2025-10-01",
-    plot=True,
+    start_date="2025-10-20",
+    end_date="2025-10-31",
+    plot=False,
     **strategy_kwargs
 )
 # run_one_backtest( # ORB
