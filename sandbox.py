@@ -155,7 +155,10 @@ def optimize_params(symbol, strategy_class, start, end):
         "fast_window": [12],
         "slow_window": [26],
         "signal_window": [9],
+        "htf_window": [50],
         "rsi_period": [14],
+        "vol_fast_window": [7],
+        "vol_slow_window": [12],
         "stop_loss": [0.01],
         "take_profit": [0.01],
         "trailing_ratio": [0.05]
@@ -198,22 +201,28 @@ symbols = ["SPY", "QQQ",
 #     "AMC", "SPWR",
 # ]
 
-strategy_kwargs = { # MACD
-        "fast_window": 12,
-        "slow_window": 26,
-        "signal_window": 9,
-        "rsi_period": 14,
-        "stop_loss": 0.001,
-        "take_profit": 0.01,
-        "trailing_ratio": 0.05
-}
-# strategy_kwargs = { # ORB
-#     "orb_window": 15,
-#     "rsi_period": 14,
-#     "stop_loss": 0.005,
-#     "take_profit": 0.01,
-#     "trailing_ratio": 0.05
+# strategy_kwargs = { # MACD
+#         "fast_window": 12,
+#         "slow_window": 26,
+#         "signal_window": 9,
+#         "htf_window": 50,
+#         "rsi_period": 14,
+#         "vol_fast_window": 7,
+#         "vol_slow_window": 12,
+#         "stop_loss": 0.005,
+#         "take_profit": 0.0075,
+#         "trailing_ratio": 0.05
 # }
+strategy_kwargs = { # ORB
+    "orb_window": 15,
+    "rsi_period": 14,
+    "fast_window": 12,
+    "slow_window": 26,
+    "signal_window": 9,
+    "stop_loss": 0.005,
+    "take_profit": 0.075,
+    "trailing_ratio": 0.1
+}
 # strategy_kwargs = { # Stochastic
 #     "fast_window": 12,
 #     "slow_window": 26,
@@ -243,22 +252,22 @@ strategy_kwargs = { # MACD
 #     "trailing_ratio": 0.05
 # }
 
-run_one_backtest( # MACD
-    "NVDA",
-    MACDIndicator,
-    start_date="2025-10-21",
-    end_date="2025-10-21",
-    plot=False,
-    **strategy_kwargs
-)
-# run_one_backtest( # ORB
+# run_one_backtest( # MACD
 #     "NVDA",
-#     ORBIndicator,
-#     start_date="2024-11-01",
-#     end_date="2025-11-01",
+#     MACDIndicator,
+#     start_date="2025-10-01",
+#     end_date="2025-10-31",
 #     plot=True,
 #     **strategy_kwargs
 # )
+run_one_backtest( # ORB
+    "NVDA",
+    ORBIndicator,
+    start_date="2025-7-01",
+    end_date="2025-10-26",
+    plot=True,
+    **strategy_kwargs
+)
 # run_one_backtest( # Stochastic
 #     "SOFI",
 #     StochasticIndicator,
@@ -278,6 +287,6 @@ run_one_backtest( # MACD
 
 # multiple_symbol_performance(symbols, StochasticIndicator, "2024-11-01", "2025-11-01", **strategy_kwargs)
 # grid_search("SOFI", StochasticIndicator, start_date="2023-10-01", end_date="2024-10-01")
-# walk_forward_optimize("SOFI", StochasticIndicator)
+# walk_forward_optimize("NVDA", MACDIndicator)
 
 

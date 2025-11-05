@@ -94,6 +94,7 @@ class Backtest:
                             pnl = (entry_price - profit_price) * shares
 
                 curr_cash += pnl
+                print(ts, "STOP:", stop_price)
                 print(pnl)
                 self.stats.update_trade(pnl)
                 self.risk_manager.check_risk(pnl)
