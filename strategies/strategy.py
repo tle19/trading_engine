@@ -150,16 +150,14 @@ class Strategy:
         elif stop_distance > min_distance and profit_distance > min_distance:
             return True
 
-    def compute_ma(self, items, window):
-        return np.mean(items[-window:])
+    def compute_ma(self, data, window):
+        return np.mean(data[-window:])
     
-    def compute_ema(self, data, window):
-        alpha = 2 / (window + 1)
-        ema = np.zeros_like(data)
-        ema[0] = data[0]
-        for i in range(1, len(data)):
-            ema[i] = alpha * data[i] + (1 - alpha) * ema[i - 1]
-        return ema
+    def compute_ema(self, prev_ema, new_value, window):
+        if prev_ema is None:
+            return new_value
+        alpha = 2.0 / (window + 1.0)
+        return alpha * new_value + (1.0 - alpha) * prev_ema
     
     def compute_rsi(self, prices, period=14, mode="wilder"):
         p = np.asarray(prices, dtype=float)
@@ -223,40 +221,25 @@ class Strategy:
 
         return k, d
     
-    def compute_macd(self, prices, fast_window=12, slow_window=26, signal_window=9):
-        if len(prices) < slow_window + signal_window:
-            return 0
-        price = self.close
-
-        if self.fast_ema is None:
-            self.fast_ema = price
-            self.slow_ema = price
-            self.signal_ema = 0
-            return 0
-
-        alpha_fast = 2 / (fast_window + 1)
-        alpha_slow = 2 / (slow_window + 1)
-        alpha_signal = 2 / (signal_window + 1)
-
-        self.fast_ema = alpha_fast * price + (1 - alpha_fast) * self.fast_ema
-        self.slow_ema = alpha_slow * price + (1 - alpha_slow) * self.slow_ema
+    def compute_macd(self, fast_window=12, slow_window=26, signal_window=9):
+        price = self.prices[-1]
+        self.fast_ema = self.compute_ema(self.fast_ema, price, fast_window)
+        self.slow_ema = self.compute_ema(self.slow_ema, price, slow_window)
 
         macd = self.fast_ema - self.slow_ema
-        self.signal_ema = alpha_signal * macd + (1 - alpha_signal) * self.signal_ema
+        self.signal_ema = signal = self.compute_ema(self.signal_ema, macd, signal_window)
 
-        hist = macd - self.signal_ema
+        hist = macd - signal
         return hist
-    # def compute_macd(self):
-    #     arr = np.array(self.prices)
-    #     fast_ema = self.compute_ema(arr, self.fast_window)
-    #     slow_ema = self.compute_ema(arr, self.slow_window)
+    
+    def compute_volume_oscillator(self, fast_window=7, slow_window=12):
+        vol_fast_ma = self.compute_ma(self.volumes, fast_window)
+        vol_slow_ma = self.compute_ma(self.volumes, slow_window)
 
-    #     macd = fast_ema - slow_ema
-    #     signal = self.compute_ema(macd, self.signal_window)
-
-    #     hist = macd[-1] - signal[-1]
-    #     return hist
-
+        if vol_slow_ma == 0 or vol_slow_ma is None:
+            return 0.0
+        return (vol_fast_ma - vol_slow_ma) / vol_slow_ma
+    
     def donchian_channel(self, window):
         upper_band = max(self.highs[-window:])
         lower_band = min(self.lows[-window:])
@@ -267,10 +250,10 @@ class Strategy:
            
     def reset_data(self):
         if self.trade_window((9, 30), (9, 30)):
-            self.prices = []
-            self.highs = []
-            self.lows = []
-            self.volumes = []
+            self.prices = [self.prices[-1]]
+            self.highs = [self.highs[-1]]
+            self.lows = [self.lows[-1]]
+            self.volumes = [self.volumes[-1]]
             self.risk_manager.reset_risk()
 
     def is_trailing_stop(self):

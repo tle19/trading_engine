@@ -28,7 +28,7 @@ class DataHandler:
 
 
     def historical_data(self, symbol='SPY', from_date='2023-11-01', to_date='2025-11-01',
-                                timespan='minute', multiplier=5, max_iter=10):
+                                timespan='minute', multiplier=1, max_iter=10):
 
         data_list = []
         current_from = from_date

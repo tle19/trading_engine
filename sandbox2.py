@@ -45,13 +45,9 @@ symbols = ["SPY", "QQQ",
            "AMZN", "GOOG", 
            "META", "TSLA"]
 symbols = [
-    "SOFI", "UPST", "AFRM", "HOOD", "MQ", "LC",
-    "RUN", "PLUG", "ENPH", "BLDP", "FCEL", "BE",
-    "RIOT", "MARA", "CLSK", "BTDR", "COIN", "WGMI",
     "IONQ", "FSLY", "SANA", "DNA", "CRSP", "EDIT",
     "NKLA", "CVNA", "CHPT", "RIVN", "FUBO", "GME",
-    "AMC", "SPWR", "NVCR", "PTRA", "JOBY", "LILM",
-    "GLOB", "PAGS", "MELI", "SE", "GRAB", "BIDU"
+    "AMC", "SPWR",
 ]
 curr_symbol = symbols[2]
 
