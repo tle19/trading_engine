@@ -246,8 +246,8 @@ strategy_kwargs = { # MACD
 run_one_backtest( # MACD
     "NVDA",
     MACDIndicator,
-    start_date="2025-10-20",
-    end_date="2025-10-31",
+    start_date="2025-10-21",
+    end_date="2025-10-21",
     plot=False,
     **strategy_kwargs
 )

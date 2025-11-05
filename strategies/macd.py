@@ -19,6 +19,7 @@ class MACDIndicator(Strategy):
         self.signal_ema = None
         self.prev_rsi = None
         self.prev_hist = None
+        self.entry_rsi = None
 
         self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
 
@@ -41,6 +42,7 @@ class MACDIndicator(Strategy):
             self.signal_ema = None
             self.prev_rsi = None
             self.prev_hist = None
+            self.entry_rsi = None
             return None
         
         rsi = self.compute_rsi(self.prices, self.rsi_period)
@@ -56,23 +58,28 @@ class MACDIndicator(Strategy):
         return signal
 
     def enter_trade(self, rsi, hist):
-        if rsi < 50 and self.prev_hist < 0 and hist > 0 and rsi > self.prev_rsi:
+        if not (40 < rsi < 60):
+            return None
+        
+        if rsi > self.prev_rsi + 5 and self.prev_hist < 0 and hist > 0:
             signal = self.buy()
             self.stop_price = round(self.low * (1 - self.stop_loss), 2)
+            self.entry_rsi = rsi
             print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
             return signal
-        if rsi > 50 and self.prev_hist > 0 and hist < 0 and rsi < self.prev_rsi:
+        if rsi < self.prev_rsi - 5 and self.prev_hist > 0 and hist < 0:
             signal = self.sell()
             self.stop_price = round(self.high * (1 + self.stop_loss), 2)
+            self.entry_rsi = rsi
             print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
             return signal
         
     def exit_trade(self, rsi):
-        if self.position == "long" and rsi > 50:
+        if self.position == "long" and rsi > self.entry_rsi + 5:
             self.stop_price = round(self.close, 2)
             print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
             return self.sell()
-        if self.position == "short" and rsi < 50:
+        if self.position == "short" and rsi < self.entry_rsi - 5:
             self.stop_price = round(self.close, 2)
             print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
             return self.buy()
