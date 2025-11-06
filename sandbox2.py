@@ -44,6 +44,14 @@ symbols = ["SPY", "QQQ",
            "NVDA", "AMD", 
            "AMZN", "GOOG", 
            "META", "TSLA"]
+# symbols = [
+#     "SOFI", "UPST", "AFRM", "HOOD", "MQ", "LC",
+#     "RUN", "PLUG", "ENPH", "BLDP", "FCEL", "BE",
+#     "RIOT", "MARA", "CLSK", "BTDR", "COIN", "WGMI",
+#     "IONQ", "FSLY", "SANA", "DNA", "CRSP", "EDIT",
+#     "NKLA", "CVNA", "CHPT", "RIVN", "FUBO", "GME",
+#     "AMC", "SPWR",
+# ]
 
 fetch_multiple_symbols(symbols)
 # fetch_schwab_data("2025-10-15") 

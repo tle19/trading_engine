@@ -39,7 +39,8 @@ class Backtest:
         #     'close': 'last',
         #     'volume': 'sum'
         # }).dropna().reset_index()
-
+        longs = 0
+        shorts = 0
         rows = df.itertuples(index=False)
         for row in rows:
             open = round(row.open, 2)
@@ -83,7 +84,7 @@ class Backtest:
                             pnl = ((stop_price * slip_dn) - entry_price) * shares
                         elif high >= profit_price:
                             pnl = (profit_price - entry_price) * shares
-                            
+                    longs += pnl       
                 elif position == "short":
                     if (ts.hour, ts.minute) >= (15, 58):
                         pnl = (entry_price - (open * slip_up)) * shares
@@ -92,10 +93,10 @@ class Backtest:
                             pnl = (entry_price - (stop_price * slip_up)) * shares
                         elif low <= profit_price:
                             pnl = (entry_price - profit_price) * shares
-
+                    shorts += pnl
                 curr_cash += pnl
-                print(ts, "STOP:", stop_price)
-                print(pnl)
+                # print(ts, "STOP:", stop_price)
+                # print(pnl)
                 self.stats.update_trade(pnl)
                 self.risk_manager.check_risk(pnl)
                 self.strategy.flatten()
@@ -104,6 +105,8 @@ class Backtest:
             
         self.stats.update_dates(start_date, end_date)
         self.stats.summary()
+        print("LONGS", longs)
+        print("SHORTS", shorts)
         if plot:
             self.plotting.update_dates(start_date, end_date)
             self.plotting.plot_equity()

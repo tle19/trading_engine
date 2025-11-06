@@ -33,6 +33,7 @@ class MACDIndicator(Strategy):
         self.update(row)
         self.reset_data()
 
+
         status = self.check_status()
         if status is not None:
             return status
@@ -56,12 +57,12 @@ class MACDIndicator(Strategy):
         ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
         rsi = self.compute_rsi(self.prices, self.rsi_period)
         hist = self.compute_macd(self.fast_window, self.slow_window, self.signal_window)
-        vol = self.compute_volume_oscillator(self.vol_fast_window, self.vol_slow_window)
+        vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
         
         signal = None
-        if self.position is None and len(self.prices) > self.slow_window:
+        if self.position is None and len(self.prices) > self.slow_window and rsi is not None:
             signal = self.enter_trade(ema, rsi, hist, vol)
-        else:
+        elif self.position is not None and rsi is not None:
             signal = self.exit_trade(rsi, hist)
         self.prev_rsi = rsi
         self.prev_hist = hist
@@ -75,22 +76,23 @@ class MACDIndicator(Strategy):
                 signal = self.buy()
                 self.stop_price = round(self.low * (1 - self.stop_loss), 2)
                 self.entry_rsi = rsi
-                print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
+                # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
         if rsi > 50 and self.prev_hist > 0 and hist < 0 and rsi < self.prev_rsi:
             if self.close < ema or vol_cond:
                 signal = self.sell()
                 self.stop_price = round(self.high * (1 + self.stop_loss), 2)
                 self.entry_rsi = rsi
-                print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
+                # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
         
     def exit_trade(self, rsi, hist):
         if self.position == "long" and rsi > self.entry_rsi and rsi > 50 and hist > 0 and hist < self.prev_hist:
             self.stop_price = round(self.close, 2)
-            print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
+            # print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
             return self.sell()
         if self.position == "short" and rsi < self.entry_rsi and rsi < 50 and hist < 0 and hist > self.prev_hist:
             self.stop_price = round(self.close, 2)
-            print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
+            # print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
             return self.buy()
+

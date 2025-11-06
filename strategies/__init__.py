@@ -5,6 +5,7 @@ from .orb import ORBIndicator
 from .macd import MACDIndicator
 
 __all__ = [
+    "StochasticIndicator",
     "ORBIndicator",
     "MACDIndicator",
     "SMACrossoverIndicator",
