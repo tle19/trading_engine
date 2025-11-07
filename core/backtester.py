@@ -82,7 +82,7 @@ class Backtest:
                             pnl = ((stop_price * slip_dn) - entry_price) * shares
                         elif high >= profit_price:
                             pnl = (profit_price - entry_price) * shares
-                    longs += pnl       
+     
                 elif position == "short":
                     if (ts.hour, ts.minute) >= (15, 58):
                         pnl = (entry_price - (open * slip_up)) * shares
@@ -91,7 +91,7 @@ class Backtest:
                             pnl = (entry_price - (stop_price * slip_up)) * shares
                         elif low <= profit_price:
                             pnl = (entry_price - profit_price) * shares
-                    shorts += pnl
+
                 curr_cash += pnl
                 # print(ts, "STOP:", stop_price)
                 # print(pnl)

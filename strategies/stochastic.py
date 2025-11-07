@@ -32,13 +32,14 @@ class StochasticIndicator(Strategy):
         self.rolling_rsi = []
 
         # self.df = open_data(self.symbol)
-        # self.regime = None
+        # self.volatility = None # "very_high", "high", "medium", "low"
 
         self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
 
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
+        # self.regime_filter()
 
         status = self.check_status()
         if status is not None:
@@ -77,7 +78,7 @@ class StochasticIndicator(Strategy):
         signal = None
         if self.position is None and len(self.prices) > self.slow_window and rsi is not None:
             signal = self.enter_trade(ema, stoch_k, stoch_d, rsi, hist, vol)
-        # elif self.position is not None:
+        # elif self.position is not None and rsi is not None:
         #     self.set_trailing_stop()
         # elif self.position is not None and rsi is not None:
         #     signal = self.exit_trade(rsi, hist)
@@ -88,16 +89,16 @@ class StochasticIndicator(Strategy):
             return None
         rsi_ma = self.compute_ma(self.rolling_rsi, 10)
 
-        if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
-            if self.close > ema or vol > 0.025 and rsi_ma < 50:
+        if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0 and rsi_ma < 50:
+            if self.close > ema or vol > 0.025:
                 signal = self.buy() 
                 self.stop_price = round(self.low * (1 - self.stop_loss), 2)
-                stop_dist = self.entry_price - self.stop_price
+                stop_dist = self.entry_price -  self.stop_price
                 self.profit_price = round(self.entry_price + (stop_dist * self.take_profit), 2)
                 # print(self.ts, "ENTRY", self.stoch_signal, self.entry_price, self.stop_price, self.profit_price)
                 return signal
-        if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0:
-            if self.close < ema or vol > 0.025 and rsi_ma > 50:
+        if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0 and rsi_ma > 50:
+            if self.close < ema or vol > 0.025:
                 signal = self.sell() 
                 self.stop_price = round(self.high * (1 + self.stop_loss), 2)
                 stop_dist = self.stop_price - self.entry_price
@@ -131,13 +132,16 @@ class StochasticIndicator(Strategy):
                 "volume": 'sum'
             }).dropna()
 
-            prev_closes = df['open'].iloc[-30:].tolist()
-            prev_vols = df['volume'].iloc[-30:].tolist()
+            prev_opens = df['open'].iloc[-30:].tolist()
 
-            prev_rsi = self.compute_rsi(prev_closes[:-1], 14)
-            curr_rsi = self.compute_rsi(np.append(prev_closes, self.open), 14)
-            # implied volatility in conjunction with strategy
-            if curr_rsi < 50:
+            prev_rsi = self.compute_rsi(prev_opens[:-1], 14)
+            curr_rsi = self.compute_rsi(np.append(prev_opens, self.open), 14)
+
+            if self.volatility == "very_high":
                 self.position_size = 1.0
-            else:
-                self.position_size = 0.0
+            elif self.volatility == "high":
+                self.position_size = 0.75
+            elif self.volatility == "medium":
+                self.position_size = 0.5
+            elif self.volatility == "low":
+                self.position_size = 0.5

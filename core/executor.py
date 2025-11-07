@@ -1,8 +1,7 @@
-import os
 import json
 import time
 import pandas as pd
-from collections import namedtuple, deque
+from collections import namedtuple
 from zoneinfo import ZoneInfo
 
 import schwabdev
@@ -38,12 +37,7 @@ class Equities:
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
 
     def run(self, duration=23520):
-        buffer = deque()
-        last_run = None
-
         def response_handler(response):
-            nonlocal last_run
-
             data = json.loads(response).get("data", [])
             if not data:
                 return
@@ -59,58 +53,22 @@ class Equities:
                 volume = content.get("6")
 
                 row = self.Row(timestamp, open, high, low, close, volume)
-                buffer.append({
-                    "timestamp": timestamp,
-                    "open": open,
-                    "high": high,
-                    "low": low,
-                    "close": close,
-                    "volume": volume
-                })
 
             print(row)
        
             if (row.timestamp.hour, row.timestamp.minute) == (15, 58):
-                signal = self.strategy.generate_signal(row)
-
-                stop_price = str(self.strategy.get_stop_price())
-                profit_price = str(self.strategy.get_profit_price())
-                self.is_trailing_stop = self.strategy.is_trailing_stop()
-                position = self.strategy.get_position()
-                position_size = self.strategy.get_position_size()
-                shares = max(1, int(self.shares * position_size))
                 self.force_close = True
 
-                self.interpret_signal(signal, position, shares, stop_price, profit_price)
+            signal = self.strategy.generate_signal(row)
 
-                self.streamer.stop()
-                return
+            stop_price = str(self.strategy.get_stop_price())
+            profit_price = str(self.strategy.get_profit_price())
+            self.is_trailing_stop = self.strategy.is_trailing_stop()
+            position = self.strategy.get_position()
+            position_size = self.strategy.get_position_size()
+            shares = max(1, int(self.shares * position_size))
 
-            interval_floor = row.timestamp.floor(f'{self.tf}T')
-            if last_run is None or interval_floor > last_run:
-                last_run = interval_floor
-
-                df = pd.DataFrame(buffer)
-                agg_row = self.Row(
-                    timestamp=interval_floor,
-                    open=df.iloc[0]['open'],
-                    high=df['high'].max(),
-                    low=df['low'].min(),
-                    close=df.iloc[-1]['close'],
-                    volume=df['volume'].sum()
-                )
-                buffer.clear()
-
-                signal = self.strategy.generate_signal(agg_row)
-
-                stop_price = str(self.strategy.get_stop_price())
-                profit_price = str(self.strategy.get_profit_price())
-                self.is_trailing_stop = self.strategy.is_trailing_stop()
-                position = self.strategy.get_position()
-                position_size = self.strategy.get_position_size()
-                shares = max(1, int(self.shares * position_size))
-
-                self.interpret_signal(signal, position, shares, stop_price, profit_price)
+            self.interpret_signal(signal, position, shares, stop_price, profit_price)
 
         self.cash = self.get_liquidation_value()
         self.risk_manager.set_start_cash(self.cash)

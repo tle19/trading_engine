@@ -64,11 +64,15 @@ class Strategy:
 
     def check_status(self):
         if self.position == "long":
+            if self.stop_price >= self.profit_price:
+                raise ValueError("Invalid long: stop >= profit")
             if self.low <= self.stop_price or self.high >= self.profit_price:
                 return self.sell()
             elif not self.trade_window((9, 30), (15, 57)):
                 return self.sell()
         elif self.position == "short":
+            if self.stop_price <= self.profit_price:
+                raise ValueError("Invalid short: stop <= profit")
             if self.high >= self.stop_price or self.low <= self.profit_price:
                 return self.buy()
             elif not self.trade_window((9, 30), (15, 57)):
