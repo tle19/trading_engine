@@ -16,7 +16,7 @@ class Backtest:
         self.plotting = Plotting(symbol)
         self.risk_manager = self.strategy.get_risk_manager()
 
-    def run(self, start_date="2023-11-01", end_date="2025-11-01", plot=False):
+    def run(self, start_date="2023-11-01", end_date="2025-11-01", plot=False, save_plot=False):
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 
         # Spread-Adjusted Slippage Calculation
@@ -95,7 +95,7 @@ class Backtest:
         self.stats.summary()
         if plot:
             self.plotting.update_dates(start_date, end_date)
-            self.plotting.plot_equity(overlay=True)
+            self.plotting.plot_equity(save_plot, overlay=True)
 
     def update_equity(self, cash, position, shares, close, entry_price, ts):
         current_equity = cash

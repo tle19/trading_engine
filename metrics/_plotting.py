@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -19,7 +20,7 @@ class Plotting:
         self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
         self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
 
-    def plot_equity(self, overlay=False):
+    def plot_equity(self, save_plot=False, overlay=False):
         if not self.intraday_equity:
             print("No equity data to plot.")
             return
@@ -51,7 +52,13 @@ class Plotting:
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.6)
         plt.tight_layout()
-        plt.show()
+        if save_plot:
+            plots_dir = f"{os.path.dirname(__file__)}/plots"
+            save_path = f"{plots_dir}/{self.symbol}_{self.start_date.date()}_{self.end_date.date()}.png"
+            plt.savefig(save_path)
+            plt.close()
+        else:
+            plt.show()
 
     def plot_overlay(self, dates, equity):
         df = open_data(self.symbol, self.start_date, self.end_date, start_time="9:30", end_time="16:00")

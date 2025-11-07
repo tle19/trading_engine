@@ -75,7 +75,7 @@ class Equities:
             strategy.get_risk_manager().set_start_cash(cash_allocation)
 
         self.streamer.start(response_handler)
-        #start_auto for auto market open
+        #start_auto for start on market open
         
         self.streamer.send(self.streamer.chart_equity(self.symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))
         time.sleep(duration)
