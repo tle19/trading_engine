@@ -38,8 +38,7 @@ class Backtest:
         #     'close': 'last',
         #     'volume': 'sum'
         # }).dropna().reset_index()
-        longs = 0
-        shorts = 0
+
         rows = df.itertuples(index=False)
         for row in rows:
             open = round(row.open, 2)

@@ -7,7 +7,7 @@ from utils import *
 class StochasticIndicator(Strategy):
     def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=50,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
-                 vol_fast_window=10, vol_slow_window=20,
+                 vol_fast_window=14, vol_slow_window=28,
                  stop_loss=0.0075, take_profit=1.25, trailing_ratio=0.05, position_size=1.0,
                  target=0.001, loss=-0.001, tf=1):
         super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size, tf)
