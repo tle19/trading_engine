@@ -39,7 +39,7 @@ class StochasticIndicator(Strategy):
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
-        # self.regime_filter()
+        # adaptive sl and tp based on ATR/volatility/spread
 
         status = self.check_status()
         if status is not None:

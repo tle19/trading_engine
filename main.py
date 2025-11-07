@@ -27,7 +27,7 @@ def main():
     elif args.backtest:
         strat = strategy_class(args.symbol)
         bt = Backtest(args.symbol, strat)
-        bt.run()
+        bt.run(plot=True)
     elif args.fetch:
         dh = DataHandler()
         # dh.historical_data(args.symbol, from_date='2023-11-01', to_date='2025-11-01')

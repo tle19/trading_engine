@@ -309,14 +309,14 @@ strategy_kwargs = { # Stochastic
 #     "trailing_ratio": 0.05
 # }
 
-# run_one_backtest( # Stochastic
-#     "MSFT",
-#     StochasticIndicator,
-#     start_date="2023-11-01",
-#     end_date="2025-11-01",
-#     plot=True,
-#     **strategy_kwargs
-# )
+run_one_backtest( # Stochastic
+    "MSFT",
+    StochasticIndicator,
+    start_date="2023-11-01",
+    end_date="2025-11-01",
+    plot=True,
+    **strategy_kwargs
+)
 # run_one_backtest( # ORB
 #     "TSLA",
 #     ORBIndicator,

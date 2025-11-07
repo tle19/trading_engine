@@ -1,5 +1,4 @@
 import numpy as np
-from datetime import timedelta
 
 from strategies import Strategy, RiskManager
 from utils import *
@@ -8,7 +7,7 @@ class SMACrossoverIndicator(Strategy):
     def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=50, 
                  rsi_period=6, rsi_lower=30, rsi_upper=70,
                  stop_loss=0.01, take_profit=0.01, trailing_ratio=0.05, position_size=1.0,
-                 target=0.0000000001, loss=-0.0000000001):
+                 target=0.001, loss=-0.001):
         super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size)
         self.fast_window = fast_window
         self.slow_window = slow_window
@@ -57,27 +56,14 @@ class SMACrossoverIndicator(Strategy):
         htf_ma = self.compute_ma(arr, self.htf_window)
         rsi = self.compute_rsi(arr, self.rsi_period)
 
-        if self.mode == "long":
-            if fast_ma > slow_ma >= htf_ma:
-                if rsi <= self.rsi_lower and self.close < self.open:
-                    # self.donchian_range(self.htf_window, htf_ma, "long")
-                    return self.buy()
-        
-        elif self.mode == "short":
-            if fast_ma < slow_ma <= htf_ma:
-                if rsi >= self.rsi_upper and self.close > self.open:
-                    # self.donchian_range(self.htf_window, htf_ma, "short")
-                    return self.sell()
-                
-        elif self.mode == "both":
-            if fast_ma > slow_ma >= htf_ma:
-                if rsi <= self.rsi_lower and self.close < self.open:
-                    # self.donchian_range(self.htf_window, htf_ma, "long")
-                    return self.buy()
-            if fast_ma < slow_ma <= htf_ma:
-                if rsi >= self.rsi_upper and self.close > self.open:
-                    # self.donchian_range(self.htf_window, htf_ma, "short")
-                    return self.sell()
+        if fast_ma > slow_ma >= htf_ma:
+            if rsi <= self.rsi_lower and self.close < self.open:
+                # self.donchian_range(self.htf_window, htf_ma, "long")
+                return self.buy()
+        if fast_ma < slow_ma <= htf_ma:
+            if rsi >= self.rsi_upper and self.close > self.open:
+                # self.donchian_range(self.htf_window, htf_ma, "short")
+                return self.sell()
 
     def donchian_range(self, window, ma, position=None, rr_ratio=1.0):
         upper_band, lower_band = self.donchian_channel(window)
