@@ -3,7 +3,7 @@ from utils import *
 
 class Backtest:
     def __init__(self, symbol, strategy_class, cash=25_000, shares=30, 
-                 margin=1.0, commission=0.0, slippage=0.1):
+                 margin=1.0, commission=0.0, slippage=0.3):
         self.symbol = symbol
         self.strategy = strategy_class
         self.starting_cash = cash
@@ -24,7 +24,6 @@ class Backtest:
         self.slippage *= avg_spread
         slip_up = 1 + self.slippage
         slip_dn = 1 - self.slippage
-
         curr_cash = self.starting_cash
         self.risk_manager.set_start_cash(self.starting_cash) # for testing purposes
 
@@ -105,11 +104,9 @@ class Backtest:
             
         self.stats.update_dates(start_date, end_date)
         self.stats.summary()
-        print("LONGS", longs)
-        print("SHORTS", shorts)
         if plot:
             self.plotting.update_dates(start_date, end_date)
-            self.plotting.plot_equity()
+            self.plotting.plot_equity(overlay=True)
 
     def update_equity(self, cash, position, shares, close, entry_price, ts):
         current_equity = cash

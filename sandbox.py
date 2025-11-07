@@ -30,10 +30,10 @@ def run_one_backtest(symbol, strategy_class, start_date, end_date, plot=True, **
 
     return bt.get_stats_class()
 
-def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, **strategy_kwargs):
+def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, plot, **strategy_kwargs):
     ticker_pnls = []
     for symbol in symbols:
-        stats = run_one_backtest(symbol, strategy_class, start_date, end_date, plot=False, **strategy_kwargs)
+        stats = run_one_backtest(symbol, strategy_class, start_date, end_date, plot=plot, **strategy_kwargs)
         ticker_pnls.append(stats.daily_pnls)
     
     min_len = min(len(p) for p in ticker_pnls)
@@ -187,11 +187,77 @@ def optimize_params(symbol, strategy_class, start, end):
     
     return best_params
 
-symbols = ["SPY", "QQQ", 
-           "AAPL", "MSFT", 
-           "NVDA", "AMD", 
-           "AMZN", "GOOG", 
-           "META", "TSLA"]
+symbols = [
+    # ===== INDEX / MACRO =====
+    "SPY",   # S&P 500 ETF
+    "QQQ",   # Nasdaq-100 ETF
+    "IWM",   # Russell 2000 ETF
+    "TLT",   # 20+ Year Treasury Bonds ETF
+    "BRK.B",  # Berkshire Hathaway
+
+    # ===== TECH =====
+    "AAPL",  # Apple
+    "MSFT",  # Microsoft
+    "NVDA",  # NVIDIA
+    "AMD",   # AMD
+    "GOOG",  # Alphabet
+    "META",  # Meta Platforms
+    "ADBE",  # Adobe
+    "CRM",   # Salesforce
+    "INTC",  # Intel
+    "AVGO",  # Broadcom
+    "NFLX",  # Netflix
+
+    # ===== CONSUMER =====
+    "TSLA",  # Tesla
+    "AMZN",  # Amazon
+    "HD",    # Home Depot
+    "MCD",   # McDonald's
+    "NKE",   # Nike
+    "SBUX",  # Starbucks
+    "COST",  # Costco
+    "WMT",   # Walmart
+    "PG",    # Procter & Gamble
+    "KO",    # Coca-Cola
+    "PEP",   # PepsiCo
+
+    # ===== FINANCIALS =====
+    "V",     # Visa
+    "MA",     # Mastercard
+    "JPM",   # JPMorgan Chase
+    "GS",    # Goldman Sachs
+    "BAC",   # Bank of America
+    "MS",    # Morgan Stanley
+    "C",     # Citigroup
+    "AXP",   # American Express
+    "SCHW",  # Charles Schwab
+    "WFC",   # Wells Fargo
+    "COP",   # Capital One
+
+    # ===== INDUSTRIALS / ENERGY =====
+    "XOM",   # ExxonMobil
+    "CVX",   # Chevron
+    "SLB",   # Schlumberger
+    "CAT",   # Caterpillar
+    "DE",    # Deere & Co
+    "GE",    # General Electric
+    "BA",    # Boeing
+    "LMT",   # Lockheed Martin
+    "RTX",   # RTX
+    "HON",   # Honeywell
+    "UPS",   # United Parcel Service
+
+    # ===== HEALTHCARE =====
+    "UNH",   # UnitedHealth Group
+    "LLY",   # Eli Lilly
+    "ABBV",  # AbbVie
+    "JNJ",   # Johnson & Johnson
+    "MRK",   # Merck
+    "PFE",   # Pfizer
+    "TMO",   # Thermo Fisher Scientific
+    "AMGN"  # Amgen
+    
+]
 
 strategy_kwargs = { # Stochastic
     "fast_window": 12,
@@ -204,8 +270,8 @@ strategy_kwargs = { # Stochastic
     "d_period": 3,
     "stoch_lower": 20,
     "stoch_upper": 80,
-    "vol_fast_window": 10,
-    "vol_slow_window": 20,
+    "vol_fast_window": 14,
+    "vol_slow_window": 28,
     "stop_loss": 0.0075,
     "take_profit": 1.25,
     "trailing_ratio": 0.05
@@ -244,14 +310,14 @@ strategy_kwargs = { # Stochastic
 #     "trailing_ratio": 0.05
 # }
 
-run_one_backtest( # Stochastic
-    "MSFT",
-    StochasticIndicator,
-    start_date="2025-10-01",
-    end_date="2025-11-01",
-    plot=True,
-    **strategy_kwargs
-)
+# run_one_backtest( # Stochastic
+#     "MSFT",
+#     StochasticIndicator,
+#     start_date="2025-1-01",
+#     end_date="2025-4-01",
+#     plot=True,
+#     **strategy_kwargs
+# )
 # run_one_backtest( # ORB
 #     "TSLA",
 #     ORBIndicator,
@@ -277,7 +343,7 @@ run_one_backtest( # Stochastic
 #     **strategy_kwargs
 # )
 
-# multiple_symbol_performance(symbols, StochasticIndicator, "2023-11-01", "2025-11-01", **strategy_kwargs)
+multiple_symbol_performance(symbols, StochasticIndicator, "2023-11-01", "2025-11-01", plot=False, **strategy_kwargs)
 # grid_search("MSFT", StochasticIndicator, start_date="2023-10-01", end_date="2024-10-01")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 

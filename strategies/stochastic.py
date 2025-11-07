@@ -31,24 +31,18 @@ class StochasticIndicator(Strategy):
         self.stoch_signal = None # None, "long", "short"
         self.rolling_rsi = []
 
-        self.df = open_data(self.symbol)
-        self.regime = None
+        # self.df = open_data(self.symbol)
+        # self.regime = None
 
         self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
 
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
-        # self.regime_filter()
 
         status = self.check_status()
         if status is not None:
             return status
-        
-        # self.risk_manager.daily_risk_target()   
-        # self.risk_manager.daily_risk_stop()
-        # if self.risk_manager.is_day_pause():
-        #     return None
         
         if not self.trade_window((9, 30), (15, 30)) and self.position is None:
             self.ema = None
@@ -59,7 +53,7 @@ class StochasticIndicator(Strategy):
             self.vol_fast_ema = None
             self.vol_slow_ema = None
             self.rolling_rsi = []
-            self.regime = None
+            # self.regime = None
             return None
         
         ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
@@ -85,14 +79,14 @@ class StochasticIndicator(Strategy):
             signal = self.enter_trade(ema, stoch_k, stoch_d, rsi, hist, vol)
         # elif self.position is not None:
         #     self.set_trailing_stop()
-        # elif self.position is not None:
+        # elif self.position is not None and rsi is not None:
         #     signal = self.exit_trade(rsi, hist)
         return signal
 
     def enter_trade(self, ema, stoch_k, stoch_d, rsi, hist, vol):
         if not (self.stoch_lower < min(stoch_k, stoch_d) and max(stoch_k, stoch_d) < self.stoch_upper):
             return None
-        rsi_ma = self.compute_ma(self.rolling_rsi, 8)
+        rsi_ma = self.compute_ma(self.rolling_rsi, 10)
 
         if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
             if self.close > ema or vol > 0.025 and rsi_ma < 50:
@@ -142,34 +136,8 @@ class StochasticIndicator(Strategy):
 
             prev_rsi = self.compute_rsi(prev_closes[:-1], 14)
             curr_rsi = self.compute_rsi(np.append(prev_closes, self.open), 14)
-            
-            prev_vol = self.compute_volume_oscillator(prev_vols[:-1], 14, 28)
-            curr_vol = self.compute_volume_oscillator(prev_vols, 14, 28)
-            # est_vol = (today_est * 0.6) + ((prev_day + day_before) / 2 * 0.4)
-            # curr_vol = self.compute_volume_oscillator(np.append(prev_vols, est_vol), 14, 28)
-
-            if curr_rsi > prev_rsi and curr_vol > prev_vol:
-                self.regime = "good"
-                self.position_size = 1.0
-            elif curr_rsi < prev_rsi and curr_vol < prev_vol:
-                self.regime = "bad"
-                self.position_size = 1.0
-            elif curr_rsi < prev_rsi and curr_vol > prev_vol:
-                self.regime = "great"
-                self.position_size = 1.0
-            elif curr_rsi > prev_rsi and curr_vol < prev_vol:
-                self.regime = "okay"
-                self.position_size = 1.0
-
-            # downward correlation on top of each other (coming from above 0) 
-            # rsi high (must be below 50) and volume low correlation
-            # expand away from each other good, expand assymetrically bad
-            # rising volume above 0 good, anything else bad
-            # volume around 0 is bad in general
-            # looking for evenly distributed disparities between vol and rsi
-            if curr_rsi < 50 and curr_vol > 0:
+            # implied volatility in conjunction with strategy
+            if curr_rsi < 50:
                 self.position_size = 1.0
             else:
                 self.position_size = 0.0
-            
-            print(self.ts, self.regime)

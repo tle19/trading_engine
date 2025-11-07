@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
+from utils import *
+
 class Plotting:
     def __init__(self, symbol):
         self.symbol = symbol
@@ -17,12 +19,12 @@ class Plotting:
         self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
         self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
 
-    def plot_equity(self):
+    def plot_equity(self, overlay=False):
         if not self.intraday_equity:
             print("No equity data to plot.")
             return
 
-        equity = self.intraday_equity
+        equity = np.array(self.intraday_equity)
         dates = pd.date_range(self.start_date, self.end_date, periods=len(equity))
 
         max_points = 20000
@@ -33,6 +35,9 @@ class Plotting:
 
         plt.figure(figsize=(14, 6))
         plt.plot(dates, equity, label="Strategy", color="blue")
+
+        if overlay:
+            self.plot_overlay(dates, equity)
 
         months = pd.date_range(self.start_date, self.end_date, freq="MS")
         if len(months) > 12:
@@ -47,3 +52,25 @@ class Plotting:
         plt.grid(True, linestyle="--", alpha=0.6)
         plt.tight_layout()
         plt.show()
+
+    def plot_overlay(self, dates, equity):
+        df = open_data(self.symbol, self.start_date, self.end_date, start_time="9:30", end_time="16:00")
+
+        if df.empty or "close" not in df.columns:
+            print("No valid stock data to overlay.")
+            return
+
+        stock_close = df["close"].values
+
+        min_len = min(len(stock_close), len(equity))
+        stock_close = stock_close[:min_len]
+        equity = equity[:min_len]
+        dates = dates[:min_len]
+
+        stock_norm = (stock_close - stock_close.min()) / (stock_close.max() - stock_close.min())
+        equity_norm = (equity - equity.min()) / (equity.max() - equity.min())
+
+        stock_scaled = stock_norm * (equity.max() - equity.min()) + equity.min()
+
+        plt.plot(dates, stock_scaled, label=f"{self.symbol} (Normalized Price)",
+                color="orange", linestyle="--", alpha=0.7)
