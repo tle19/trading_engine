@@ -8,8 +8,8 @@ class MACDIndicator(Strategy):
     def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=50,
                  rsi_period=14, vol_fast_window=7, vol_slow_window=12,
                  stop_loss=0.005, take_profit=0.0075, trailing_ratio=0.05, position_size=1.0,
-                 target=0.001, loss=-0.001, tf=1):
-        super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size, tf)
+                 target=0.001, loss=-0.001):
+        super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size)
         self.fast_window = fast_window
         self.slow_window = slow_window
         self.signal_window = signal_window
@@ -33,15 +33,9 @@ class MACDIndicator(Strategy):
         self.update(row)
         self.reset_data()
 
-
         status = self.check_status()
         if status is not None:
             return status
-        
-        # self.risk_manager.daily_risk_target()   
-        # self.risk_manager.daily_risk_stop()
-        # if self.risk_manager.is_day_pause():
-        #     return None
         
         if not self.trade_window((9, 30), (13, 00)) and self.position is None:
             self.ema = None

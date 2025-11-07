@@ -17,18 +17,11 @@ class SMACrossoverIndicator(Strategy):
         self.rsi_lower = rsi_lower
         self.rsi_upper = rsi_upper
         
-        self.prev_closes = None
-        self.mode = None
-        self.prev_rsi = None
-        
         self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss, pause_duration=390)
     
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
-
-        self.short_term_regime()
-        # self.mode = "both"
 
         status = self.check_status()
         if status is not None:
@@ -38,11 +31,6 @@ class SMACrossoverIndicator(Strategy):
         self.risk_manager.daily_risk_stop()
         if self.risk_manager.is_day_pause():
             return None
-        
-        # self.risk_manager.intraday_risk()
-        # if self.risk_manager.is_trade_pause():
-        #     self.risk_manager.tick()
-        #     return None
         
         if len(self.prices) < self.slow_window:
             return None
@@ -103,41 +91,5 @@ class SMACrossoverIndicator(Strategy):
         elif position == "short":
             self.stop_loss = base_risk
             self.take_profit = base_reward
-
-    def short_term_regime(self):
-        if self.trade_window((9, 30), (9, 30)):
-            end_date = self.ts.date()
-            start_date = end_date - timedelta(days=30)
-            df = open_data(self.symbol, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
-            df.set_index('timestamp', inplace=True)
-            df = df.resample('1D', offset='9h30min').agg({
-                'open': 'first',
-                'high': 'max',
-                'low': 'min',
-                'close': 'last'
-            }).dropna()
-
-            self.prev_closes = df['open'].iloc[-15:].tolist()
-            self.prev_rsi = self.compute_rsi(self.prev_closes, 10)
-
-        price_series = np.append(self.prev_closes, self.open)
-
-        prev_rsi = self.prev_rsi
-        rsi = self.compute_rsi(price_series, 10)
-
-        neutral_band = 5
-        rsi_upper = 80
-        rsi_lower = 20
-        if rsi >= rsi_upper:
-            self.mode = "short"
-        elif rsi <= rsi_lower:
-            self.mode = "long"
-        elif rsi > prev_rsi + neutral_band:
-            self.mode = "long"
-        elif rsi < prev_rsi - neutral_band:
-            self.mode = "short"
-        else:
-            self.mode = "both"
-
         
             

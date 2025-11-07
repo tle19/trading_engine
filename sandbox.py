@@ -309,14 +309,14 @@ strategy_kwargs = { # Stochastic
 #     "trailing_ratio": 0.05
 # }
 
-run_one_backtest( # Stochastic
-    "MSFT",
-    StochasticIndicator,
-    start_date="2023-11-01",
-    end_date="2025-11-01",
-    plot=True,
-    **strategy_kwargs
-)
+# run_one_backtest( # Stochastic
+#     "MSFT",
+#     StochasticIndicator,
+#     start_date="2023-11-01",
+#     end_date="2025-11-01",
+#     plot=True,
+#     **strategy_kwargs
+# )
 # run_one_backtest( # ORB
 #     "TSLA",
 #     ORBIndicator,
@@ -342,7 +342,7 @@ run_one_backtest( # Stochastic
 #     **strategy_kwargs
 # )
 
-multiple_symbol_performance(symbols, StochasticIndicator, "2023-11-01", "2025-11-01", plot=True, **strategy_kwargs)
+multiple_symbol_performance(symbols, StochasticIndicator, "2023-11-01", "2025-11-01", plot=False, **strategy_kwargs)
 # grid_search("MSFT", StochasticIndicator, start_date="2023-10-01", end_date="2024-10-01")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 

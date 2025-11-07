@@ -9,14 +9,13 @@ HOLD = None
 
 class Strategy:
     def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, trailing_ratio=0.15,  
-                 position_size=1.0, tf=1):
+                 position_size=1.0):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.trailing_ratio = trailing_ratio
         self.default_position_size = position_size
         self.position_size = position_size
-        self.tf = tf
 
         self.position = None
         self.trailing_stop = False
@@ -248,9 +247,6 @@ class Strategy:
         upper_band = max(self.highs[-window:])
         lower_band = min(self.lows[-window:])
         return upper_band, lower_band
-    
-    def trade_window(self, start, end):
-        return start <= (self.ts.hour, self.ts.minute) <= end
            
     def reset_data(self):
         if self.trade_window((9, 30), (9, 30)):
@@ -260,6 +256,9 @@ class Strategy:
             self.volumes = [self.volumes[-1]]
             self.risk_manager.reset_risk()
 
+    def trade_window(self, start, end):
+        return start <= (self.ts.hour, self.ts.minute) <= end
+    
     def is_trailing_stop(self):
         return self.trailing_stop
     
@@ -280,9 +279,6 @@ class Strategy:
 
     def get_risk_manager(self):
         return self.risk_manager
-    
-    def get_tf(self):
-        return self.tf
        
     def update_entry_price(self, fill_price):
         self.entry_price = float(fill_price)
@@ -302,6 +298,9 @@ class RiskManager:
 
     def set_start_cash(self, cash):
         self.start_cash = cash
+    
+    def get_curr_cash(self):
+        return self.start_cash + self.pnl
 
     def check_risk(self, pnl):
         self.pnl += pnl

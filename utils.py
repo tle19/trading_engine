@@ -43,32 +43,43 @@ def allocate_positions(symbols_with_size, cash=25_000):
     total_weight = sum(weights.values())
     if total_weight == 0:
         raise ValueError("Total of position sizes cannot be zero.")
-
-    config = load_config()
-    client = schwabdev.Client(config['app_key'], config['app_secret'])
-    streamer = client.stream
-
-    latest_prices = {}
-    def response_handler(message):
-        data = json.loads(message).get("data", [])
-        if not data:
-            return
-        
-        for content in data[0].get("content", []):
-            latest_prices[content["key"]] = content.get("3")
     
     symbols = list(weights.keys())
-    streamer.start(response_handler)
-    streamer.send(streamer.level_one_equities(symbols, "0,3"))
-    time.sleep(1)
-    streamer.stop()
+    curr_prices = fetch_latest_prices(symbols)
 
     shares_to_buy = {}
     for symbol in symbols:
         weight = weights[symbol]
         cash_for_symbol = cash * (weight / total_weight)
-        price = latest_prices[symbol]
+        price = curr_prices[symbol]
         shares = int(cash_for_symbol // price)
         shares_to_buy[symbol] = shares
 
-    print(shares_to_buy)
+    print("Allocated positions:", shares_to_buy)
+    return shares_to_buy
+
+def fetch_latest_prices(symbols):
+    config = load_config()
+    client = schwabdev.Client(config["app_key"], config["app_secret"])
+    streamer = client.stream
+
+    curr_prices = {}
+    def response_handler(message):
+        data = json.loads(message).get("data", [])
+        if not data:
+            return
+        
+        content = data[0].get("content")
+        if not content:
+            return
+        for item in content:
+            curr_prices[item["key"]] = float(item.get("3"))
+
+    streamer.start(response_handler)
+    streamer.send(streamer.level_one_equities(symbols, "0,3", command="SUBS"))
+    time.sleep(3)
+    streamer.stop()
+    time.sleep(1)
+
+    print("Current Prices:", curr_prices)
+    return curr_prices

@@ -7,10 +7,10 @@ from utils import *
 class StochasticIndicator(Strategy):
     def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=50,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
-                 vol_fast_window=14, vol_slow_window=28,
+                 vol_fast_window=14, vol_slow_window=28, vol_threshold=0.025,
                  stop_loss=0.0075, take_profit=1.25, trailing_ratio=0.05, position_size=1.0,
-                 target=0.001, loss=-0.001, tf=1):
-        super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size, tf)
+                 target=0.001, loss=-0.001):
+        super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size)
         self.fast_window = fast_window
         self.slow_window = slow_window
         self.signal_window = signal_window
@@ -23,6 +23,7 @@ class StochasticIndicator(Strategy):
         self.stoch_upper = stoch_upper
         self.vol_fast_window = vol_fast_window
         self.vol_slow_window = vol_slow_window
+        self.vol_threshold = vol_threshold
 
         self.ema = None
         self.fast_ema = None
@@ -32,7 +33,6 @@ class StochasticIndicator(Strategy):
         self.rolling_rsi = []
 
         # self.df = open_data(self.symbol)
-        # self.volatility = None # "very_high", "high", "medium", "low"
 
         self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
 
@@ -54,7 +54,6 @@ class StochasticIndicator(Strategy):
             self.vol_fast_ema = None
             self.vol_slow_ema = None
             self.rolling_rsi = []
-            # self.regime = None
             return None
         
         ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
@@ -90,33 +89,33 @@ class StochasticIndicator(Strategy):
         rsi_ma = self.compute_ma(self.rolling_rsi, 10)
 
         if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0 and rsi_ma < 50:
-            if self.close > ema or vol > 0.025:
+            if self.close > ema or vol > self.vol_threshold:
                 signal = self.buy() 
                 self.stop_price = round(self.low * (1 - self.stop_loss), 2)
                 stop_dist = self.entry_price -  self.stop_price
                 self.profit_price = round(self.entry_price + (stop_dist * self.take_profit), 2)
-                # print(self.ts, "ENTRY", self.stoch_signal, self.entry_price, self.stop_price, self.profit_price)
+                # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
         if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0 and rsi_ma > 50:
-            if self.close < ema or vol > 0.025:
+            if self.close < ema or vol > self.vol_threshold:
                 signal = self.sell() 
                 self.stop_price = round(self.high * (1 + self.stop_loss), 2)
                 stop_dist = self.stop_price - self.entry_price
                 self.profit_price = round(self.entry_price - (stop_dist * self.take_profit), 2)
-                # print(self.ts, "ENTRY", self.stoch_signal, self.entry_price, self.stop_price, self.profit_price)
+                # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
         
     def exit_trade(self, rsi, hist):
         if self.position == "long" and rsi < 45 and hist < 0:
             self.stop_price = round(self.close, 2)
-            # print(self.ts, "EXIT", self.stop_price, rsi, hist)
+            # print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
             return self.sell()
         if self.position == "short" and rsi > 55 and hist > 0:
             self.stop_price = round(self.close, 2)
-            # print(self.ts, "EXIT", self.stop_price, rsi, hist)
+            # print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
             return self.buy()
         
-    def regime_filter(self):
+    def regime_filter(self): # implement to be called directly with for loop of symbols
         if self.trade_window((9, 30), (9, 30)):
             end_date = self.ts.date()
             start_date = end_date - timedelta(days=50)
@@ -133,15 +132,16 @@ class StochasticIndicator(Strategy):
             }).dropna()
 
             prev_opens = df['open'].iloc[-30:].tolist()
-
             prev_rsi = self.compute_rsi(prev_opens[:-1], 14)
             curr_rsi = self.compute_rsi(np.append(prev_opens, self.open), 14)
 
-            if self.volatility == "very_high":
+            volatility = None #calculate implied volatility
+
+            if volatility == "very_high":
                 self.position_size = 1.0
-            elif self.volatility == "high":
+            elif volatility == "high":
                 self.position_size = 0.75
-            elif self.volatility == "medium":
+            elif volatility == "medium":
                 self.position_size = 0.5
-            elif self.volatility == "low":
+            elif volatility == "low":
                 self.position_size = 0.5

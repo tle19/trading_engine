@@ -30,15 +30,6 @@ class Backtest:
         # total_entry_price = None
         entry_price = None
 
-        # df.set_index('timestamp', inplace=True)
-        # df = df.resample('5T').agg({
-        #     'open': 'first',
-        #     'high': 'max',
-        #     'low': 'min',
-        #     'close': 'last',
-        #     'volume': 'sum'
-        # }).dropna().reset_index()
-
         rows = df.itertuples(index=False)
         for row in rows:
             open = round(row.open, 2)
@@ -76,7 +67,7 @@ class Backtest:
                 pnl = 0
                 if position == "long":
                     if (ts.hour, ts.minute) >= (15, 58):
-                        pnl = ((open * slip_dn) - entry_price) * shares
+                        pnl = ((close * slip_dn) - entry_price) * shares
                     else:
                         if low <= stop_price:
                             pnl = ((stop_price * slip_dn) - entry_price) * shares
@@ -85,7 +76,7 @@ class Backtest:
      
                 elif position == "short":
                     if (ts.hour, ts.minute) >= (15, 58):
-                        pnl = (entry_price - (open * slip_up)) * shares
+                        pnl = (entry_price - (close * slip_up)) * shares
                     else:
                         if high >= stop_price:
                             pnl = (entry_price - (stop_price * slip_up)) * shares
@@ -93,7 +84,6 @@ class Backtest:
                             pnl = (entry_price - profit_price) * shares
 
                 curr_cash += pnl
-                # print(ts, "STOP:", stop_price)
                 # print(pnl)
                 self.stats.update_trade(pnl)
                 self.risk_manager.check_risk(pnl)

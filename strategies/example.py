@@ -6,8 +6,10 @@ class TrendFollowIndicator(Strategy):
                  position_size=1.0, target=0.0001, loss=-0.0001, risk_threshold=3, pause_duration=5):
         super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size)
         
-        self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss, 
-                                        risk_threshold=risk_threshold, pause_duration=pause_duration)
+        self.risk_manager = RiskManager(pnl_target=target, 
+                                        pnl_loss=loss, 
+                                        risk_threshold=risk_threshold, 
+                                        pause_duration=pause_duration)
     
     def generate_signal(self, row):
         self.update(row)
@@ -33,12 +35,17 @@ class TrendFollowIndicator(Strategy):
             return self.enter_trade()
         else:
             self.set_trailing_stop() # optional
-            self.set_trailing_profit() # optional
     
     def enter_trade(self):
         if self.open > self.close:
             return self.buy()
         elif self.open < self.close:
+            return self.sell()
+        
+    def exit_trade(self):
+        if self.close > self.entry_price * 1.5:
+            return self.buy()
+        elif self.close < self.entry_price * 1.5:
             return self.sell()
     
     def train(self):

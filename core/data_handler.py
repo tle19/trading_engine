@@ -1,7 +1,8 @@
-import json
 import os
+import json
 import time
 import pandas as pd
+from collections import namedtuple
 from zoneinfo import ZoneInfo
 
 import schwabdev
@@ -25,7 +26,8 @@ class DataHandler:
         self.streamer = self.client.stream
 
         self.timezone = ZoneInfo("America/New_York")
-
+        self.Equity_Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
+        self.Forex_Row = namedtuple("Row", ["timestamp", "bid", "ask", "last", "bid_size", "ask_size", "volume"])
 
     def historical_data(self, symbol='SPY', from_date='2023-11-01', to_date='2025-11-01',
                                 timespan='minute', multiplier=1, max_iter=10):
@@ -73,8 +75,8 @@ class DataHandler:
             current_from = (last_ts + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
             if current_from > pd.to_datetime(to_date).strftime("%Y-%m-%d"):
                 break
-            # Respect Polygon's rate limit (5 calls/minute)
-            time.sleep(14)
+            
+            time.sleep(13) # Polygon.io rate limit (5 calls/minute)
 
         df = pd.DataFrame(data_list)
         save_data(df, symbol)
@@ -89,7 +91,7 @@ class DataHandler:
             period=period, 
             frequencyType=frequencyType, 
             frequency=frequency, 
-            startDate=startDate, #datetime(2025, 3, 3)
+            startDate=startDate,
             endDate=endDate, 
             needExtendedHoursData=needExtendedHoursData, 
             needPreviousClose=needPreviousClose
@@ -98,80 +100,63 @@ class DataHandler:
         full_str = b"".join(raw_data).decode("utf-8")
         data = json.loads(full_str)
         df = pd.DataFrame(data.get("candles", []))
-
         df.rename(columns={"datetime": "timestamp"}, inplace=True)
 
         save_data(df, symbol)
 
         return df
 
-
     def stream_data(self, symbol, duration=300):
-
-        equity_df = pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'timestamp'])
-        forex_df = pd.DataFrame(columns=['bid', 'ask', 'last', 'bid_size', 'ask_size', 'volume', 'timestamp'])
-
         def equity_handler(response):
             data = json.loads(response).get("data", [])
-            nonlocal equity_df
-
             if not data:
                 return
-
+            
+            content = data[0].get("content")
             for item in data:
-                content = item["content"][0]
-                timestamp = pd.to_datetime(item['timestamp'], unit='ms').tz_localize("UTC").tz_convert(self.timezone)
-                row = {
-                    "timestamp": timestamp,
-                    "open": content.get("2"),
-                    "high": content.get("3"),
-                    "low": content.get("4"),
-                    "close": content.get("5"),
-                    "volume": content.get("6")
-                }
-                equity_df.loc[len(equity_df)] = pd.Series(row, index=equity_df.columns)
-                print(f"Timestamp: {timestamp}, "
-                    f"Open: {row['open']}, "
-                    f"High: {row['high']}, "
-                    f"Low: {row['low']}, "
-                    f"Close: {row['close']}, "
-                    f"Volume: {row['volume']}")
+                if not content:
+                    return
+                symbol = item["key"]
+
+                timestamp = pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone)
+                open = item.get("2")
+                high = item.get("3")
+                low = item.get("4")
+                close = item.get("5")
+                volume = item.get("6")
+
+                row = self.Equity_Row(timestamp, open, high, low, close, volume)
+                print(f"{symbol}: {row}")
 
         def forex_handler(response):
             data = json.loads(response).get("data", [])
-            nonlocal forex_df
-
             if not data:
                 return
 
+            content = data[0].get("content")
+            if not content:
+                return
             for item in data:
-                content = item["content"][0]
-                timestamp = pd.to_datetime(item['timestamp'], unit='ms').tz_localize("UTC").tz_convert(self.timezone)
-                row = {
-                    "timestamp": timestamp,
-                    "bid": content.get("1"),
-                    "ask": content.get("2"),
-                    "last": content.get("3"),
-                    "bid_size": content.get("4"),
-                    "ask_size": content.get("5"),
-                    "volume": content.get("6")
-                }
-                forex_df.loc[len(forex_df)] = pd.Series(row, index=forex_df.columns)
-                print(f"Timestamp: {timestamp}, "
-                    f"Bid: {row['bid']}, "
-                    f"Ask: {row['ask']}, "
-                    f"Last: {row['last']}, "
-                    f"Bid Size: {row['bid_size']}, "
-                    f"Ask Size: {row['ask_size']}, "
-                    f"Volume: {row['volume']}")
+                symbol = item["key"]
+
+                timestamp = pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone)
+                bid = item.get("1")
+                ask = item.get("2")
+                last = item.get("3")
+                bid_size = item.get("4")
+                ask_size = item.get("5")
+                volume = item.get("6")
+
+                row = self.Forex_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
+                print(f"{symbol}: {row}")
                 
         if "/" in symbol:
             self.streamer.start(forex_handler)
-            self.streamer.send(self.streamer.level_one_forex(symbol, "0,1,2,3,4,5,6,7", command="SUBS"))  
+            self.streamer.send(self.streamer.level_one_forex(symbol, "0,1,2,3,4,5,6,7,8", command="SUBS"))  
             time.sleep(duration)
             self.streamer.stop()
         else:
             self.streamer.start(equity_handler)
-            self.streamer.send(self.streamer.chart_equity(symbol, "0,1,2,3,4,5,6", command="SUBS"))
+            self.streamer.send(self.streamer.chart_equity(symbol, "0,1,2,3,4,5,6,7,8", command="SUBS"))
             time.sleep(duration)
             self.streamer.stop()
