@@ -125,7 +125,7 @@ class Equities:
                 print(f"BOT +{shares} {symbol}")
 
             self.flatten(symbol, strategy)
-            self.update_pnl(symbol, strategy)
+            self.update_pnl(strategy)
         
         # --- Force Close ---
         elif self.force_close and signal is None and position is not None:
@@ -137,7 +137,7 @@ class Equities:
                 self.buy_market(symbol, shares, "BUY_TO_COVER")
 
             self.flatten(symbol, strategy)
-            self.update_pnl(symbol, strategy)
+            self.update_pnl(strategy)
         
     def flatten(self, symbol, strategy):
         self.entry_responses[symbol] = None
