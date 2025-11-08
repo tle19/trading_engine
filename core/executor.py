@@ -118,17 +118,17 @@ class Equities:
         elif signal == 0 and position is not None:
             if position == "long": 
                 fill_price = self.get_fill_price(self.hold_responses[symbol])
-                print(f"SOLD -{shares} {symbol} @ {fill_price}")
+                print(f"SELL -{shares} {symbol} @ {fill_price}")
             #implement market sell (if cancel hold_response returns object, then sell else do nothing)
             elif position == "short":
                 fill_price = self.get_fill_price(self.hold_responses[symbol])
-                print(f"BOT +{shares} {symbol}")
+                print(f"BOT +{shares} {symbol} @ {fill_price}")
 
             self.flatten(symbol, strategy)
             self.update_pnl(strategy)
         
         # --- Force Close ---
-        elif self.force_close and signal is None and position is not None:
+        elif self.force_close and position is not None:
             self.cancel_order(self.hold_responses[symbol])
             if position == "long":
                 self.sell_market(symbol, shares, "SELL")

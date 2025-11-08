@@ -1,3 +1,6 @@
+import numpy as np
+from collections import deque
+
 from metrics import *
 from utils import *
 
@@ -19,11 +22,8 @@ class Backtest:
     def run(self, start_date="2023-11-01", end_date="2025-11-01", plot=False, save_plot=False):
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 
-        # Spread-Adjusted Slippage Calculation
-        avg_spread = ((df["high"] - df["low"]) / df["close"]).mean() #deque (size 10)
-        self.slippage *= avg_spread
-        slip_up = 1 + self.slippage
-        slip_dn = 1 - self.slippage
+        spread_window = deque(maxlen=10)
+
         curr_cash = self.starting_cash
         self.risk_manager.set_start_cash(self.starting_cash) # for testing purposes
 
@@ -37,6 +37,12 @@ class Backtest:
             high = round(row.high, 2)
             low = round(row.low, 2)
             ts = row.timestamp
+
+            spread_window.append((high - low) / close)
+            avg_spread = np.mean(spread_window)
+            slippage = avg_spread * self.slippage
+            slip_up = 1 + slippage
+            slip_dn = 1 - slippage
 
             self.shares = curr_cash // close # for consistent testing
 
@@ -62,26 +68,29 @@ class Backtest:
             elif signal == -1 and position == "short":
                 entry_price = close * slip_dn
 
-            # --- Exit ---
+            # --- Exit Position ---
             elif signal == 0 and position is not None:
                 pnl = 0
+                exit_price = None
                 if position == "long":
-                    if (ts.hour, ts.minute) >= (15, 58):
-                        pnl = ((close * slip_dn) - entry_price) * shares
-                    else:
-                        if low <= stop_price:
-                            pnl = ((stop_price * slip_dn) - entry_price) * shares
-                        elif high >= profit_price:
-                            pnl = (profit_price - entry_price) * shares
+                    if low <= stop_price:
+                        exit_price = stop_price * slip_dn
+                    elif high >= profit_price:
+                        exit_price = profit_price
+                    elif (ts.hour, ts.minute) >= (15, 58):
+                        exit_price = close * slip_dn
+
+                    pnl = (exit_price - entry_price) * shares
      
                 elif position == "short":
-                    if (ts.hour, ts.minute) >= (15, 58):
-                        pnl = (entry_price - (close * slip_up)) * shares
-                    else:
-                        if high >= stop_price:
-                            pnl = (entry_price - (stop_price * slip_up)) * shares
-                        elif low <= profit_price:
-                            pnl = (entry_price - profit_price) * shares
+                    if high >= stop_price:
+                        exit_price = stop_price * slip_up
+                    elif low <= profit_price:
+                        exit_price = profit_price
+                    elif (ts.hour, ts.minute) >= (15, 58):
+                        exit_price = close * slip_up
+
+                    pnl = (entry_price - exit_price) * shares
 
                 curr_cash += pnl
                 # print(pnl)
