@@ -1,4 +1,3 @@
-import numpy as np
 from collections import deque
 
 from metrics import *
@@ -27,22 +26,15 @@ class Backtest:
         curr_cash = self.starting_cash
         self.risk_manager.set_start_cash(self.starting_cash) # for testing purposes
 
-        # total_entry_price = None
         entry_price = None
 
         rows = df.itertuples(index=False)
         for row in rows:
-            open = round(row.open, 2)
-            close = round(row.close, 2)
-            high = round(row.high, 2)
-            low = round(row.low, 2)
+            open = row.open
+            close = row.close
+            high = row.high
+            low = row.low
             ts = row.timestamp
-
-            spread_window.append((high - low) / close)
-            avg_spread = np.mean(spread_window)
-            slippage = avg_spread * self.slippage
-            slip_up = 1 + slippage
-            slip_dn = 1 - slippage
 
             self.shares = curr_cash // close # for consistent testing
 
@@ -54,15 +46,16 @@ class Backtest:
             position_size = self.strategy.get_position_size()
             shares = max(1, int(self.shares * position_size))
 
+            spread_window.append((high - low) / close)
+            if signal is not None and spread_window:
+                avg_spread = sum(spread_window) / len(spread_window)
+                slippage = avg_spread * self.slippage
+                slip_up = 1 + slippage
+                slip_dn = 1 - slippage
+
             # --- Enter Long ---
             if signal == 1 and position == "long":
                 entry_price = close * slip_up
-                # if entry_price is None: # multiple positions
-                #     entry_price = close * slip_up
-                #     total_entry_price = entry_price
-                # else:
-                #     total_entry_price += close * slip_up
-                #     entry_price = round(total_entry_price / close)
 
             # --- Enter Short ---
             elif signal == -1 and position == "short":
