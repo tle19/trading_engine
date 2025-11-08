@@ -48,10 +48,10 @@ class Strategy:
     
     def update(self, row=None): 
         if row is not None:
-            self.open = round(row.open, 2)
-            self.close = round(row.close, 2)
-            self.high = round(row.high, 2)
-            self.low = round(row.low, 2)
+            self.open = row.open
+            self.close = row.close
+            self.high = row.high
+            self.low = row.low
             self.volume = row.volume
             self.ts = row.timestamp
 
