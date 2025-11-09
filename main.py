@@ -11,7 +11,7 @@ def main():
     parser.add_argument("--allocate", action="store_true")
     parser.add_argument("--strategy", type=str, default="stochastic")
     parser.add_argument("--symbol", type=str, default="MSFT")
-    parser.add_argument("--symbols", nargs="+", type=str, default="MSFT:1.0 GOOG:0.75 META:0.5")
+    parser.add_argument("--symbols", nargs="+", type=str, default="AAPL:1.0 MSFT:0.75 TSLA:0.5")
     parser.add_argument("--margin", type=float, default=1.0)
     args = parser.parse_args()
 

@@ -8,7 +8,7 @@ class Backtest:
                  margin=1.0, commission=0.0, slippage=0.1):
         self.symbol = symbol
         self.strategy = strategy_class
-        self.starting_cash = cash
+        self.cash = cash
         self.shares = shares
         self.margin = margin
         self.commission = commission
@@ -23,8 +23,7 @@ class Backtest:
 
         spread_window = deque(maxlen=10)
 
-        curr_cash = self.starting_cash
-        self.risk_manager.set_start_cash(self.starting_cash) # for testing purposes
+        self.risk_manager.set_start_cash(self.cash) # for testing purposes
 
         entry_price = None
 
@@ -36,7 +35,7 @@ class Backtest:
             low = row.low
             ts = row.timestamp
 
-            self.shares = curr_cash // close # for consistent testing
+            self.shares = self.cash // close # for consistent testing
 
             signal = self.strategy.generate_signal(row)
 
@@ -85,13 +84,13 @@ class Backtest:
 
                     pnl = (entry_price - exit_price) * shares
 
-                curr_cash += pnl
+                self.cash += pnl
                 # print(pnl)
-                self.stats.update_trade(pnl)
-                self.risk_manager.update_pnl(pnl)
                 self.strategy.flatten()
-
-            self.update_equity(curr_cash, position, shares, close, entry_price, ts)
+                self.risk_manager.update_risk(pnl)
+                self.stats.update_trade(pnl)
+                
+            self.update_equity(self.cash, position, shares, close, entry_price, ts)
             
         self.stats.update_dates(start_date, end_date)
         self.stats.summary()

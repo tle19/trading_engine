@@ -60,7 +60,7 @@ class Stats:
         self.starting_cash = intraday_equity[0]
         self.curr_cash = intraday_equity[-1]
         self._calculate_drawdown(intraday_equity)
-        self._calculate_streaks(intraday_equity)
+        self._calculate_streaks(intraday_equity) # fix, this is incorrect
         self._calculate_pnls(intraday_equity)
         self._calculate_daily_pnls()
         self._calculate_win_rates()

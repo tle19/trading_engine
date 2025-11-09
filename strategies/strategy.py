@@ -8,8 +8,8 @@ EXIT = 0
 HOLD = None
 
 class Strategy:
-    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, trailing_ratio=0.15,  
-                 position_size=1.0):
+    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, 
+                 trailing_ratio=0.15, position_size=1.0):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
@@ -66,7 +66,6 @@ class Strategy:
             self.ts = row.timestamp
 
         self.prices.append(self.close)
-        # self.prices.append((self.close + self.high + self.low) / 3)
         self.highs.append(self.high)
         self.lows.append(self.low)
         self.volumes.append(self.volume)
@@ -77,7 +76,7 @@ class Strategy:
             self.highs = [self.highs[-1]]
             self.lows = [self.lows[-1]]
             self.volumes = [self.volumes[-1]]
-            self.risk_manager.reset_risk()
+            self.risk_manager.reset()
             self.activated = False
 
     def check_status(self):
@@ -272,6 +271,15 @@ class Strategy:
     def is_trailing_stop(self):
         return self.trailing_stop
     
+    def get_time(self):
+        return self.ts
+    
+    def get_price(self):
+        return self.close
+    
+    def get_entry_price(self):
+        return self.entry_price
+      
     def get_stop_price(self):
         return self.stop_price
     
@@ -283,9 +291,6 @@ class Strategy:
     
     def get_position_size(self):
         return self.position_size
-    
-    def get_entry_price(self):
-        return self.entry_price
 
     def get_risk_manager(self):
         return self.risk_manager
@@ -294,67 +299,69 @@ class Strategy:
         self.entry_price = float(fill_price)
 
 class RiskManager:
-    def __init__(self, risk_threshold=3, pause_duration=5, pnl_target=0.02, pnl_loss=-0.001):
+    def __init__(self, start_cash=0, risk_threshold=3, pause_duration=5, pnl_target=0.02, pnl_loss=-0.01, trade_max=3):
+        self.start_cash = start_cash
         self.risk_threshold = risk_threshold
         self.pause_duration = pause_duration
         self.pnl_target = pnl_target
         self.pnl_loss = pnl_loss
-        self.start_cash = 0
+        self.trade_max = trade_max
+
+        self.trades = 0
         self.pnl = 0
         self.risk = 0
-        self.day_pause = False
-        self.pause = False
         self._pause_counter = 0
+        self._intraday_pause = False
+        self._day_pause = False
 
-    def update_pnl(self, pnl):
+    def update_risk(self, pnl):
         self.pnl += pnl
-        if not self.is_trade_pause():
-            if pnl < 0:
-                self.risk += 1
-            elif pnl > 0:
-                self.risk = max(0, self.risk - 1)
+        self.trades += 1
+        if pnl < 0:
+            self.risk += 1
+        elif pnl > 0:
+            self.risk = max(0, self.risk - 1)
 
-    def intraday_risk(self):
+        if self.trades >= self.trade_max:
+            self._day_pause = True
+
+        self._check_intraday_pause()
+
+    def _check_intraday_pause(self):
         if self.risk >= self.risk_threshold:
-            self.pause = True
+            self._intraday_pause = True
 
     def tick(self):
-        if self.is_trade_pause():
-            self._pause_counter += 1
-            if self._pause_counter >= self.pause_duration:
-                self.risk = 0
-                self.pause = False
-                self._pause_counter = 0
+        self._pause_counter += 1
+        if self._pause_counter >= self.pause_duration:
+            self._reset_intraday_pause()
 
-    def daily_risk_target(self):
-        target = self.pnl / self.start_cash
-        if target >= self.pnl_target:
-            self.day_pause = True
+    def _reset_intraday_pause(self):
+        self._intraday_pause = False
+        self._pause_counter = 0
+        self.risk = 0
 
-    def daily_risk_stop(self):
-        stop = self.pnl / self.start_cash
-        if stop <= self.pnl_loss:
-            self.day_pause = True
-    
-    def dynamic_position_sizing(self, position_size):
-        if self.pnl >= self.pnl_target:
-            ratio = self.pnl / self.pnl_target
-            scale = 0.5 / ratio
-            return position_size * scale
-        return position_size
+    def check_daily_target(self):
+        if self.pnl / self.start_cash >= self.pnl_target:
+            self._day_pause = True
 
-    def reset_risk(self):
+    def check_daily_stop(self):
+        if self.pnl / self.start_cash <= self.pnl_loss:
+            self._day_pause = True
+
+    def reset(self):
+        self.trades = 0
         self.pnl = 0
         self.risk = 0
-        self.day_pause = False
-        self.pause = False
         self._pause_counter = 0
+        self._intraday_pause = False
+        self._day_pause = False
 
-    def is_trade_pause(self):
-        return self.pause
+    def intraday_pause(self):
+        return self._intraday_pause
     
-    def is_day_pause(self):
-        return self.day_pause
+    def day_pause(self):
+        return self._day_pause
     
     def get_curr_cash(self):
         return self.start_cash + self.pnl

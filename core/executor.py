@@ -1,6 +1,7 @@
 import json
 import time
 import pandas as pd
+from datetime import datetime
 from collections import namedtuple
 from zoneinfo import ZoneInfo
 
@@ -17,14 +18,13 @@ class Equities:
         self.streamer = self.client.stream
 
         self.timezone = ZoneInfo("America/New_York")
-        self.cash = self.get_liquidation_value()
+        self.cash = self.get_liquidation_value() * margin
         self.margin = margin
-
+        
         self.symbols = [s.split(":")[0] for s in symbol]
         self.strategies = {}
         self.entry_responses = {}
         self.hold_responses = {}
-
         self.shares_to_buy = allocate_positions(symbol, cash=self.cash)
 
         for sym in self.symbols:
@@ -34,6 +34,7 @@ class Equities:
             self.hold_responses[sym] = None
 
         self.force_close = False
+        self.trade_logger = TradeLogger()
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
 
     def run(self, duration=23520):
@@ -71,17 +72,17 @@ class Equities:
             cash_allocation = self.cash * (weight / total_weight)
             strategy.get_risk_manager().set_start_cash(cash_allocation)
 
-        self.streamer.start(response_handler) # start_auto to start on market open
+        self.streamer.start(response_handler) # start_auto for full automation
         self.streamer.send(self.streamer.chart_equity(self.symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))
         time.sleep(duration) # duration is time to market close
         self.streamer.stop()
 
-        self.output_logs()
+        self.trade_logger.output_logs()
 
     def interpret_signal(self, signal, strategy, symbol):
+        is_trailing_stop = strategy.is_trailing_stop()
         stop_price = str(strategy.get_stop_price())
         profit_price = str(strategy.get_profit_price())
-        is_trailing_stop = strategy.is_trailing_stop()
         position = strategy.get_position()
         position_size = strategy.get_position_size()
         shares = max(1, int(self.shares_to_buy[symbol] * position_size))
@@ -92,6 +93,7 @@ class Equities:
             self.entry_responses[symbol] = self.buy_market(symbol, shares, "BUY")
             self.hold_responses[symbol] = self.long_bracket(symbol, shares, stop_price, profit_price)
             fill_price = self.get_fill_price(self.entry_responses[symbol])
+            self.trade_logger.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
             strategy.update_entry_price(fill_price)
 
         # --- Enter Short ---
@@ -99,6 +101,7 @@ class Equities:
             self.entry_responses[symbol] = self.sell_market(symbol, shares, "SELL_SHORT")
             self.hold_responses[symbol] = self.short_bracket(symbol, shares, stop_price, profit_price)
             fill_price = self.get_fill_price(self.entry_responses[symbol])
+            self.trade_logger.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
             strategy.update_entry_price(fill_price)
 
         # --- Holding ---
@@ -114,8 +117,10 @@ class Equities:
             fill_price = self.get_fill_price(self.hold_responses[symbol])
 
             if position == "long":
+                self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
                 print(f"SELL -{shares} {symbol} @ {fill_price}")
             elif position == "short":
+                self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
                 print(f"BOT +{shares} {symbol} @ {fill_price}")
             
             self.update_pnl(strategy, position, fill_price, shares)
@@ -127,18 +132,26 @@ class Equities:
             # Empty if successful (meaning if it exists still)
             if response is empty:
                 if position == "long":
-                    self.sell_market(symbol, shares, "SELL")
+                    response = self.sell_market(symbol, shares, "SELL")
+                    fill_price = self.get_fill_price(response)
+                    self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
                 elif position == "short":
-                    self.buy_market(symbol, shares, "BUY_TO_COVER")
-        
+                    response = self.buy_market(symbol, shares, "BUY_TO_COVER")
+                    fill_price = self.get_fill_price(response)
+                    self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
+
         # --- Exit (Force Close) ---
         elif self.force_close and position is not None:
             self.cancel_order(self.hold_responses[symbol])
 
             if position == "long":
-                self.sell_market(symbol, shares, "SELL")
+                response = self.sell_market(symbol, shares, "SELL")
+                fill_price = self.get_fill_price(response)
+                self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
             elif position == "short":
-                self.buy_market(symbol, shares, "BUY_TO_COVER")
+                response = self.buy_market(symbol, shares, "BUY_TO_COVER")
+                fill_price = self.get_fill_price(response)
+                self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
 
             self.update_pnl(strategy, position, fill_price, shares)
             self.flatten(symbol, strategy)
@@ -149,7 +162,7 @@ class Equities:
         elif position == "short":
             pnl = (strategy.get_entry_price() - fill_price) * shares
         self.cash += pnl
-        strategy.get_risk_manager().update_pnl(pnl)
+        strategy.get_risk_manager().update_risk(pnl)
 
     def flatten(self, symbol, strategy):
         self.entry_responses[symbol] = None
@@ -328,7 +341,67 @@ class Equities:
         details_json = details.json()
         liquidationValue = details_json["securitiesAccount"]["currentBalances"]["liquidationValue"]
         return liquidationValue
+
+class TradeLogger:
+    def __init__(self, log_file="trade_logs.json"):
+        self.open_trades = {}
+        self.trade_history = []
+        self.log_file = log_file
+
+        try:
+            with open("trade_logs.json", "r") as f:
+                self.trade_history = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            self.trade_history = []
+
+    def log_entry(self, symbol, position, shares, entry_time, entry_price, fill_price):
+        if position not in ("long", "short"):
+            raise ValueError("Position must be 'long' or 'short'")
+        if symbol in self.open_trades:
+            raise ValueError(f"Trade already open for symbol {symbol}")
+        
+        trade = {
+            "symbol": symbol,
+            "position": position,
+            "shares": shares,
+            "entry_time": entry_time.isoformat(),
+            "entry_price": entry_price,
+            "entry_fill": fill_price,
+            "exit_time": None,
+            "exit_price": None,
+            "exit_fill": None,
+            "pnl_real": None,
+            "pnl_real_pct": None,
+            "pnl_theoretical": None,
+            "pnl_theoretical_pct": None
+        }
+
+        self.open_trades[symbol] = trade
     
+    def update_exit(self, symbol, exit_time, exit_price, fill_price):
+        if symbol not in self.open_trades:
+            raise ValueError(f"No open trade for symbol {symbol}")
+
+        trade = self.open_trades.pop(symbol)
+        trade["exit_time"] = exit_time.isoformat()
+        trade["exit_price"] = exit_price
+        trade["exit_fill"] = fill_price
+
+        if trade["position"] == "long":
+            trade["pnl_real"] = (fill_price - trade["entry_fill"]) * trade["shares"]
+            trade["pnl_theoretical"] = (exit_price - trade["entry_price"]) * trade["shares"]
+        elif trade["position"] == "short":
+            trade["pnl_real"] = (trade["entry_fill"] - fill_price) * trade["shares"]
+            trade["pnl_theoretical"] = (trade["entry_price"] - exit_price) * trade["shares"]
+
+        trade["pnl_real"] = round(trade["pnl_real"], 2)
+        trade["pnl_real_pct"] = round(trade["pnl_real"] / trade["entry_fill"] * 100, 2)
+        trade["pnl_theoretical"] = round(trade["pnl_theoretical"], 2)
+        trade["pnl_theoretical_pct"] = round(trade["pnl_theoretical"] / trade["entry_price"] * 100, 2)
+
+        self.trade_history.append(trade)
+
     def output_logs(self):
-        for symbol in self.symbols:
-            print(symbol + ': ', self.strategies[symbol].get_risk_manager().get_pnl())
+        with open(self.log_file, "w") as f:
+            json.dump(self.trade_history, f, indent=4)
+        print(f"Saved {len(self.trade_history)} trades to {self.log_file}")
