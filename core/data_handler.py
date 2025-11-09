@@ -107,9 +107,9 @@ class DataHandler:
                 return
             
             content = data[0].get("content")
-            for item in data:
-                if not content:
-                    return
+            if not content:
+                return
+            for item in content:
                 symbol = item["key"]
 
                 timestamp = pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone)

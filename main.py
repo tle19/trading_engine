@@ -8,6 +8,7 @@ def main():
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--backtest", action="store_true")
     parser.add_argument("--fetch", action="store_true")
+    parser.add_argument("--stream", action="store_true")
     parser.add_argument("--allocate", action="store_true")
     parser.add_argument("--strategy", type=str, default="stochastic")
     parser.add_argument("--symbol", type=str, default="MSFT")
@@ -30,8 +31,10 @@ def main():
         bt.run(plot=True, save_plot=False)
     elif args.fetch:
         dh = DataHandler()
-        # dh.historical_data(args.symbol, from_date='2023-11-01', to_date='2025-11-01')
+        dh.historical_data(args.symbol, from_date='2023-11-01', to_date='2025-11-01')
         # dh.schwab_data(args.symbol, startDate=datetime(2025, 1, 1), endDate=datetime(2025, 11, 1))
+    elif args.stream:
+        dh = DataHandler()
         dh.stream_data(args.symbol)
     elif args.allocate:
         allocate_positions(args.symbols)

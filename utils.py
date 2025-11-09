@@ -42,6 +42,8 @@ def allocate_positions(symbols_with_size, cash=25_000):
     total_weight = sum(weights.values())
     if total_weight == 0:
         raise ValueError("Total of position sizes cannot be zero.")
+    elif total_weight < 1.0:
+        total_weight = 1.0
     
     symbols = list(weights.keys())
     curr_prices = fetch_latest_prices(symbols)
