@@ -88,13 +88,14 @@ class Backtest:
                 curr_cash += pnl
                 # print(pnl)
                 self.stats.update_trade(pnl)
-                self.risk_manager.check_risk(pnl)
+                self.risk_manager.update_pnl(pnl)
                 self.strategy.flatten()
 
             self.update_equity(curr_cash, position, shares, close, entry_price, ts)
             
         self.stats.update_dates(start_date, end_date)
         self.stats.summary()
+        # print(sum(self.strategy.trades) / len(self.strategy.trades))
         if plot:
             self.plotting.update_dates(start_date, end_date)
             self.plotting.plot_equity(save_plot, overlay=True)

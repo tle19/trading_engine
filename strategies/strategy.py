@@ -18,6 +18,7 @@ class Strategy:
         self.position_size = position_size
 
         self.position = None
+        self.activated = False
         self.trailing_stop = False
         self.entry_price = None
         self.stop_price = None
@@ -45,6 +46,15 @@ class Strategy:
     
     def exit_trade(self):
         raise NotImplementedError
+
+    def reset_indicators(self):
+        raise NotImplementedError
+        
+    def minimum_computations(self):
+        raise NotImplementedError
+    
+    def train(self):
+        return NotImplementedError
     
     def update(self, row=None): 
         if row is not None:
@@ -60,6 +70,15 @@ class Strategy:
         self.highs.append(self.high)
         self.lows.append(self.low)
         self.volumes.append(self.volume)
+                   
+    def reset_data(self):
+        if self.trade_window((9, 30), (9, 30)):
+            self.prices = [self.prices[-1]]
+            self.highs = [self.highs[-1]]
+            self.lows = [self.lows[-1]]
+            self.volumes = [self.volumes[-1]]
+            self.risk_manager.reset_risk()
+            self.activated = False
 
     def check_status(self):
         if self.position == "long":
@@ -76,7 +95,10 @@ class Strategy:
                 return self.buy()
             elif not self.trade_window((9, 30), (15, 57)):
                 return self.buy()
-            
+
+    def trade_window(self, start, end):
+        return start <= (self.ts.hour, self.ts.minute) <= end
+           
     def buy(self):
         if self.position is None:
             self.position = "long"
@@ -96,16 +118,15 @@ class Strategy:
             return SHORT
         elif self.position == "long":
             return EXIT
-
+    
     def flatten(self):
         self.position_size = self.default_position_size
         self.position = None
         self.trailing_stop = False
         self.entry_price = None
-        self.entry_price = None
         self.stop_price = None
         self.profit_price = None
-
+    
     def set_trailing_stop(self):
         self.trailing_stop = False
         if not self.in_safe_range():
@@ -165,7 +186,7 @@ class Strategy:
     def compute_rsi(self, prices, period=14, mode="wilder"):
         p = np.asarray(prices, dtype=float)
         if p.size < period + 1:
-            return None
+            return 50
 
         deltas = np.diff(p)
         gains = np.where(deltas > 0, deltas, 0.0)
@@ -247,17 +268,6 @@ class Strategy:
         upper_band = max(self.highs[-window:])
         lower_band = min(self.lows[-window:])
         return upper_band, lower_band
-           
-    def reset_data(self):
-        if self.trade_window((9, 30), (9, 30)):
-            self.prices = [self.prices[-1]]
-            self.highs = [self.highs[-1]]
-            self.lows = [self.lows[-1]]
-            self.volumes = [self.volumes[-1]]
-            self.risk_manager.reset_risk()
-
-    def trade_window(self, start, end):
-        return start <= (self.ts.hour, self.ts.minute) <= end
     
     def is_trailing_stop(self):
         return self.trailing_stop
@@ -296,13 +306,7 @@ class RiskManager:
         self.pause = False
         self._pause_counter = 0
 
-    def set_start_cash(self, cash):
-        self.start_cash = cash
-    
-    def get_curr_cash(self):
-        return self.start_cash + self.pnl
-
-    def check_risk(self, pnl):
+    def update_pnl(self, pnl):
         self.pnl += pnl
         if not self.is_trade_pause():
             if pnl < 0:
@@ -351,3 +355,12 @@ class RiskManager:
     
     def is_day_pause(self):
         return self.day_pause
+    
+    def get_curr_cash(self):
+        return self.start_cash + self.pnl
+    
+    def get_pnl(self):
+        return self.pnl
+    
+    def set_start_cash(self, cash):
+        self.start_cash = cash

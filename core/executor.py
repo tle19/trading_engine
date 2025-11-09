@@ -11,10 +11,8 @@ from utils import *
 class Equities:
     def __init__(self, symbol, strategy_class, margin=1.0):
         config = load_config()
-        self.app_key = config['app_key']
-        self.app_secret = config['app_secret']
 
-        self.client = schwabdev.Client(self.app_key, self.app_secret)
+        self.client = schwabdev.Client(config['app_key'], config['app_secret'])
         self.hash = self.client.account_linked().json()[0]['hashValue']
         self.streamer = self.client.stream
 
@@ -34,8 +32,7 @@ class Equities:
             self.strategies[sym] = strategy_instance
             self.entry_responses[sym] = None
             self.hold_responses[sym] = None
-        
-        self.fill_price = None
+
         self.force_close = False
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
 
@@ -74,13 +71,12 @@ class Equities:
             cash_allocation = self.cash * (weight / total_weight)
             strategy.get_risk_manager().set_start_cash(cash_allocation)
 
-        self.streamer.start(response_handler)
-        #start_auto for start on market open
-        
+        self.streamer.start(response_handler) # start_auto to start on market open
         self.streamer.send(self.streamer.chart_equity(self.symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))
-        time.sleep(duration)
-        
+        time.sleep(duration) # duration is time to market close
         self.streamer.stop()
+
+        self.output_logs()
 
     def interpret_signal(self, signal, strategy, symbol):
         stop_price = str(strategy.get_stop_price())
@@ -95,59 +91,70 @@ class Equities:
         if signal == 1 and position == "long":
             self.entry_responses[symbol] = self.buy_market(symbol, shares, "BUY")
             self.hold_responses[symbol] = self.long_bracket(symbol, shares, stop_price, profit_price)
-            strategy.update_entry_price(self.fill_price)
-            self.fill_price = None
+            fill_price = self.get_fill_price(self.entry_responses[symbol])
+            strategy.update_entry_price(fill_price)
 
         # --- Enter Short ---
         elif signal == -1 and position == "short":
             self.entry_responses[symbol] = self.sell_market(symbol, shares, "SELL_SHORT")
             self.hold_responses[symbol] = self.short_bracket(symbol, shares, stop_price, profit_price)
-            strategy.update_entry_price(self.fill_price)
-            self.fill_price = None
+            fill_price = self.get_fill_price(self.entry_responses[symbol])
+            strategy.update_entry_price(fill_price)
 
         # --- Holding ---
         elif signal is None and position is not None:
             if is_trailing_stop:
                 if position == "long":
                     self.hold_responses[symbol] = self.replace_order(symbol, shares, position, stop_price, profit_price, self.hold_responses[symbol])
-
                 elif position == "short":
                     self.hold_responses[symbol] = self.replace_order(symbol, shares, position, stop_price, profit_price, self.hold_responses[symbol])
                 
-        # --- Exit Position --- 
+        # --- Exit (Auto) --- 
         elif signal == 0 and position is not None:
-            if position == "long": 
-                fill_price = self.get_fill_price(self.hold_responses[symbol])
-                print(f"SELL -{shares} {symbol} @ {fill_price}")
-            #implement market sell (if cancel hold_response returns object, then sell else do nothing)
-            elif position == "short":
-                fill_price = self.get_fill_price(self.hold_responses[symbol])
-                print(f"BOT +{shares} {symbol} @ {fill_price}")
+            fill_price = self.get_fill_price(self.hold_responses[symbol])
 
+            if position == "long":
+                print(f"SELL -{shares} {symbol} @ {fill_price}")
+            elif position == "short":
+                print(f"BOT +{shares} {symbol} @ {fill_price}")
+            
+            self.update_pnl(strategy, position, fill_price, shares)
             self.flatten(symbol, strategy)
-            self.update_pnl(strategy)
+
+        # --- Exit (Manual) --- 
+        elif False:
+            response = self.cancel_order(self.hold_responses[symbol])
+            # Empty if successful (meaning if it exists still)
+            if response is empty:
+                if position == "long":
+                    self.sell_market(symbol, shares, "SELL")
+                elif position == "short":
+                    self.buy_market(symbol, shares, "BUY_TO_COVER")
         
-        # --- Force Close ---
+        # --- Exit (Force Close) ---
         elif self.force_close and position is not None:
             self.cancel_order(self.hold_responses[symbol])
+
             if position == "long":
                 self.sell_market(symbol, shares, "SELL")
-
             elif position == "short":
                 self.buy_market(symbol, shares, "BUY_TO_COVER")
 
+            self.update_pnl(strategy, position, fill_price, shares)
             self.flatten(symbol, strategy)
-            self.update_pnl(strategy)
         
+    def update_pnl(self, strategy, position, fill_price, shares):
+        if position == "long":
+            pnl = (fill_price - strategy.get_entry_price()) * shares
+        elif position == "short":
+            pnl = (strategy.get_entry_price() - fill_price) * shares
+        self.cash += pnl
+        strategy.get_risk_manager().update_pnl(pnl)
+
     def flatten(self, symbol, strategy):
         self.entry_responses[symbol] = None
         self.hold_responses[symbol] = None
         strategy.flatten()
-
-    def update_pnl(self, strategy):
-        pnl = self.get_liquidation_value() - self.cash
-        self.cash += pnl
-        strategy.get_risk_manager().check_risk(pnl)
 
     def buy_market(self, symbol, quantity, type="BUY"):
         order_dict = {
@@ -168,8 +175,8 @@ class Equities:
         }
 
         response = self.client.order_place(self.hash, order_dict)
-        self.fill_price = self.get_fill_price(response)
-        print(f"BOT +{quantity} {symbol} @ {self.fill_price}")
+        fill_price = self.get_fill_price(response)
+        print(f"BOT +{quantity} {symbol} @ {fill_price}")
         return response
     
     def sell_market(self, symbol, quantity, type="SELL"):
@@ -191,21 +198,19 @@ class Equities:
         }
 
         response = self.client.order_place(self.hash, order_dict)
-        self.fill_price = self.get_fill_price(response)
-        print(f"SELL -{quantity} {symbol} @ {self.fill_price}")
+        fill_price = self.get_fill_price(response)
+        print(f"SELL -{quantity} {symbol} @ {fill_price}")
         return response
     
     def long_bracket(self, symbol, quantity, stop_price, profit_price):
         order_dict = self.get_sell_order_dict(symbol, quantity, stop_price, profit_price)
         response = self.client.order_place(self.hash, order_dict)
-
         print(f"SL @ {stop_price} & TP @ {profit_price}")
         return response
 
     def short_bracket(self, symbol, quantity, stop_price, profit_price):
         order_dict = self.get_buy_order_dict(symbol, quantity, stop_price, profit_price)
         response = self.client.order_place(self.hash, order_dict)
-
         print(f"SL @ {stop_price} & TP @ {profit_price}")
         return response
     
@@ -307,7 +312,7 @@ class Equities:
 
     def replace_order(self, symbol, position, quantity, stop_loss, take_profit, response):
         self.cancel_order(response)
-        time.sleep(0.05) # buffer time for order to cancel
+        time.sleep(0.05)
         if position == "long":
             return self.long_bracket(symbol, quantity, stop_loss, take_profit)
         elif position == "short":
@@ -315,10 +320,15 @@ class Equities:
 
     def cancel_order(self, response):
         order_id = response.headers.get('location', '/').split('/')[-1]
-        self.client.order_cancel(self.hash, order_id)
+        response = self.client.order_cancel(self.hash, order_id)
+        return response
 
     def get_liquidation_value(self):
         details = self.client.account_details(self.hash)
         details_json = details.json()
         liquidationValue = details_json["securitiesAccount"]["currentBalances"]["liquidationValue"]
         return liquidationValue
+    
+    def output_logs(self):
+        for symbol in self.symbols:
+            print(symbol + ': ', self.strategies[symbol].get_risk_manager().get_pnl())

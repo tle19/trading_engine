@@ -31,7 +31,7 @@ class TrendFollowIndicator(Strategy):
             self.risk_manager.tick() # optional
             return None
         
-        if self.position is None:
+        if self.position is None and self.activated:
             return self.enter_trade()
         else:
             self.set_trailing_stop() # optional

@@ -13,16 +13,10 @@ from utils import *
 class DataHandler:
     def __init__(self):
         config = load_config()
-        self.data_path = config['data_path']
-        if not os.path.exists(self.data_path):
-            os.mkdir(self.data_path)
+        os.makedirs(config['data_path'], exist_ok=True)
 
-        self.api_key = config['api_key']
-        self.app_key = config['app_key']
-        self.app_secret = config['app_secret']
-
-        self.polygon_client = RESTClient(self.api_key)
-        self.client = schwabdev.Client(self.app_key, self.app_secret)
+        self.polygon_client = RESTClient(config['api_key'])
+        self.client = schwabdev.Client(config['app_key'], config['app_secret'])
         self.streamer = self.client.stream
 
         self.timezone = ZoneInfo("America/New_York")

@@ -7,8 +7,9 @@ import numpy as np
 from utils import *
 
 class Plotting:
-    def __init__(self, symbol):
+    def __init__(self, symbol, img_path="plots"):
         self.symbol = symbol
+        self.img_path = img_path
         self.intraday_equity = []
         self.start_date = None
         self.end_date = None
@@ -53,12 +54,13 @@ class Plotting:
         plt.grid(True, linestyle="--", alpha=0.6)
         plt.tight_layout()
         if save_plot:
-            plots_dir = f"{os.path.dirname(__file__)}/plots"
-            save_path = f"{plots_dir}/{self.symbol}_{self.start_date.date()}_{self.end_date.date()}.png"
-            plt.savefig(save_path)
-            plt.close()
+            os.makedirs(self.img_path, exist_ok=True)
+            filename = f"{self.symbol}_{self.start_date.date()}_{self.end_date.date()}.png"
+            file_path = os.path.join(self.img_path, filename)
+            plt.savefig(file_path)
         else:
             plt.show()
+        plt.close()
 
     def plot_overlay(self, dates, equity):
         df = open_data(self.symbol, self.start_date, self.end_date, start_time="9:30", end_time="16:00")
