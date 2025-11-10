@@ -112,11 +112,11 @@ class StochasticIndicator(Strategy):
         self.hold_time += 1
                 
         if self.position == "long" and hist < 0 and rsi < 50 and self.close < self.local_high and self.local_high >= self.entry_price + 0.75 * (self.take_profit - self.entry_price) and self.hold_time > 30:
-            self.stop_price = self.close
+            self.stop_price = round(self.close, 2)
             # print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
             return self.sell()
         if self.position == "short" and hist > 0 and rsi > 50 and self.close > self.local_low and self.local_low <= self.entry_price + 0.75 * (self.entry_price - self.take_profit) and self.hold_time > 60:
-            self.stop_price = self.close
+            self.stop_price = round(self.close, 2)
             # print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
             return self.buy()
       
