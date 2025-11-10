@@ -33,7 +33,7 @@ class StochasticIndicator(Strategy):
         self.stoch_signal = None
         self.vol_fast_ema = None
         self.vol_slow_ema = None
-        self.rolling_rsi = deque(maxlen=20)
+        self.rolling_rsi = deque(maxlen=10)
 
         # self.hold_time = 0
         # self.local_high = 0
@@ -47,14 +47,14 @@ class StochasticIndicator(Strategy):
         self.update(row)
         self.reset_data()
         self.reset_indicators()
-
+        
         k, d = self.compute_stochastic(self.highs, self.lows, self.prices, self.k_period, self.k_smooth, self.d_period)
         rsi = self.compute_rsi(self.prices, self.rsi_period)
         hist = self.compute_macd(self.fast_window, self.slow_window, self.signal_window)
         ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
         vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
         # atr = self.compute_atr()
-
+        
         self.compute_signal_direction(k, d)
         self.rolling_rsi.append(rsi)
              
@@ -64,12 +64,12 @@ class StochasticIndicator(Strategy):
         status = self.check_status()
         if status is not None:
             return status
-        
+
         if not self.trade_window((9, 30), (15, 30)) and self.position is None:
             return None
 
         signal = None
-        if self.position is None and self.activated:
+        if self.position is None and self.activated and len(self.prices) > 30:
             signal = self.enter_trade(ema, k, d, rsi, hist, vol)
         # elif self.position is not None and rsi is not None:
         #     signal = self.exit_trade(rsi, hist)
@@ -79,24 +79,24 @@ class StochasticIndicator(Strategy):
     def enter_trade(self, ema, k, d, rsi, hist, vol):
         if not (self.stoch_lower < min(k, d) and max(k, d) < self.stoch_upper):
             return None
-        rsi_ma = self.compute_ma(self.rolling_rsi, 10)
+        rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
 
         if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
             if self.close > ema or vol > self.vol_threshold:
                 # self.local_high = self.close
                 signal = self.buy() 
-                self.stop_price = self.low * (1 - self.stop_loss)
+                self.stop_price = round(self.low * (1 - self.stop_loss), 2)
                 stop_dist = self.entry_price -  self.stop_price
-                self.profit_price = self.entry_price + (stop_dist * self.take_profit)
+                self.profit_price = round(self.entry_price + (stop_dist * self.take_profit), 2)
                 # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
         if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0:
             if self.close < ema or vol > self.vol_threshold:
                 # self.local_low = self.close
                 signal = self.sell() 
-                self.stop_price = self.high * (1 + self.stop_loss)
+                self.stop_price = round(self.high * (1 + self.stop_loss), 2)
                 stop_dist = self.stop_price - self.entry_price
-                self.profit_price = self.entry_price - (stop_dist * self.take_profit)
+                self.profit_price = round(self.entry_price - (stop_dist * self.take_profit), 2)
                 # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
         
@@ -143,7 +143,7 @@ class StochasticIndicator(Strategy):
             self.vol_fast_window,
             self.vol_slow_window
         )
-        minutes_passed = (self.ts.hour - 9) * 60 + (self.ts.minute - 30)
+        minutes_passed = (self.ts.hour - 9) * 60 + (self.ts.minute - 35)
         self.activated = minutes_passed >= min_bars
     
     def compute_signal_direction(self, k, d):

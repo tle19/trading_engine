@@ -71,6 +71,8 @@ class Backtest:
                         exit_price = profit_price
                     elif (ts.hour, ts.minute) >= (15, 58):
                         exit_price = close * slip_dn
+                    else:
+                        exit_price = close * slip_dn
 
                     pnl = (exit_price - entry_price) * shares
      
@@ -80,6 +82,8 @@ class Backtest:
                     elif low <= profit_price:
                         exit_price = profit_price
                     elif (ts.hour, ts.minute) >= (15, 58):
+                        exit_price = close * slip_up
+                    else:
                         exit_price = close * slip_up
 
                     pnl = (entry_price - exit_price) * shares

@@ -83,14 +83,14 @@ class Strategy:
         if self.position == "long":
             if self.stop_price >= self.profit_price:
                 raise ValueError("Invalid long: stop >= profit")
-            if self.low <= self.stop_price or self.high >= self.profit_price:
+            if round(self.low, 2) <= self.stop_price or self.high >= self.profit_price:
                 return self.sell()
             elif not self.trade_window((9, 30), (15, 57)):
                 return self.sell()
         elif self.position == "short":
             if self.stop_price <= self.profit_price:
                 raise ValueError("Invalid short: stop <= profit")
-            if self.high >= self.stop_price or self.low <= self.profit_price:
+            if round(self.high, 2) >= self.stop_price or self.low <= self.profit_price:
                 return self.buy()
             elif not self.trade_window((9, 30), (15, 57)):
                 return self.buy()
@@ -101,7 +101,7 @@ class Strategy:
     def buy(self):
         if self.position is None:
             self.position = "long"
-            self.entry_price = self.close
+            self.entry_price = round(self.close, 2)
             self.stop_price = round(self.entry_price * (1 - self.stop_loss), 2)
             self.profit_price = round(self.entry_price * (1 + self.take_profit), 2)
             return LONG
@@ -111,7 +111,7 @@ class Strategy:
     def sell(self):
         if self.position is None:
             self.position = "short"
-            self.entry_price = self.close
+            self.entry_price = round(self.close, 2)
             self.stop_price = round(self.entry_price * (1 + self.stop_loss), 2)
             self.profit_price = round(self.entry_price * (1 - self.take_profit), 2)
             return SHORT

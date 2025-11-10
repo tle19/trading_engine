@@ -19,9 +19,7 @@ def main():
     strategy_class = strategy_map.get(args.strategy)
     if strategy_class is None:
         raise ValueError(f"Unknown Strategy: {args.strategy}")
-    if args.symbol:
-        args.symbols = [args.symbol.upper() + ":1.0"]
-    
+
     if args.live:
         eq = Equities(args.symbols, strategy_class, args.margin)
         eq.run()

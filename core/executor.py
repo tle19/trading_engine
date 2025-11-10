@@ -19,18 +19,21 @@ class Equities:
         self.timezone = ZoneInfo("America/New_York")
         self.cash = self.get_liquidation_value() * margin
         self.margin = margin
-        
+
+        if not isinstance(symbol, list):
+            symbol = [symbol.upper() + ":1.0"] 
+
         self.symbols = [s.split(":")[0] for s in symbol]
         self.strategies = {}
-        self.entry_responses = {}
-        self.hold_responses = {}
+        self.entry_ids = {}
+        self.exit_ids = {}
         self.shares_to_buy = allocate_positions(symbol, cash=self.cash)
 
         for sym in self.symbols:
             strategy_instance = strategy_class(sym)
             self.strategies[sym] = strategy_instance
-            self.entry_responses[sym] = None
-            self.hold_responses[sym] = None
+            self.entry_ids[sym] = None
+            self.exit_ids[sym] = None
 
         self.force_close = False
         self.trade_logger = TradeLogger()
@@ -89,17 +92,17 @@ class Equities:
         
         # --- Enter Long ---
         if signal == 1 and position == "long":
-            self.entry_responses[symbol] = self.buy_market(symbol, shares, "BUY")
-            self.hold_responses[symbol] = self.long_bracket(symbol, shares, stop_price, profit_price)
-            fill_price = self.get_fill_price(self.entry_responses[symbol])
+            self.entry_ids[symbol] = self.buy_market(symbol, shares, "BUY")
+            self.exit_ids[symbol] = self.long_bracket(symbol, shares, stop_price, profit_price)
+            fill_price = self.get_fill_price(self.entry_ids[symbol])
             self.trade_logger.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
             strategy.update_entry_price(fill_price)
 
         # --- Enter Short ---
         elif signal == -1 and position == "short":
-            self.entry_responses[symbol] = self.sell_market(symbol, shares, "SELL_SHORT")
-            self.hold_responses[symbol] = self.short_bracket(symbol, shares, stop_price, profit_price)
-            fill_price = self.get_fill_price(self.entry_responses[symbol])
+            self.entry_ids[symbol] = self.sell_market(symbol, shares, "SELL_SHORT")
+            self.exit_ids[symbol] = self.short_bracket(symbol, shares, stop_price, profit_price)
+            fill_price = self.get_fill_price(self.entry_ids[symbol])
             self.trade_logger.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
             strategy.update_entry_price(fill_price)
 
@@ -107,51 +110,56 @@ class Equities:
         elif signal is None and position is not None:
             if is_trailing_stop:
                 if position == "long":
-                    self.hold_responses[symbol] = self.replace_order(symbol, shares, position, stop_price, profit_price, self.hold_responses[symbol])
+                    self.exit_ids[symbol] = self.replace_order(symbol, position, shares, stop_price, profit_price, self.exit_ids[symbol])
                 elif position == "short":
-                    self.hold_responses[symbol] = self.replace_order(symbol, shares, position, stop_price, profit_price, self.hold_responses[symbol])
+                    self.exit_ids[symbol] = self.replace_order(symbol, position, shares, stop_price, profit_price, self.exit_ids[symbol])
                 
-        # --- Exit (Auto) --- 
+        # --- Exit --- 
         elif signal == 0 and position is not None:
-            fill_price = self.get_fill_price(self.hold_responses[symbol])
-
-            if position == "long":
-                self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
-                print(f"SELL -{shares} {symbol} @ {fill_price}")
-            elif position == "short":
-                self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
-                print(f"BOT +{shares} {symbol} @ {fill_price}")
+            fill_price = self.get_fill_price(self.exit_ids[symbol], type="oco")
+            exit_price = None
             
+            if fill_price is None:
+                self.cancel_order(self.exit_ids[symbol])
+                if position == "long":
+                    exit_id = self.sell_market(symbol, shares, "SELL")
+                    fill_price = self.get_fill_price(exit_id)
+                elif position == "short":
+                    exit_id = self.buy_market(symbol, shares, "BUY_TO_COVER")
+                    fill_price = self.get_fill_price(exit_id)
+                exit_price = strategy.get_price()
+            else:
+                if position == "long":
+                    print(f"SELL -{shares} {symbol} @ {fill_price}")
+                elif position == "short":
+                    print(f"BOT +{shares} {symbol} @ {fill_price}")
+
+                stop_price_f, profit_price_f = float(stop_price), float(profit_price)
+                exit_price = min([stop_price_f, profit_price_f], key=lambda x: abs(fill_price - x))
+            
+            self.trade_logger.update_exit(symbol, position, shares, strategy.get_time(), exit_price, fill_price)
             self.update_pnl(strategy, position, fill_price, shares)
             self.flatten(symbol, strategy)
 
-        # --- Exit (Manual) --- 
-        elif False:
-            response = self.cancel_order(self.hold_responses[symbol])
-            # Empty if successful (meaning if it exists still)
-            if response is empty:
-                if position == "long":
-                    response = self.sell_market(symbol, shares, "SELL")
-                    fill_price = self.get_fill_price(response)
-                    self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
-                elif position == "short":
-                    response = self.buy_market(symbol, shares, "BUY_TO_COVER")
-                    fill_price = self.get_fill_price(response)
-                    self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
-
         # --- Exit (Force Close) ---
         elif self.force_close and position is not None:
-            self.cancel_order(self.hold_responses[symbol])
+            status_code = self.cancel_order(self.exit_ids[symbol])
 
-            if position == "long":
-                response = self.sell_market(symbol, shares, "SELL")
-                fill_price = self.get_fill_price(response)
-                self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
-            elif position == "short":
-                response = self.buy_market(symbol, shares, "BUY_TO_COVER")
-                fill_price = self.get_fill_price(response)
-                self.trade_logger.update_exit(symbol, position, strategy.get_time(), strategy.get_price(), fill_price)
+            if status_code == 200:
+                if position == "long":
+                    exit_id = self.sell_market(symbol, shares, "SELL")
+                    fill_price = self.get_fill_price(exit_id)
+                elif position == "short":
+                    exit_id = self.buy_market(symbol, shares, "BUY_TO_COVER")
+                    fill_price = self.get_fill_price(exit_id)
+                exit_price = strategy.get_price()
 
+            elif status_code == 500:
+                fill_price = self.get_fill_price(self.exit_ids[symbol], type="oco")
+                stop_price_f, profit_price_f = float(stop_price), float(profit_price)
+                exit_price = min([stop_price_f, profit_price_f], key=lambda x: abs(fill_price - x))
+                            
+            self.trade_logger.update_exit(symbol, position, shares, strategy.get_time(), exit_price, fill_price)
             self.update_pnl(strategy, position, fill_price, shares)
             self.flatten(symbol, strategy)
         
@@ -164,8 +172,8 @@ class Equities:
         strategy.get_risk_manager().update_risk(pnl)
 
     def flatten(self, symbol, strategy):
-        self.entry_responses[symbol] = None
-        self.hold_responses[symbol] = None
+        self.entry_ids[symbol] = None
+        self.exit_ids[symbol] = None
         strategy.flatten()
 
     def buy_market(self, symbol, quantity, type="BUY"):
@@ -187,9 +195,10 @@ class Equities:
         }
 
         response = self.client.order_place(self.hash, order_dict)
-        fill_price = self.get_fill_price(response)
+        order_id = self.get_order_id(response)
+        fill_price = self.get_fill_price(order_id)
         print(f"BOT +{quantity} {symbol} @ {fill_price}")
-        return response
+        return order_id
     
     def sell_market(self, symbol, quantity, type="SELL"):
         order_dict = {
@@ -210,21 +219,24 @@ class Equities:
         }
 
         response = self.client.order_place(self.hash, order_dict)
-        fill_price = self.get_fill_price(response)
+        order_id = self.get_order_id(response)
+        fill_price = self.get_fill_price(order_id)
         print(f"SELL -{quantity} {symbol} @ {fill_price}")
-        return response
+        return order_id
     
     def long_bracket(self, symbol, quantity, stop_price, profit_price):
         order_dict = self.get_sell_order_dict(symbol, quantity, stop_price, profit_price)
         response = self.client.order_place(self.hash, order_dict)
+        order_id = self.get_order_id(response)
         print(f"SL @ {stop_price} & TP @ {profit_price}")
-        return response
+        return order_id
 
     def short_bracket(self, symbol, quantity, stop_price, profit_price):
         order_dict = self.get_buy_order_dict(symbol, quantity, stop_price, profit_price)
         response = self.client.order_place(self.hash, order_dict)
+        order_id = self.get_order_id(response)
         print(f"SL @ {stop_price} & TP @ {profit_price}")
-        return response
+        return order_id
     
     def get_buy_order_dict(self, symbol, quantity, stop_price, profit_price):
         order_dict = {
@@ -312,28 +324,42 @@ class Equities:
 
         return order_dict
 
-    def get_fill_price(self, response):
-        order_id = response.headers.get('location', '/').split('/')[-1]
-        details = self.client.order_details(self.hash, order_id)
-        details_json = details.json()
-
-        legs = details_json['orderActivityCollection'][0]['executionLegs']
+    def get_fill_price(self, order_id, type="single"):
+        order_details = self.get_order_details(order_id)
+        if not order_details:
+            return None
+        if type == "oco":
+            order_details = next(
+                (c for c in order_details.get('childOrderStrategies', []) if c.get('status') == 'FILLED'),
+                None
+            )
+            if not order_details:
+                return None
+        legs = order_details['orderActivityCollection'][0]['executionLegs']
         fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / sum(leg['quantity'] for leg in legs)
         fill_price = round(fill_price, 2)
         return fill_price
 
-    def replace_order(self, symbol, position, quantity, stop_loss, take_profit, response):
-        self.cancel_order(response)
+    def get_order_id(self, response):
+        order_id = response.headers.get('location', '/').split('/')[-1]
+        return order_id
+
+    def get_order_details(self, order_id):
+        details = self.client.order_details(self.hash, order_id)
+        details_json = details.json()
+        return details_json
+
+    def replace_order(self, symbol, position, quantity, stop_loss, take_profit, order_id):
+        self.cancel_order(order_id)
         time.sleep(0.05)
         if position == "long":
             return self.long_bracket(symbol, quantity, stop_loss, take_profit)
         elif position == "short":
             return self.short_bracket(symbol, quantity, stop_loss, take_profit)
 
-    def cancel_order(self, response):
-        order_id = response.headers.get('location', '/').split('/')[-1]
+    def cancel_order(self, order_id):
         response = self.client.order_cancel(self.hash, order_id)
-        return response
+        return response.status_code
 
     def get_liquidation_value(self):
         details = self.client.account_details(self.hash)
@@ -354,11 +380,6 @@ class TradeLogger:
             self.trade_history = []
 
     def log_entry(self, symbol, position, shares, entry_time, entry_price, fill_price):
-        if position not in ("long", "short"):
-            raise ValueError("Position must be 'long' or 'short'")
-        if symbol in self.open_trades:
-            raise ValueError(f"Trade already open for symbol {symbol}")
-        
         trade = {
             "symbol": symbol,
             "position": position,
@@ -377,7 +398,7 @@ class TradeLogger:
 
         self.open_trades[symbol] = trade
     
-    def update_exit(self, symbol, exit_time, exit_price, fill_price):
+    def update_exit(self, symbol, position, shares, exit_time, exit_price, fill_price):
         if symbol not in self.open_trades:
             raise ValueError(f"No open trade for symbol {symbol}")
 
@@ -386,12 +407,12 @@ class TradeLogger:
         trade["exit_price"] = exit_price
         trade["exit_fill"] = fill_price
 
-        if trade["position"] == "long":
-            trade["pnl_real"] = (fill_price - trade["entry_fill"]) * trade["shares"]
-            trade["pnl_theoretical"] = (exit_price - trade["entry_price"]) * trade["shares"]
-        elif trade["position"] == "short":
-            trade["pnl_real"] = (trade["entry_fill"] - fill_price) * trade["shares"]
-            trade["pnl_theoretical"] = (trade["entry_price"] - exit_price) * trade["shares"]
+        if position == "long":
+            trade["pnl_real"] = (fill_price - trade["entry_fill"]) * shares
+            trade["pnl_theoretical"] = (exit_price - trade["entry_price"]) * shares
+        elif position == "short":
+            trade["pnl_real"] = (trade["entry_fill"] - fill_price) * shares
+            trade["pnl_theoretical"] = (trade["entry_price"] - exit_price) * shares
 
         trade["pnl_real"] = round(trade["pnl_real"], 2)
         trade["pnl_real_pct"] = round(trade["pnl_real"] / trade["entry_fill"] * 100, 2)

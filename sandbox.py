@@ -21,11 +21,14 @@ def fetch_schwab_data(symbol, current_date):
     dh.schwab_data(symbol, end_date=(datetime.fromisoformat(current_date) - timedelta(days=1)).date().isoformat())
 
 def test_order(symbol):
-    eq = Equities(symbol, SMACrossoverIndicator(symbol))
-    entry_response = eq.buy_market(symbol, 1)
-    hold_response = eq.long_bracket(symbol, 1, 250, 254)
-    time.sleep(5)
-    eq.replace_order(symbol, "long", 1, 251, 253, hold_response)
+    eq = Equities(symbol, StochasticIndicator)
+    entry_id = eq.buy_market(symbol, 1)
+    exit_id = eq.long_bracket(symbol, 1, 198, 200)
+
+    time.sleep(1)
+    response = eq.cancel_order(exit_id)
+    print(response.status_code)
+    # eq.replace_order(symbol, "long", 1, 251, 253, hold_response)
 
 def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
     for symbol in symbols:
@@ -109,4 +112,4 @@ symbols = [
 fetch_multiple_symbols(symbols)
 # fetch_schwab_data("2025-10-15") 
 # get_average_spread(symbols, start_date="2025-8-01", end_date="2025-11-01")
-# test_order(symbol)
+# test_order("NVDA")
