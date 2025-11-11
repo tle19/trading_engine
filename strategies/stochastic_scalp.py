@@ -33,8 +33,6 @@ class StochasticIndicator(Strategy):
         self.stoch_signal = None
         self.vol_fast_ema = None
         self.vol_slow_ema = None
-        self.current_atr = None
-        self.regime = None
         self.rolling_rsi = deque(maxlen=10)
 
         # self.hold_time = 0
@@ -56,7 +54,6 @@ class StochasticIndicator(Strategy):
         ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
         vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
         # atr = self.compute_atr()
-        # adaptive sl and tp based on ATR/volatility/spread
         
         self.compute_signal_direction(k, d)
         self.rolling_rsi.append(rsi)
@@ -73,7 +70,6 @@ class StochasticIndicator(Strategy):
 
         signal = None
         if self.position is None and self.activated:
-            # self.regime_detection()
             signal = self.enter_trade(ema, k, d, rsi, hist, vol)
         # elif self.position is not None and rsi is not None:
         #     signal = self.exit_trade(rsi, hist)
@@ -85,20 +81,22 @@ class StochasticIndicator(Strategy):
             return None
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
 
-        if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
-            if self.close > ema or vol > self.vol_threshold: #and vol > prev_vol)
+        if self.stoch_signal == "long" and rsi > 50 and rsi > rsi_ma and hist > 0:
+            if self.close > ema or vol > self.vol_threshold:
                 # self.local_high = self.close
-                signal = self.buy() 
-                self.stop_price = round(self.low * (1 - self.stop_loss), 2)
+                signal = self.buy()
+                swing_point = self.compute_swing(mode="low")
+                self.stop_price = round(swing_point * (1 - 0.0005), 2)
                 stop_dist = self.entry_price -  self.stop_price
                 self.profit_price = round(self.entry_price + (stop_dist * self.take_profit), 2)
                 # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
-        if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0:
+        if self.stoch_signal == "short" and rsi < 50 and rsi < rsi_ma and hist < 0:
             if self.close < ema or vol > self.vol_threshold:
                 # self.local_low = self.close
-                signal = self.sell() 
-                self.stop_price = round(self.high * (1 + self.stop_loss), 2)
+                signal = self.sell()
+                swing_point = self.compute_swing(mode="high")
+                self.stop_price = round(swing_point * (1 + 0.0005), 2)
                 stop_dist = self.stop_price - self.entry_price
                 self.profit_price = round(self.entry_price - (stop_dist * self.take_profit), 2)
                 # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
@@ -133,8 +131,6 @@ class StochasticIndicator(Strategy):
             self.stoch_signal = None
             self.vol_fast_ema = None
             self.vol_slow_ema = None
-            self.current_atr = None
-            self.regime = None
             self.rolling_rsi = []
       
     def minimum_computations(self):
@@ -164,13 +160,35 @@ class StochasticIndicator(Strategy):
                 self.stoch_signal = None
             elif self.stoch_signal == "short" and (k < lower or d < lower):
                 self.stoch_signal = None
-
-    def regime_detection(self):
-        self.regime = "weak"
-        self.regime = "ranging"
-        self.regime = "strong"
-        # self.position_size = 1.0
+    
+    def compute_atr(self):
+        # swing low/high for stop
+        # adaptive sl and tp based on ATR/volatility/spread
         raise NotImplementedError
+    
+    def compute_swing(self, mode="low", window=2, lookback=20):
+        if len(self.prices) < window * 2 + 1:
+            return None
+        
+        highs = self.highs[-lookback:]
+        lows = self.lows[-lookback:]
+        n = len(highs)
+
+        if mode == "high":
+            for i in range(n - window - 1, window - 1, -1):
+                left = highs[i - window:i]
+                right = highs[i + 1:i + 1 + window]
+                if highs[i] > max(left) and highs[i] > max(right):
+                    return highs[i]
+            return max(highs)
+
+        elif mode == "low":
+            for i in range(n - window - 1, window - 1, -1):
+                left = lows[i - window:i]
+                right = lows[i + 1:i + 1 + window]
+                if lows[i] < min(left) and lows[i] < min(right):
+                    return lows[i]
+            return min(lows)
 
     # if self.entry_price is not None:
     #     if self.position == "long":

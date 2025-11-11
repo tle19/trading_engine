@@ -273,12 +273,12 @@ strategy_kwargs = { # Stochastic
     "stoch_upper": 80,
     "vol_fast_window": 14,
     "vol_slow_window": 28,
-    "stop_loss": 0.0075,
-    "take_profit": 1.25,
+    "stop_loss": 0.0075, #
+    "take_profit": 1.25, #0.75, 1.00, 1.25, 1.5
     "trailing_ratio": 0.05
 }
 # run_one_backtest( # Stochastic
-#     "MSFT",
+#     "AAPL",
 #     StochasticIndicator,
 #     start_date="2023-11-01",
 #     end_date="2025-11-01",
@@ -287,7 +287,14 @@ strategy_kwargs = { # Stochastic
 # )
 
 multiple_symbol_performance(
-    symbols, StochasticIndicator, "2023-11-01", "2025-11-01", plot=True, save_plot=True, **strategy_kwargs)
+    symbols, 
+    StochasticIndicator, 
+    "2023-11-01", 
+    "2025-11-01", 
+    plot=True, 
+    save_plot=True, 
+    **strategy_kwargs
+    )
 # grid_search("MSFT", StochasticIndicator, start_date="2023-10-01", end_date="2024-10-01")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 

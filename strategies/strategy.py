@@ -267,7 +267,79 @@ class Strategy:
         upper_band = max(self.highs[-window:])
         lower_band = min(self.lows[-window:])
         return upper_band, lower_band
+        
+    def compute_atr(self, period=14):
+        highs  = np.array(self.highs)
+        lows   = np.array(self.lows)
+        closes = np.array(self.prices)
+
+        if len(highs) < period + 1:
+            return None
+
+        tr1 = highs[1:] - lows[1:]
+        tr2 = np.abs(highs[1:] - closes[:-1])
+        tr3 = np.abs(lows[1:] - closes[:-1])
+        tr = np.maximum.reduce([tr1, tr2, tr3])
+
+        atr = tr[:period].mean()
+        for t in tr[period:]:
+            atr = (atr * (period - 1) + t) / period 
+
+        return atr
     
+    def compute_adx(self, period=14):
+        highs  = np.array(self.highs)
+        lows   = np.array(self.lows)
+        closes = np.array(self.prices)
+
+        if len(highs) < period + 2:
+            return None  # not enough data
+
+        # --- Directional Movement ---
+        up_move   = highs[1:] - highs[:-1]
+        down_move = lows[:-1] - lows[1:]
+
+        plus_dm  = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
+        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
+
+        # --- True Range ---
+        tr1 = highs[1:] - lows[1:]
+        tr2 = np.abs(highs[1:] - closes[:-1])
+        tr3 = np.abs(lows[1:] - closes[:-1])
+        tr = np.maximum.reduce([tr1, tr2, tr3])
+
+        # --- Smoothed values ---
+        tr14        = tr[:period].sum()
+        plus_dm14   = plus_dm[:period].sum()
+        minus_dm14  = minus_dm[:period].sum()
+
+        for i in range(period, len(tr)):
+            tr14        = tr14 - (tr14 / period) + tr[i]
+            plus_dm14   = plus_dm14 - (plus_dm14 / period) + plus_dm[i]
+            minus_dm14  = minus_dm14 - (minus_dm14 / period) + minus_dm[i]
+
+        plus_di  = 100 * (plus_dm14 / tr14)
+        minus_di = 100 * (minus_dm14 / tr14)
+        dx = abs(plus_di - minus_di) / (plus_di + minus_di) * 100
+
+        # --- Initialize ADX ---
+        dx_series = []
+        tr14_tmp, plus_dm14_tmp, minus_dm14_tmp = tr[:period].sum(), plus_dm[:period].sum(), minus_dm[:period].sum()
+
+        for i in range(period, len(tr)):
+            tr14_tmp        = tr14_tmp - (tr14_tmp / period) + tr[i]
+            plus_dm14_tmp   = plus_dm14_tmp - (plus_dm14_tmp / period) + plus_dm[i]
+            minus_dm14_tmp  = minus_dm14_tmp - (minus_dm14_tmp / period) + minus_dm[i]
+            pdi = 100 * (plus_dm14_tmp / tr14_tmp)
+            mdi = 100 * (minus_dm14_tmp / tr14_tmp)
+            dx_series.append(abs(pdi - mdi) / (pdi + mdi) * 100)
+
+        adx = np.mean(dx_series[:period])
+        for d in dx_series[period:]:
+            adx = ((adx * (period - 1)) + d) / period
+
+        return adx
+        
     def is_trailing_stop(self):
         return self.trailing_stop
     

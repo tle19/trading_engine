@@ -1,5 +1,6 @@
 import json
 import time
+import datetime
 import pandas as pd
 from collections import namedtuple
 from zoneinfo import ZoneInfo
@@ -39,7 +40,7 @@ class Equities:
         self.trade_logger = TradeLogger()
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
 
-    def run(self, duration=23520):
+    def run(self):
         def response_handler(response):
             data = json.loads(response).get("data", [])
             if not data:
@@ -74,12 +75,28 @@ class Equities:
             cash_allocation = self.cash * (weight / total_weight)
             strategy.get_risk_manager().set_start_cash(cash_allocation)
 
-        self.streamer.start(response_handler) # start_auto for full automation
+        self.streamer.start_auto(
+            receiver=response_handler, 
+            start_time=datetime.time(9, 30, 0), 
+            stop_time=datetime.time(16, 0, 0), 
+            on_days=(0,1,2,3,4))
         self.streamer.send(self.streamer.chart_equity(self.symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))
-        time.sleep(duration) # duration is time to market close
+        self.stream_duration()
         self.streamer.stop()
 
         self.trade_logger.output_logs()
+
+    def stream_duration(self):
+        now = datetime.datetime.now(self.timezone)
+        next_day = now.date()
+
+        if now.time() >= datetime.time(16, 0, 0) or now.weekday() > 4:
+            next_day += datetime.timedelta(days=1)
+            while next_day.weekday() > 4:
+                next_day += datetime.timedelta(days=1)
+
+        market_close_dt = datetime.datetime.combine(next_day, datetime.time(16, 0, 30), tzinfo=self.timezone)
+        time.sleep((market_close_dt - now).total_seconds())
 
     def interpret_signal(self, signal, strategy, symbol):
         is_trailing_stop = strategy.is_trailing_stop()
@@ -115,50 +132,26 @@ class Equities:
                     self.exit_ids[symbol] = self.replace_order(symbol, position, shares, stop_price, profit_price, self.exit_ids[symbol])
                 
         # --- Exit --- 
-        elif signal == 0 and position is not None:
+        elif (signal == 0 or self.force_close) and position is not None:
             fill_price = self.get_fill_price(self.exit_ids[symbol], type="oco")
             exit_price = None
             
             if fill_price is None:
-                self.cancel_order(self.exit_ids[symbol])
+                self.cancel_order(self.exit_ids[symbol]) # partial fill, shares = remaining_shares
                 if position == "long":
                     exit_id = self.sell_market(symbol, shares, "SELL")
-                    fill_price = self.get_fill_price(exit_id)
                 elif position == "short":
                     exit_id = self.buy_market(symbol, shares, "BUY_TO_COVER")
-                    fill_price = self.get_fill_price(exit_id)
+                fill_price = self.get_fill_price(exit_id)
                 exit_price = strategy.get_price()
             else:
                 if position == "long":
                     print(f"SELL -{shares} {symbol} @ {fill_price}")
                 elif position == "short":
                     print(f"BOT +{shares} {symbol} @ {fill_price}")
-
                 stop_price_f, profit_price_f = float(stop_price), float(profit_price)
                 exit_price = min([stop_price_f, profit_price_f], key=lambda x: abs(fill_price - x))
             
-            self.trade_logger.update_exit(symbol, position, shares, strategy.get_time(), exit_price, fill_price)
-            self.update_pnl(strategy, position, fill_price, shares)
-            self.flatten(symbol, strategy)
-
-        # --- Exit (Force Close) ---
-        elif self.force_close and position is not None:
-            status_code = self.cancel_order(self.exit_ids[symbol])
-
-            if status_code == 200:
-                if position == "long":
-                    exit_id = self.sell_market(symbol, shares, "SELL")
-                    fill_price = self.get_fill_price(exit_id)
-                elif position == "short":
-                    exit_id = self.buy_market(symbol, shares, "BUY_TO_COVER")
-                    fill_price = self.get_fill_price(exit_id)
-                exit_price = strategy.get_price()
-
-            elif status_code == 500:
-                fill_price = self.get_fill_price(self.exit_ids[symbol], type="oco")
-                stop_price_f, profit_price_f = float(stop_price), float(profit_price)
-                exit_price = min([stop_price_f, profit_price_f], key=lambda x: abs(fill_price - x))
-                            
             self.trade_logger.update_exit(symbol, position, shares, strategy.get_time(), exit_price, fill_price)
             self.update_pnl(strategy, position, fill_price, shares)
             self.flatten(symbol, strategy)
@@ -326,8 +319,6 @@ class Equities:
 
     def get_fill_price(self, order_id, type="single"):
         order_details = self.get_order_details(order_id)
-        if not order_details:
-            return None
         if type == "oco":
             order_details = next(
                 (c for c in order_details.get('childOrderStrategies', []) if c.get('status') == 'FILLED'),
@@ -359,7 +350,7 @@ class Equities:
 
     def cancel_order(self, order_id):
         response = self.client.order_cancel(self.hash, order_id)
-        return response.status_code
+        return response.status_code # 200 == success; 500 == failed
 
     def get_liquidation_value(self):
         details = self.client.account_details(self.hash)
@@ -393,7 +384,8 @@ class TradeLogger:
             "pnl_real": None,
             "pnl_real_pct": None,
             "pnl_theoretical": None,
-            "pnl_theoretical_pct": None
+            "pnl_theoretical_pct": None,
+            "regime": None
         }
 
         self.open_trades[symbol] = trade

@@ -11,14 +11,16 @@ def main():
     parser.add_argument("--stream", action="store_true")
     parser.add_argument("--allocate", action="store_true")
     parser.add_argument("--strategy", type=str, default="stochastic")
-    parser.add_argument("--symbol", type=str, default="MSFT")
-    parser.add_argument("--symbols", nargs="+", type=str, default="AAPL:1.0 MSFT:0.75 TSLA:0.5")
+    parser.add_argument("--symbol", type=str, default=None, help="MSFT")
+    parser.add_argument("--symbols", nargs="+", type=str, default=None, help="AAPL:1.0 MSFT:0.75 TSLA:0.5")
     parser.add_argument("--margin", type=float, default=1.0)
     args = parser.parse_args()
 
     strategy_class = strategy_map.get(args.strategy)
     if strategy_class is None:
         raise ValueError(f"Unknown Strategy: {args.strategy}")
+    if args.symbol:
+        args.symbols = [args.symbol.upper() + ":1.0"] 
 
     if args.live:
         eq = Equities(args.symbols, strategy_class, args.margin)
