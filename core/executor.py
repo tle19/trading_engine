@@ -28,7 +28,7 @@ class Equities:
         # else:
         #     self.strategy_class = strategy_class
 
-        self.trade_logger = TradeLogger()
+        self.trade_log = TradeLogger()
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
 
     def run(self):
@@ -73,7 +73,7 @@ class Equities:
         self.streamer.send(self.streamer.chart_equity(self.symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))
         self.stream_duration()
 
-        self.trade_logger.output_logs()
+        self.trade_log.output_logs()
 
     def interpret_signal(self, signal, strategy, symbol):
         is_trailing_stop = strategy.is_trailing_stop()
@@ -89,7 +89,7 @@ class Equities:
             self.entry_ids[symbol] = self.buy_market(symbol, shares, "BUY")
             self.exit_ids[symbol] = self.long_bracket(symbol, shares, stop_price, profit_price)
             fill_price = self.get_fill_price(self.entry_ids[symbol])
-            self.trade_logger.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
+            self.trade_log.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
             strategy.update_entry_price(fill_price)
 
         # --- Enter Short ---
@@ -97,7 +97,7 @@ class Equities:
             self.entry_ids[symbol] = self.sell_market(symbol, shares, "SELL_SHORT")
             self.exit_ids[symbol] = self.short_bracket(symbol, shares, stop_price, profit_price)
             fill_price = self.get_fill_price(self.entry_ids[symbol])
-            self.trade_logger.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
+            self.trade_log.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
             strategy.update_entry_price(fill_price)
 
         # --- Holding ---
@@ -110,7 +110,7 @@ class Equities:
                 
         # --- Exit Position --- 
         elif (signal == 0 or self.force_close) and position is not None:
-            fill_price = self.get_fill_price(self.exit_ids[symbol], type="oco")
+            fill_price = self.get_fill_price(self.exit_ids[symbol], type="oco", timeout=0.25)
             exit_price = None
             
             if fill_price is None:
@@ -129,7 +129,7 @@ class Equities:
                 stop_price_f, profit_price_f = float(stop_price), float(profit_price)
                 exit_price = min([stop_price_f, profit_price_f], key=lambda x: abs(fill_price - x))
             
-            self.trade_logger.update_exit(symbol, position, shares, strategy.get_time(), exit_price, fill_price)
+            self.trade_log.update_exit(symbol, position, shares, strategy.get_time(), exit_price, fill_price)
             self.update_pnl(strategy, position, fill_price, shares)
             self.flatten(symbol, strategy)
         
@@ -315,7 +315,7 @@ class Equities:
         time.sleep(polling_rate)
         return response.status_code # 200 == success; 500 == failed
         
-    def get_fill_price(self, order_id, type="single", timeout=0.5, polling_rate=0.05): 
+    def get_fill_price(self, order_id, type="single", timeout=5, polling_rate=0.25): 
         start = time.time()
         while True:
             order_details = self.get_order_details(order_id)
@@ -365,63 +365,3 @@ class Equities:
             strategy_instance.get_risk_manager().set_start_cash(cash_allocation)
 
             self.strategies[symbol] = strategy_instance
-
-class TradeLogger:
-    def __init__(self, log_file="trade_logs.json"):
-        self.open_trades = {}
-        self.trade_history = []
-        self.log_file = log_file
-
-        try:
-            with open("trade_logs.json", "r") as f:
-                self.trade_history = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            self.trade_history = []
-
-    def log_entry(self, symbol, position, shares, entry_time, entry_price, fill_price):
-        trade = {
-            "symbol": symbol,
-            "position": position,
-            "shares": shares,
-            "entry_time": entry_time.isoformat(),
-            "entry_price": entry_price,
-            "entry_fill": fill_price,
-            "exit_time": None,
-            "exit_price": None,
-            "exit_fill": None,
-            "pnl_real": None,
-            "pnl_real_pct": None,
-            "pnl_theoretical": None,
-            "pnl_theoretical_pct": None,
-            "regime": None
-        }
-
-        self.open_trades[symbol] = trade
-    
-    def update_exit(self, symbol, position, shares, exit_time, exit_price, fill_price):
-        if symbol not in self.open_trades:
-            raise ValueError(f"No open trade for symbol {symbol}")
-
-        trade = self.open_trades.pop(symbol)
-        trade["exit_time"] = exit_time.isoformat()
-        trade["exit_price"] = exit_price
-        trade["exit_fill"] = fill_price
-
-        if position == "long":
-            trade["pnl_real"] = (fill_price - trade["entry_fill"]) * shares
-            trade["pnl_theoretical"] = (exit_price - trade["entry_price"]) * shares
-        elif position == "short":
-            trade["pnl_real"] = (trade["entry_fill"] - fill_price) * shares
-            trade["pnl_theoretical"] = (trade["entry_price"] - exit_price) * shares
-
-        trade["pnl_real"] = round(trade["pnl_real"], 2)
-        trade["pnl_real_pct"] = round(trade["pnl_real"] / trade["entry_fill"] * 100, 2)
-        trade["pnl_theoretical"] = round(trade["pnl_theoretical"], 2)
-        trade["pnl_theoretical_pct"] = round(trade["pnl_theoretical"] / trade["entry_price"] * 100, 2)
-
-        self.trade_history.append(trade)
-
-    def output_logs(self):
-        with open(self.log_file, "w") as f:
-            json.dump(self.trade_history, f, indent=4)
-        print(f"Saved {len(self.trade_history)} trades to {self.log_file}")

@@ -277,14 +277,14 @@ strategy_kwargs = { # Stochastic
     "take_profit": 1.25, #0.75, 1.00, 1.25, 1.5
     "trailing_ratio": 0.05
 }
-# run_one_backtest( # Stochastic
-#     "AAPL",
-#     StochasticIndicator,
-#     start_date="2023-11-01",
-#     end_date="2025-11-01",
-#     plot=True,
-#     **strategy_kwargs
-# )
+run_one_backtest( # Stochastic
+    "MSFT",
+    StochasticIndicator,
+    start_date="2023-11-01",
+    end_date="2025-11-01",
+    plot=True,
+    **strategy_kwargs
+)
 
 multiple_symbol_performance(
     symbols, 

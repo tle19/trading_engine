@@ -22,13 +22,13 @@ def fetch_schwab_data(symbol, current_date):
 
 def test_order(symbol):
     eq = Equities(symbol, StochasticIndicator)
-    entry_id = eq.buy_market(symbol, 1)
-    exit_id = eq.long_bracket(symbol, 1, 198, 200)
+    symbol = symbol[0].split(":")[0]
 
-    time.sleep(1)
-    response = eq.cancel_order(exit_id)
-    print(response.status_code)
-    # eq.replace_order(symbol, "long", 1, 251, 253, hold_response)
+    entry_id = eq.buy_market(symbol, 1, "BUY")
+    exit_id = eq.long_bracket(symbol, 1, 333.0, 333.5)
+    time.sleep(20)
+    fill_price = eq.get_fill_price(exit_id, timeout=0.1)
+    print(fill_price)
 
 def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
     for symbol in symbols:
@@ -112,4 +112,4 @@ symbols = [
 fetch_multiple_symbols(symbols)
 # fetch_schwab_data("2025-10-15") 
 # get_average_spread(symbols, start_date="2025-8-01", end_date="2025-11-01")
-# test_order("NVDA")
+# test_order(["ADBE:1.0"])
