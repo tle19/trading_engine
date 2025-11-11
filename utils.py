@@ -39,7 +39,7 @@ def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_tim
 
 def get_symbol_positions():
     raise NotImplementedError
-
+    
 def allocate_positions(symbols_with_size, cash=25_000):
     weights = {s.upper(): float(v) for s, v in (item.split(":") for item in symbols_with_size)}
     total_weight = sum(weights.values())

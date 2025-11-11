@@ -20,9 +20,7 @@ class Equities:
         self.timezone = ZoneInfo("America/New_York")
         self.cash = self.get_liquidation_value() * margin
         self.margin = margin
-
-        if not isinstance(symbol, list):
-            symbol = [symbol.upper() + ":1.0"] 
+        self.force_close = False
 
         self.symbols = [s.split(":")[0] for s in symbol]
         self.strategies = {}
@@ -36,7 +34,6 @@ class Equities:
             self.entry_ids[sym] = None
             self.exit_ids[sym] = None
 
-        self.force_close = False
         self.trade_logger = TradeLogger()
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
 
@@ -69,11 +66,8 @@ class Equities:
             if (row.timestamp.hour, row.timestamp.minute) >= (15, 57):
                 self.force_close = True
 
-        total_weight = sum(self.shares_to_buy.values())
-        for symbol, strategy in self.strategies.items():
-            weight = self.shares_to_buy[symbol]
-            cash_allocation = self.cash * (weight / total_weight)
-            strategy.get_risk_manager().set_start_cash(cash_allocation)
+        # perform IMAP protocol position check here
+        self.intiliaze_strategy_risk_manager()
 
         self.streamer.start_auto(
             receiver=response_handler, 
@@ -85,6 +79,13 @@ class Equities:
         self.streamer.stop()
 
         self.trade_logger.output_logs()
+
+    def intiliaze_strategy_risk_manager(self):
+        total_weight = sum(self.shares_to_buy.values())
+        for symbol, strategy in self.strategies.items():
+            weight = self.shares_to_buy[symbol]
+            cash_allocation = self.cash * (weight / total_weight)
+            strategy.get_risk_manager().set_start_cash(cash_allocation)
 
     def stream_duration(self):
         now = datetime.datetime.now(self.timezone)
@@ -131,7 +132,7 @@ class Equities:
                 elif position == "short":
                     self.exit_ids[symbol] = self.replace_order(symbol, position, shares, stop_price, profit_price, self.exit_ids[symbol])
                 
-        # --- Exit --- 
+        # --- Exit Position --- 
         elif (signal == 0 or self.force_close) and position is not None:
             fill_price = self.get_fill_price(self.exit_ids[symbol], type="oco")
             exit_price = None
