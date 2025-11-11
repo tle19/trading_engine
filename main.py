@@ -11,7 +11,7 @@ def main():
     parser.add_argument("--stream", action="store_true")
     parser.add_argument("--allocate", action="store_true")
     parser.add_argument("--strategy", type=str, default="stochastic")
-    parser.add_argument("--symbol", type=str, default=None, help="MSFT")
+    parser.add_argument("--symbol", type=str, default=None, help="AAPL")
     parser.add_argument("--symbols", nargs="+", type=str, default=None, help="AAPL:1.0 MSFT:0.75 TSLA:0.5")
     parser.add_argument("--margin", type=float, default=1.0)
     args = parser.parse_args()
@@ -38,6 +38,7 @@ def main():
         dh.stream_data(args.symbol)
     elif args.allocate:
         allocate_positions(args.symbols)
+        get_symbol_positions()
     
 if __name__ == "__main__":
     main()
