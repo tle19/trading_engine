@@ -40,7 +40,7 @@ def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_tim
 def get_symbol_positions():
     raise NotImplementedError
     
-def allocate_positions(symbols_with_size, cash=25_000):
+def allocate_positions(symbols_with_size, prices, cash=25_000):
     weights = {s.upper(): float(v) for s, v in (item.split(":") for item in symbols_with_size)}
     total_weight = sum(weights.values())
     if total_weight == 0:
@@ -49,13 +49,12 @@ def allocate_positions(symbols_with_size, cash=25_000):
         total_weight = 1.0
     
     symbols = list(weights.keys())
-    curr_prices = fetch_latest_prices(symbols)
 
     shares_to_buy = {}
     for symbol in symbols:
         weight = weights[symbol]
         cash_for_symbol = cash * (weight / total_weight)
-        price = curr_prices[symbol]
+        price = prices[symbol]
         shares = int(cash_for_symbol // price)
         shares_to_buy[symbol] = shares
 
@@ -67,7 +66,7 @@ def fetch_latest_prices(symbols):
     client = schwabdev.Client(config["app_key"], config["app_secret"])
     streamer = client.stream
 
-    curr_prices = {}
+    prices = {}
     def response_handler(message):
         data = json.loads(message).get("data", [])
         if not data:
@@ -77,7 +76,7 @@ def fetch_latest_prices(symbols):
         if not content:
             return
         for item in content:
-            curr_prices[item["key"]] = float(item.get("3"))
+            prices[item["key"]] = float(item.get("3"))
 
     streamer.start(response_handler)
     streamer.send(streamer.level_one_equities(symbols, "0,3", command="SUBS"))
@@ -85,5 +84,5 @@ def fetch_latest_prices(symbols):
     streamer.stop()
     time.sleep(1)
 
-    print("Current Prices:", curr_prices)
-    return curr_prices
+    print("Current Prices:", prices)
+    return prices

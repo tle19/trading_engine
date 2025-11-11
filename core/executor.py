@@ -10,29 +10,23 @@ import schwabdev
 from utils import *
 
 class Equities:
-    def __init__(self, symbol, strategy_class, margin=1.0):
+    def __init__(self, symbols, strategy_class, margin=1.0, auto=True):
         config = load_config()
 
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])
         self.hash = self.client.account_linked().json()[0]['hashValue']
         self.streamer = self.client.stream
 
-        self.timezone = ZoneInfo("America/New_York")
         self.cash = self.get_liquidation_value() * margin
-        self.margin = margin
+        self.timezone = ZoneInfo("America/New_York")
         self.force_close = False
+        self.auto = auto
 
-        self.symbols = [s.split(":")[0] for s in symbol]
-        self.strategies = {}
-        self.entry_ids = {}
-        self.exit_ids = {}
-        self.shares_to_buy = allocate_positions(symbol, cash=self.cash)
-
-        for sym in self.symbols:
-            strategy_instance = strategy_class(sym)
-            self.strategies[sym] = strategy_instance
-            self.entry_ids[sym] = None
-            self.exit_ids[sym] = None
+        self.initialize_strategies(symbols, strategy_class)
+        # if not self.auto:
+        #     self.initialize_strategies(symbols, strategy_class)
+        # else:
+        #     self.strategy_class = strategy_class
 
         self.trade_logger = TradeLogger()
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
@@ -66,38 +60,20 @@ class Equities:
             if (row.timestamp.hour, row.timestamp.minute) >= (15, 57):
                 self.force_close = True
 
-        # perform IMAP protocol position check here
-        self.intiliaze_strategy_risk_manager()
+        # if self.auto:
+        #     perform IMAP protocol position check here
+        #     self.initialize_strategies(symbols, self.strategy_class)    
 
         self.streamer.start_auto(
             receiver=response_handler, 
             start_time=datetime.time(9, 30, 0), 
             stop_time=datetime.time(16, 0, 0), 
             on_days=(0,1,2,3,4))
+        self.await_stream_start()
         self.streamer.send(self.streamer.chart_equity(self.symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))
         self.stream_duration()
-        self.streamer.stop()
 
         self.trade_logger.output_logs()
-
-    def intiliaze_strategy_risk_manager(self):
-        total_weight = sum(self.shares_to_buy.values())
-        for symbol, strategy in self.strategies.items():
-            weight = self.shares_to_buy[symbol]
-            cash_allocation = self.cash * (weight / total_weight)
-            strategy.get_risk_manager().set_start_cash(cash_allocation)
-
-    def stream_duration(self):
-        now = datetime.datetime.now(self.timezone)
-        next_day = now.date()
-
-        if now.time() >= datetime.time(16, 0, 0) or now.weekday() > 4:
-            next_day += datetime.timedelta(days=1)
-            while next_day.weekday() > 4:
-                next_day += datetime.timedelta(days=1)
-
-        market_close_dt = datetime.datetime.combine(next_day, datetime.time(16, 0, 30), tzinfo=self.timezone)
-        time.sleep((market_close_dt - now).total_seconds())
 
     def interpret_signal(self, signal, strategy, symbol):
         is_trailing_stop = strategy.is_trailing_stop()
@@ -222,14 +198,14 @@ class Equities:
         order_dict = self.get_sell_order_dict(symbol, quantity, stop_price, profit_price)
         response = self.client.order_place(self.hash, order_dict)
         order_id = self.get_order_id(response)
-        print(f"SL @ {stop_price} & TP @ {profit_price}")
+        print(f"STP @ {stop_price} | LMT @ {profit_price}")
         return order_id
 
     def short_bracket(self, symbol, quantity, stop_price, profit_price):
         order_dict = self.get_buy_order_dict(symbol, quantity, stop_price, profit_price)
         response = self.client.order_place(self.hash, order_dict)
         order_id = self.get_order_id(response)
-        print(f"SL @ {stop_price} & TP @ {profit_price}")
+        print(f"STP @ {stop_price} | LMT @ {profit_price}")
         return order_id
     
     def get_buy_order_dict(self, symbol, quantity, stop_price, profit_price):
@@ -318,20 +294,6 @@ class Equities:
 
         return order_dict
 
-    def get_fill_price(self, order_id, type="single"):
-        order_details = self.get_order_details(order_id)
-        if type == "oco":
-            order_details = next(
-                (c for c in order_details.get('childOrderStrategies', []) if c.get('status') == 'FILLED'),
-                None
-            )
-            if not order_details:
-                return None
-        legs = order_details['orderActivityCollection'][0]['executionLegs']
-        fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / sum(leg['quantity'] for leg in legs)
-        fill_price = round(fill_price, 2)
-        return fill_price
-
     def get_order_id(self, response):
         order_id = response.headers.get('location', '/').split('/')[-1]
         return order_id
@@ -343,21 +305,66 @@ class Equities:
 
     def replace_order(self, symbol, position, quantity, stop_loss, take_profit, order_id):
         self.cancel_order(order_id)
-        time.sleep(0.05)
         if position == "long":
             return self.long_bracket(symbol, quantity, stop_loss, take_profit)
         elif position == "short":
             return self.short_bracket(symbol, quantity, stop_loss, take_profit)
 
-    def cancel_order(self, order_id):
+    def cancel_order(self, order_id, polling_rate=0.05):
         response = self.client.order_cancel(self.hash, order_id)
+        time.sleep(polling_rate)
         return response.status_code # 200 == success; 500 == failed
+        
+    def get_fill_price(self, order_id, type="single", timeout=0.5, polling_rate=0.05): 
+        start = time.time()
+        while True:
+            order_details = self.get_order_details(order_id)
+            if type == "oco":
+                order_details = next(
+                    (c for c in order_details.get('childOrderStrategies', []) if c.get('status') == 'FILLED'),
+                    None
+                )
+            if order_details and order_details.get('orderActivityCollection'):
+                legs = order_details['orderActivityCollection'][0]['executionLegs']
+                fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / sum(leg['quantity'] for leg in legs)
+                return round(fill_price, 2)
+            
+            if time.time() - start > timeout:
+                return None
+            time.sleep(polling_rate)
 
     def get_liquidation_value(self):
         details = self.client.account_details(self.hash)
         details_json = details.json()
         liquidationValue = details_json["securitiesAccount"]["currentBalances"]["liquidationValue"]
         return liquidationValue
+    
+    def await_stream_start(self):
+        while not self.streamer.active:
+            time.sleep(5)
+
+    def stream_duration(self):
+        now = datetime.now(self.timezone)
+        market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
+        time.sleep((market_close - now).total_seconds())
+    
+    def initialize_strategies(self, symbols, strategy_class):
+        self.symbols = [s.split(":")[0] for s in symbols]
+        self.entry_ids = {}
+        self.exit_ids = {}
+        self.strategies = {}
+        prices = fetch_latest_prices(self.symbols)
+        self.shares_to_buy = allocate_positions(symbols, prices, cash=self.cash)
+
+        for symbol in self.symbols:
+            self.entry_ids[symbol] = None
+            self.exit_ids[symbol] = None
+
+            strategy_instance = strategy_class(symbol)
+            cash_allocation = prices[symbol] * self.shares_to_buy[symbol]
+            strategy_instance.get_risk_manager().set_start_cash(cash_allocation)
+
+            self.strategies[symbol] = strategy_instance
 
 class TradeLogger:
     def __init__(self, log_file="trade_logs.json"):

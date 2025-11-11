@@ -49,6 +49,7 @@ class StochasticIndicator(Strategy):
         self.update(row)
         self.reset_data()
         self.reset_indicators()
+        self.minimum_computations()
         
         k, d = self.compute_stochastic(self.highs, self.lows, self.prices, self.k_period, self.k_smooth, self.d_period)
         rsi = self.compute_rsi(self.prices, self.rsi_period)
@@ -60,14 +61,10 @@ class StochasticIndicator(Strategy):
         
         self.compute_signal_direction(k, d)
         self.rolling_rsi.append(rsi)
-             
-        if not self.activated:
-            self.minimum_computations()
 
         status = self.check_status()
         if status is not None:
             return status
-
         if not self.trade_window((9, 30), (15, 30)) and self.position is None:
             return None
 
@@ -138,19 +135,19 @@ class StochasticIndicator(Strategy):
             self.rolling_rsi = []
       
     def minimum_computations(self):
-        min_bars = max(
-            self.fast_window,
-            self.slow_window,
-            self.signal_window,
-            self.rsi_period,
-            self.k_period,
-            self.k_smooth,
-            self.d_period,
-            self.vol_fast_window,
-            self.vol_slow_window
-        ) + 1
-        minutes_passed = (self.ts.hour - 9) * 60 + (self.ts.minute - 30)
-        self.activated = minutes_passed >= min_bars
+        if not self.activated:
+            required_data = max(
+                self.fast_window,
+                self.slow_window,
+                self.signal_window,
+                self.rsi_period,
+                self.k_period,
+                self.k_smooth,
+                self.d_period,
+                self.vol_fast_window,
+                self.vol_slow_window
+            ) + 1
+            self.activated = len(self.prices) > required_data
     
     def compute_signal_direction(self, k, d):
         if k and d:
