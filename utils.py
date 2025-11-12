@@ -36,31 +36,7 @@ def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_tim
 
     df = df.set_index('timestamp').between_time(start_time, end_time).reset_index()
     return df
-
-def get_symbol_positions():
-    raise NotImplementedError
     
-def allocate_positions(symbols_with_size, prices, cash=25_000):
-    weights = {s.upper(): float(v) for s, v in (item.split(":") for item in symbols_with_size)}
-    total_weight = sum(weights.values())
-    if total_weight == 0:
-        raise ValueError("Total of position sizes cannot be zero.")
-    elif total_weight < 1.0:
-        total_weight = 1.0
-    
-    symbols = list(weights.keys())
-
-    shares_to_buy = {}
-    for symbol in symbols:
-        weight = weights[symbol]
-        cash_for_symbol = cash * (weight / total_weight)
-        price = prices[symbol]
-        shares = int(cash_for_symbol // price)
-        shares_to_buy[symbol] = shares
-
-    print("Allocated positions:", shares_to_buy)
-    return shares_to_buy
-
 def fetch_latest_prices(symbols):
     config = load_config()
     client = schwabdev.Client(config["app_key"], config["app_secret"])
@@ -87,6 +63,29 @@ def fetch_latest_prices(symbols):
     print("Current Prices:", prices)
     return prices
 
+def get_symbol_positions():
+    raise NotImplementedError
+
+def allocate_positions(symbols_with_size, prices, cash=25_000):
+    weights = {s.upper(): float(v) for s, v in (item.split(":") for item in symbols_with_size)}
+    total_weight = sum(weights.values())
+    if total_weight == 0:
+        raise ValueError("Total of position sizes cannot be zero.")
+    elif total_weight < 1.0:
+        total_weight = 1.0
+    
+    symbols = list(weights.keys())
+
+    shares_to_buy = {}
+    for symbol in symbols:
+        weight = weights[symbol]
+        cash_for_symbol = cash * (weight / total_weight)
+        price = prices[symbol]
+        shares = int(cash_for_symbol // price)
+        shares_to_buy[symbol] = shares
+
+    print("Allocated positions:", shares_to_buy)
+    return shares_to_buy
 
 class TradeLogger:
     def __init__(self, log_file="trade_logs.json"):

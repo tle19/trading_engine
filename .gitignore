@@ -1,0 +1,10 @@
+# --- Sensitive files ---
+api_config.json
+tokens.json
+
+# --- Data folders ---
+data/
+plots/
+
+# --- Python build/cache files ---
+__pycache__/

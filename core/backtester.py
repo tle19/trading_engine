@@ -14,8 +14,8 @@ class Backtest:
         self.commission = commission
         self.slippage = slippage
 
-        self.spread_window = deque(maxlen=10)
         self.entry_price = None
+        self.spread_window = deque(maxlen=10)
         self.slip_up = 0
         self.slip_dn = 0
 
