@@ -273,8 +273,8 @@ strategy_kwargs = { # Stochastic
     "stoch_upper": 80,
     "vol_fast_window": 14,
     "vol_slow_window": 28,
-    "stop_loss": 0.0075, #
-    "take_profit": 1.25, #0.75, 1.00, 1.25, 1.5
+    "stop_loss": 0.0075, # 0.005, 0.0075, 0.01
+    "take_profit": 1.25, # 0.75, 1.00, 1.25, 1.50
     "trailing_ratio": 0.05
 }
 run_one_backtest( # Stochastic

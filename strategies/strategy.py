@@ -19,7 +19,7 @@ class Strategy:
 
         self.position = None
         self.activated = False
-        self.trailing_stop = False
+        self.trailing = False
         self.entry_price = None
         self.stop_price = None
         self.profit_price = None
@@ -121,13 +121,13 @@ class Strategy:
     def flatten(self):
         self.position_size = self.default_position_size
         self.position = None
-        self.trailing_stop = False
+        self.trailing = False
         self.entry_price = None
         self.stop_price = None
         self.profit_price = None
     
     def set_trailing_stop(self):
-        self.trailing_stop = False
+        self.trailing = False
         if not self.in_safe_range():
             return None
         
@@ -136,11 +136,11 @@ class Strategy:
 
         if self.position == "long" and self.close > self.entry_price:
             self.stop_price = round(self.stop_price + adjustment, 2)
-            self.trailing_stop = True
+            self.trailing = True
 
         elif self.position == "short" and self.close < self.entry_price:
             self.stop_price = round(self.stop_price - adjustment, 2)
-            self.trailing_stop = True
+            self.trailing = True
 
     def get_trailing_ratio(self, price):
         min_distance = self.compute_min_distance()
@@ -263,14 +263,14 @@ class Strategy:
             return 0.0
         return (vol_fast_ma - vol_slow_ma) / vol_slow_ma
     
-    def donchian_channel(self, window):
-        upper_band = max(self.highs[-window:])
-        lower_band = min(self.lows[-window:])
+    def donchian_channel(self, period):
+        upper_band = max(self.highs[-period:])
+        lower_band = min(self.lows[-period:])
         return upper_band, lower_band
         
     def compute_atr(self, period=14):
-        highs  = np.array(self.highs)
-        lows   = np.array(self.lows)
+        highs = np.array(self.highs)
+        lows = np.array(self.lows)
         closes = np.array(self.prices)
 
         if len(highs) < period + 1:
@@ -288,27 +288,24 @@ class Strategy:
         return atr
     
     def compute_adx(self, period=14):
-        highs  = np.array(self.highs)
-        lows   = np.array(self.lows)
+        highs = np.array(self.highs)
+        lows = np.array(self.lows)
         closes = np.array(self.prices)
 
         if len(highs) < period + 2:
             return None  # not enough data
 
-        # --- Directional Movement ---
         up_move   = highs[1:] - highs[:-1]
         down_move = lows[:-1] - lows[1:]
 
         plus_dm  = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
         minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
 
-        # --- True Range ---
         tr1 = highs[1:] - lows[1:]
         tr2 = np.abs(highs[1:] - closes[:-1])
         tr3 = np.abs(lows[1:] - closes[:-1])
         tr = np.maximum.reduce([tr1, tr2, tr3])
 
-        # --- Smoothed values ---
         tr14        = tr[:period].sum()
         plus_dm14   = plus_dm[:period].sum()
         minus_dm14  = minus_dm[:period].sum()
@@ -322,7 +319,6 @@ class Strategy:
         minus_di = 100 * (minus_dm14 / tr14)
         dx = abs(plus_di - minus_di) / (plus_di + minus_di) * 100
 
-        # --- Initialize ADX ---
         dx_series = []
         tr14_tmp, plus_dm14_tmp, minus_dm14_tmp = tr[:period].sum(), plus_dm[:period].sum(), minus_dm[:period].sum()
 
@@ -340,8 +336,8 @@ class Strategy:
 
         return adx
         
-    def is_trailing_stop(self):
-        return self.trailing_stop
+    def is_trailing(self):
+        return self.trailing
     
     def get_time(self):
         return self.ts

@@ -76,7 +76,7 @@ class Equities:
         self.trade_log.output_logs()
 
     def interpret_signal(self, signal, strategy, symbol):
-        is_trailing_stop = strategy.is_trailing_stop()
+        is_trailing = strategy.is_trailing()
         stop_price = str(strategy.get_stop_price())
         profit_price = str(strategy.get_profit_price())
         position = strategy.get_position()
@@ -89,20 +89,20 @@ class Equities:
             self.entry_ids[symbol] = self.buy_market(symbol, shares, "BUY")
             self.exit_ids[symbol] = self.long_bracket(symbol, shares, stop_price, profit_price)
             fill_price = self.get_fill_price(self.entry_ids[symbol])
-            self.trade_log.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
             strategy.update_entry_price(fill_price)
+            self.trade_log.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
 
         # --- Enter Short ---
         elif signal == -1 and position == "short":
             self.entry_ids[symbol] = self.sell_market(symbol, shares, "SELL_SHORT")
             self.exit_ids[symbol] = self.short_bracket(symbol, shares, stop_price, profit_price)
             fill_price = self.get_fill_price(self.entry_ids[symbol])
-            self.trade_log.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
             strategy.update_entry_price(fill_price)
+            self.trade_log.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
 
         # --- Holding ---
         elif signal is None and position is not None:
-            if is_trailing_stop:
+            if is_trailing:
                 if position == "long":
                     self.exit_ids[symbol] = self.replace_order(symbol, position, shares, stop_price, profit_price, self.exit_ids[symbol])
                 elif position == "short":
@@ -123,7 +123,7 @@ class Equities:
                 exit_price = strategy.get_price()
             else:
                 if position == "long":
-                    print(f"SELL -{shares} {symbol} @ {fill_price}")
+                    print(f"SOLD -{shares} {symbol} @ {fill_price}")
                 elif position == "short":
                     print(f"BOT +{shares} {symbol} @ {fill_price}")
                 stop_price_f, profit_price_f = float(stop_price), float(profit_price)
@@ -191,7 +191,7 @@ class Equities:
         response = self.client.order_place(self.hash, order_dict)
         order_id = self.get_order_id(response)
         fill_price = self.get_fill_price(order_id)
-        print(f"SELL -{quantity} {symbol} @ {fill_price}")
+        print(f"SOLD -{quantity} {symbol} @ {fill_price}")
         return order_id
     
     def long_bracket(self, symbol, quantity, stop_price, profit_price):
@@ -344,7 +344,7 @@ class Equities:
             time.sleep(5)
 
     def stream_duration(self):
-        now = datetime.now(self.timezone)
+        now = datetime.datetime.now(self.timezone)
         market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
         time.sleep((market_close - now).total_seconds())
     

@@ -15,6 +15,8 @@ class ExampleIndicator(Strategy):
     def generate_signal(self, row):
         self.update(row)  # store OHLCV
         self.reset_data() # intraday data reset
+        self.reset_indicators()
+        self.minimum_computations()
 
         status = self.check_status() # close positions
         if status is not None:
