@@ -4,7 +4,7 @@ from strategies import Strategy, RiskManager
 from utils import *
 
 class StochasticIndicator(Strategy):
-    def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=50,
+    def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=20,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
                  vol_fast_window=14, vol_slow_window=28, vol_threshold=0.025, atr_window=10,
                  stop_loss=0.0075, take_profit=1.25, trailing_ratio=0.05, position_size=1.0,
@@ -53,12 +53,12 @@ class StochasticIndicator(Strategy):
         
         k, d = self.compute_stochastic(self.highs, self.lows, self.prices, self.k_period, self.k_smooth, self.d_period)
         rsi = self.compute_rsi(self.prices, self.rsi_period)
-        hist = self.compute_macd(self.fast_window, self.slow_window, self.signal_window)
-        ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
+        hist, _, _ = self.compute_macd(self.fast_window, self.slow_window, self.signal_window)
+        # self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
         vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
         # atr = self.compute_atr()
         # adaptive sl and tp based on ATR/volatility/spread
-        
+
         self.compute_signal_direction(k, d)
         self.rolling_rsi.append(rsi)
 
@@ -71,19 +71,19 @@ class StochasticIndicator(Strategy):
         signal = None
         if self.position is None and self.activated:
             # self.regime_detection()
-            signal = self.enter_trade(ema, k, d, rsi, hist, vol)
+            signal = self.enter_trade(k, d, rsi, hist, vol)
         # elif self.position is not None and rsi is not None:
         #     signal = self.exit_trade(rsi, hist)
         #     self.set_trailing_stop()
         return signal
 
-    def enter_trade(self, ema, k, d, rsi, hist, vol):
+    def enter_trade(self, k, d, rsi, hist, vol):
         if not (self.stoch_lower < min(k, d) and max(k, d) < self.stoch_upper):
             return None
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
 
         if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
-            if self.close > ema or vol > self.vol_threshold: #and vol > prev_vol)
+            if vol > self.vol_threshold: #and vol > prev_vol)
                 # self.local_high = self.close
                 signal = self.buy() 
                 self.stop_price = round(self.low * (1 - self.stop_loss), 2)
@@ -92,7 +92,7 @@ class StochasticIndicator(Strategy):
                 # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
         if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0:
-            if self.close < ema or vol > self.vol_threshold:
+            if vol > self.vol_threshold:
                 # self.local_low = self.close
                 signal = self.sell() 
                 self.stop_price = round(self.high * (1 + self.stop_loss), 2)
@@ -132,7 +132,7 @@ class StochasticIndicator(Strategy):
             self.vol_slow_ema = None
             self.current_atr = None
             self.regime = None
-            self.rolling_rsi = []
+            self.rolling_rsi = deque(maxlen=10)
       
     def minimum_computations(self):
         if not self.activated:

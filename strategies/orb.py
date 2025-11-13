@@ -6,7 +6,7 @@ from utils import *
 class ORBIndicator(Strategy):
     def __init__(self, symbol, orb_window=15, rsi_period=14,
                  fast_window=12, slow_window=26, signal_window=9,
-                 stop_loss=0.005, take_profit=0.0025, trailing_ratio=0.1, position_size=1.0,
+                 stop_loss=0.001, take_profit=0.0025, trailing_ratio=0.1, position_size=1.0,
                  target=0.0001, loss=-0.0001):
         super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size)
         self.fast_window = fast_window
@@ -37,12 +37,12 @@ class ORBIndicator(Strategy):
         if status is not None:
             return status
         
-        self.risk_manager.daily_risk_target()   
-        self.risk_manager.daily_risk_stop()
-        if self.risk_manager.is_day_pause():
+        self.risk_manager.check_daily_target()   
+        self.risk_manager.check_daily_stop()
+        if self.risk_manager.day_pause():
             return None
 
-        if not self.trade_window((9, 30), (15, 00)) and self.position is None:
+        if not self.trade_window((9, 30), (10, 00)) and self.position is None:
             return None
         
         rsi = self.compute_rsi(self.prices, self.rsi_period)
@@ -54,33 +54,31 @@ class ORBIndicator(Strategy):
 
         signal = None
         if self.position is None and self.orb_tick > self.orb_window:
-            signal = self.enter_trade(hist)
-        # elif self.position is not None:
-        #     signal = self.exit_trade(hist)
-        # elif self.position is not None:
-        #     self.set_trailing_stop()
+            signal = self.enter_trade()
+        elif self.position is not None:
+            signal = self.exit_trade()
         self.prev_hist = hist
 
         return signal
 
-    def enter_trade(self, hist):
-        if self.close > self.upper_support and hist > 0:
+    def enter_trade(self):
+        if self.close > self.upper_support:
             signal = self.buy()
-            self.stop_price = round(self.low * (1 - self.stop_loss), 2)
+            self.stop_price = round(self.open * (1 - self.stop_loss), 2)
             # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
             return signal
-        elif self.close < self.lower_support and hist < 0:
+        elif self.close < self.lower_support:
             signal = self.sell()
-            self.stop_price = round(self.high * (1 + self.stop_loss), 2)
+            self.stop_price = round(self.open * (1 + self.stop_loss), 2)
             # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
             return signal
         
-    def exit_trade(self, hist):
-        if self.position == "long" and self.prev_hist > 0 and hist < 0:
+    def exit_trade(self):
+        if self.position == "long" and self.close > self.open:
             self.stop_price = round(self.close, 2)
             # print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
             return self.sell()
-        if self.position == "short" and self.prev_hist < 0 and hist > 0:
+        if self.position == "short" and self.close < self.open:
             self.stop_price = round(self.close, 2)
             # print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
             return self.buy()

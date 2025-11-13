@@ -251,9 +251,9 @@ class Strategy:
 
         macd = self.fast_ema - self.slow_ema
         self.signal_ema = signal = self.compute_ema(self.signal_ema, macd, signal_window)
-
         hist = macd - signal
-        return hist
+        
+        return hist, macd, signal
     
     def compute_volume_oscillator(self, data, fast_window=7, slow_window=12):
         vol_fast_ma = self.compute_ma(data, fast_window)

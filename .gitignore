@@ -1,7 +1,10 @@
 # --- Sensitive files ---
 api_config.json
 tokens.json
+
+# --- Test files ---
 trade_logs.json
+gs_results.json
 
 # --- Data folders ---
 data/
