@@ -10,7 +10,7 @@ import schwabdev
 from utils import *
 
 class Equities:
-    def __init__(self, symbols, strategy_class, margin=1.0, auto=True):
+    def __init__(self, symbols, strategy_class, margin=1.0):
         config = load_config()
 
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])
@@ -19,14 +19,14 @@ class Equities:
 
         self.cash = self.get_liquidation_value() * margin
         self.timezone = ZoneInfo("America/New_York")
+        self.initialized = False
         self.force_close = False
-        self.auto = auto
+        self.prices = []
 
-        self.initialize_strategies(symbols, strategy_class)
-        # if not self.auto:
-        #     self.initialize_strategies(symbols, strategy_class)
-        # else:
-        #     self.strategy_class = strategy_class
+        if self.symbols:
+            self.initialize_strategies(symbols, strategy_class)
+        else:
+            self.strategy_class = strategy_class
 
         self.trade_log = TradeLogger()
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
@@ -54,15 +54,16 @@ class Equities:
                 row = self.Row(timestamp, open, high, low, close, volume)
                 print(f"{symbol}: {row}")
 
+                # if not self.initialized:
+                #     self.allocate_cash(symbol, open)
+
                 signal = strategy.generate_signal(row)
                 self.interpret_signal(signal, strategy, symbol)
 
+            # if not self.initialized:
+            #     self.initialized = True
             if (row.timestamp.hour, row.timestamp.minute) >= (15, 57):
-                self.force_close = True
-
-        # if self.auto:
-        #     perform IMAP protocol position check here
-        #     self.initialize_strategies(symbols, self.strategy_class)    
+                self.force_close = True   
 
         self.streamer.start_auto(
             receiver=response_handler, 
@@ -340,8 +341,14 @@ class Equities:
         return liquidationValue
     
     def await_stream_start(self):
+        now = datetime.datetime.now(self.timezone)
         while not self.streamer.active:
             time.sleep(5)
+        # check time at 6:15am
+        # if not self.symbols:
+        #     perform IMAP protocol position check here
+        #     symbols = fetch_symbols
+        #     self.initialize_strategies(symbols, self.strategy_class) 
 
     def stream_duration(self):
         now = datetime.datetime.now(self.timezone)
@@ -365,3 +372,21 @@ class Equities:
             strategy_instance.get_risk_manager().set_start_cash(cash_allocation)
 
             self.strategies[symbol] = strategy_instance
+
+    # def initialize_strategies(self, symbols, strategy_class):
+    #     self.symbols = [s.split(":")[0] for s in symbols]
+    #     self.entry_ids = {}
+    #     self.exit_ids = {}
+    #     self.strategies = {}
+
+    #     for symbol in self.symbols:
+    #         self.entry_ids[symbol] = None
+    #         self.exit_ids[symbol] = None
+
+    #         strategy_instance = strategy_class(symbol)
+    #         self.strategies[symbol] = strategy_instance
+
+    # def allocate_cash(self, symbol, price):
+    #     cash_allocation = price * self.shares_to_buy[symbol]
+    #     self.strategies[symbol].get_risk_manager().set_start_cash(cash_allocation)
+    #     self.prices.append(price)

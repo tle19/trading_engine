@@ -14,7 +14,6 @@ def main():
     parser.add_argument("--symbol", type=str, default=None, help="AAPL")
     parser.add_argument("--symbols", nargs="+", type=str, default=None, help="AAPL:1.0 MSFT:0.75 TSLA:0.5")
     parser.add_argument("--margin", type=float, default=1.0)
-    parser.add_argument("--auto", type=bool, default=True)
     args = parser.parse_args()
 
     strategy_class = strategy_map.get(args.strategy)
@@ -24,7 +23,7 @@ def main():
         args.symbols = [args.symbol.upper() + ":1.0"] 
 
     if args.live:
-        eq = Equities(args.symbols, strategy_class, margin=args.margin, auto=args.auto)
+        eq = Equities(args.symbols, strategy_class, margin=args.margin)
         eq.run()
     elif args.backtest:
         strat = strategy_class(args.symbol)

@@ -58,6 +58,7 @@ class StochasticIndicator(Strategy):
         vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
         # atr = self.compute_atr()
         # adaptive sl and tp based on ATR/volatility/spread
+        # clamp sl (0.005, 0.01) and tp (0.75, 1.5) in predetermined range
 
         self.compute_signal_direction(k, d)
         self.rolling_rsi.append(rsi)
@@ -83,7 +84,7 @@ class StochasticIndicator(Strategy):
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
 
         if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
-            if vol > self.vol_threshold: #and vol > prev_vol)
+            if vol > self.vol_threshold: #and vol > prev_vol (ROC compared to last 3)
                 # self.local_high = self.close
                 signal = self.buy() 
                 self.stop_price = round(self.low * (1 - self.stop_loss), 2)
@@ -168,31 +169,3 @@ class StochasticIndicator(Strategy):
         self.regime = "strong"
         # self.position_size = 1.0
         raise NotImplementedError
-
-    # if self.entry_price is not None:
-    #     if self.position == "long":
-    #         self.local_high = max(self.close, self.local_high)
-    #     if self.position == "short":
-    #         self.local_low = min(self.close, self.local_low)
-
-    #     total_distance = abs(self.profit_price - self.entry_price)
-    #     if self.position == "long":
-    #         distance_traveled = self.local_high - self.entry_price
-    #     elif self.position == "short":
-    #         distance_traveled = self.entry_price - self.local_low
-    #     progress = (distance_traveled / total_distance)
-    #     if progress >= 0.25 and not self.hit_pct:
-    #         self.hit_high = self.local_high
-    #         self.hit_low = self.local_low
-    #         self.hit_pct = True
-
-    # if status is not None:
-    #     if self.hit_pct:
-    #         if self.position == "long" and self.high > self.profit_price:
-    #             self.trades.append(1)
-    #         elif self.position == "short" and self.low < self.profit_price:
-    #             self.trades.append(1)
-    #         else:
-    #             self.trades.append(0)
-    #     self.hit_pct = False
-    #     return status

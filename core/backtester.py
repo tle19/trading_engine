@@ -45,7 +45,6 @@ class Backtest:
             
         self.stats.update_dates(start_date, end_date)
         self.stats.summary()
-        # print(sum(self.strategy.trades) / len(self.strategy.trades))
         if plot:
             self.plotting.update_dates(start_date, end_date)
             self.plotting.plot_equity(save_plot, overlay=True)
