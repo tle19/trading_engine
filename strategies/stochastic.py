@@ -37,12 +37,6 @@ class StochasticIndicator(Strategy):
         self.regime = None
         self.rolling_rsi = deque(maxlen=10)
 
-        # self.hold_time = 0
-        # self.local_high = 0
-        # self.local_low = 0
-        # self.hit_pct = False
-        # self.trades = []
-
         self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
 
     def generate_signal(self, row):
@@ -73,9 +67,6 @@ class StochasticIndicator(Strategy):
         if self.position is None and self.activated:
             # self.regime_detection()
             signal = self.enter_trade(k, d, rsi, hist, vol)
-        # elif self.position is not None and rsi is not None:
-        #     signal = self.exit_trade(rsi, hist)
-        #     self.set_trailing_stop()
         return signal
 
     def enter_trade(self, k, d, rsi, hist, vol):
@@ -85,7 +76,6 @@ class StochasticIndicator(Strategy):
 
         if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
             if vol > self.vol_threshold: #and vol > prev_vol (ROC compared to last 3)
-                # self.local_high = self.close
                 signal = self.buy() 
                 self.stop_price = round(self.low * (1 - self.stop_loss), 2)
                 stop_dist = self.entry_price -  self.stop_price
@@ -94,7 +84,6 @@ class StochasticIndicator(Strategy):
                 return signal
         if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0:
             if vol > self.vol_threshold:
-                # self.local_low = self.close
                 signal = self.sell() 
                 self.stop_price = round(self.high * (1 + self.stop_loss), 2)
                 stop_dist = self.stop_price - self.entry_price

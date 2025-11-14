@@ -249,33 +249,54 @@ symbols = [
 #     plot=False,
 #     **strategy_kwargs
 # )
-# grid_search("NVDA", MACDIndicator, start_date="2023-10-01", end_date="2024-10-01")
 
-strategy_kwargs = { # Stochastic
+strategy_kwargs = { # Volume
     "fast_window": 12,
     "slow_window": 26,
     "signal_window": 9,
-    "htf_window": 20, 
+    "htf_window": 50, 
     "rsi_period": 14,
-    "k_period": 14,
-    "k_smooth": 3,
-    "d_period": 3,
-    "stoch_lower": 20,
-    "stoch_upper": 80,
     "vol_fast_window": 14,
     "vol_slow_window": 28,
-    "stop_loss": 0.0075, # 0.005, 0.0075, 0.01
-    "take_profit": 1.25, # 0.75, 1.00, 1.25, 1.50
-    "trailing_ratio": 0.05
+    "rsi_accel": 3,
+    "vol_accel": 0.01,
+    "stop_loss": 0.001,
+    "take_profit": 0.02
 }
-run_one_backtest( # Stochastic
+run_one_backtest( # Volume
     "AAPL",
-    StochasticIndicator,
-    start_date="2023-11-01",
-    end_date="2025-11-01",
-    plot=True,
+    VolumeAccelIndicator,
+    start_date="2025-10-22",
+    end_date="2025-10-22",
+    plot=False,
     **strategy_kwargs
 )
+
+# strategy_kwargs = { # Stochastic
+#     "fast_window": 12,
+#     "slow_window": 26,
+#     "signal_window": 9,
+#     "htf_window": 20, 
+#     "rsi_period": 14,
+#     "k_period": 14,
+#     "k_smooth": 3,
+#     "d_period": 3,
+#     "stoch_lower": 20,
+#     "stoch_upper": 80,
+#     "vol_fast_window": 14,
+#     "vol_slow_window": 28,
+#     "stop_loss": 0.0075, # 0.005, 0.0075, 0.01
+#     "take_profit": 1.25, # 0.75, 1.00, 1.25, 1.50
+#     "trailing_ratio": 0.05
+# }
+# run_one_backtest( # Stochastic
+#     "AAPL",
+#     StochasticIndicator,
+#     start_date="2025-10-01",
+#     end_date="2025-11-01",
+#     plot=True,
+#     **strategy_kwargs
+# )
 
 # multiple_symbol_performance(
 #     symbols, 
