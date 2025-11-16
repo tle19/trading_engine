@@ -23,7 +23,7 @@ class Equities:
         self.force_close = False
         self.prices = []
 
-        if self.symbols:
+        if symbols:
             self.initialize_strategies(symbols, strategy_class)
         else:
             self.strategy_class = strategy_class

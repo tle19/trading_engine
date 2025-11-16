@@ -31,8 +31,6 @@ class StochasticIndicator(Strategy):
         self.slow_ema = None
         self.signal_ema = None
         self.stoch_signal = None
-        self.vol_fast_ema = None
-        self.vol_slow_ema = None
         self.current_atr = None
         self.regime = None
         self.rolling_rsi = deque(maxlen=10)
@@ -118,8 +116,6 @@ class StochasticIndicator(Strategy):
             self.slow_ema = None
             self.signal_ema = None
             self.stoch_signal = None
-            self.vol_fast_ema = None
-            self.vol_slow_ema = None
             self.current_atr = None
             self.regime = None
             self.rolling_rsi = deque(maxlen=10)

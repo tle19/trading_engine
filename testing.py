@@ -158,6 +158,17 @@ def optimize_params(symbol, strategy_class, start, end):
         "trailing_ratio": [0.05]
     }
 
+    param_grid = { # Volume
+    "fast_window": [14],
+    "slow_window": [28],
+    "rsi_period": [14],
+    "rsi_thresh": [1, 2, 3, 4, 5],
+    "vol_accel_factor": [1.1, 1.2, 1.3, 1.4, 1.5],
+    "vol_decay_factor": [1.5, 2, 3, 4, 5],
+    "stop_loss": [0.0025, 0.005, 0.0075, 0.01],
+    "take_profit": [0.03] # 0.01, 0.015, 0.02, 0.03
+    }
+
     best_score = -np.inf
     best_params = None
     results = []
@@ -251,26 +262,24 @@ symbols = [
 # )
 
 strategy_kwargs = { # Volume
-    "fast_window": 12,
-    "slow_window": 26,
-    "signal_window": 9,
-    "htf_window": 50, 
+    "fast_window": 14,
+    "slow_window": 28,
     "rsi_period": 14,
-    "vol_fast_window": 14,
-    "vol_slow_window": 28,
-    "rsi_accel": 3,
-    "vol_accel": 0.01,
-    "stop_loss": 0.001,
-    "take_profit": 0.02
+    "rsi_thresh": 2,
+    "vol_decay_factor": 2,
+    "vol_accel_factor": 1.1,
+    "stop_loss": 0.005,
+    "take_profit": 0.01
 }
 run_one_backtest( # Volume
-    "AAPL",
-    VolumeAccelIndicator,
-    start_date="2025-10-22",
-    end_date="2025-10-22",
-    plot=False,
+    "NVDA",
+    VolumeDecayIndicator,
+    start_date="2025-10-01",
+    end_date="2025-10-31",
+    plot=True,
     **strategy_kwargs
 )
+walk_forward_optimize("MSFT", VolumeDecayIndicator)
 
 # strategy_kwargs = { # Stochastic
 #     "fast_window": 12,
