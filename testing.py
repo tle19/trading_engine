@@ -140,6 +140,17 @@ def optimize_params(symbol, strategy_class, start, end):
         "trailing_ratio": [0.05]
     }
 
+    param_grid = { # Volume
+        "fast_window": [14],
+        "slow_window": [28],
+        "rsi_period": [14],
+        "rsi_thresh": [1, 2, 3, 4, 5],
+        "vol_accel_factor": [1.1, 1.2, 1.3, 1.4, 1.5],
+        "vol_decay_factor": [1.5, 2, 3, 4, 5],
+        "stop_loss": [0.0025, 0.005, 0.0075, 0.01],
+        "take_profit": [0.03] # 0.01, 0.015, 0.02, 0.03
+        }
+
     param_grid = { # Stochastic
         "fast_window": [12],
         "slow_window": [26],
@@ -153,20 +164,9 @@ def optimize_params(symbol, strategy_class, start, end):
         "stoch_upper": [80],
         "vol_fast_window": [14], # [7, 10, 12, 14]
         "vol_slow_window": [28], # [15, 20, 25, 28]
-        "stop_loss": [0.0075],
-        "take_profit": [1.25],
+        "stop_loss": [0.005, 0.0075, 0.01, 0.0125, 0.015],
+        "take_profit": [0.25, 0.50, 0.75, 1.00, 1.25, 1.5, 1.75, 2.00],
         "trailing_ratio": [0.05]
-    }
-
-    param_grid = { # Volume
-    "fast_window": [14],
-    "slow_window": [28],
-    "rsi_period": [14],
-    "rsi_thresh": [1, 2, 3, 4, 5],
-    "vol_accel_factor": [1.1, 1.2, 1.3, 1.4, 1.5],
-    "vol_decay_factor": [1.5, 2, 3, 4, 5],
-    "stop_loss": [0.0025, 0.005, 0.0075, 0.01],
-    "take_profit": [0.03] # 0.01, 0.015, 0.02, 0.03
     }
 
     best_score = -np.inf
@@ -261,54 +261,54 @@ symbols = [
 #     **strategy_kwargs
 # )
 
-strategy_kwargs = { # Volume
-    "fast_window": 14,
-    "slow_window": 28,
-    "rsi_period": 14,
-    "rsi_thresh": 2,
-    "vol_decay_factor": 2,
-    "vol_accel_factor": 1.1,
-    "stop_loss": 0.005,
-    "take_profit": 0.01
-}
-run_one_backtest( # Volume
-    "NVDA",
-    VolumeDecayIndicator,
-    start_date="2025-10-01",
-    end_date="2025-10-31",
-    plot=True,
-    **strategy_kwargs
-)
-walk_forward_optimize("MSFT", VolumeDecayIndicator)
-
-# strategy_kwargs = { # Stochastic
-#     "fast_window": 12,
-#     "slow_window": 26,
-#     "signal_window": 9,
-#     "htf_window": 20, 
+# strategy_kwargs = { # Volume
+#     "fast_window": 14,
+#     "slow_window": 28,
 #     "rsi_period": 14,
-#     "k_period": 14,
-#     "k_smooth": 3,
-#     "d_period": 3,
-#     "stoch_lower": 20,
-#     "stoch_upper": 80,
-#     "vol_fast_window": 14,
-#     "vol_slow_window": 28,
-#     "stop_loss": 0.0075, # 0.005, 0.0075, 0.01
-#     "take_profit": 1.25, # 0.75, 1.00, 1.25, 1.50
-#     "trailing_ratio": 0.05
+#     "rsi_thresh": 1,
+#     "vol_decay_factor": 2,
+#     "vol_accel_factor": 1.1,
+#     "stop_loss": 0.01,
+#     "take_profit": 0.01
 # }
-# run_one_backtest( # Stochastic
+# run_one_backtest( # Volume
 #     "AAPL",
-#     StochasticIndicator,
-#     start_date="2025-10-01",
-#     end_date="2025-11-01",
+#     VolumeDecayIndicator,
+#     start_date="2023-10-01",
+#     end_date="2025-10-31",
 #     plot=True,
 #     **strategy_kwargs
 # )
+# walk_forward_optimize("MSFT", VolumeDecayIndicator)
+
+strategy_kwargs = { # Stochastic
+    "fast_window": 12,
+    "slow_window": 26,
+    "signal_window": 9,
+    "htf_window": 20, 
+    "rsi_period": 14,
+    "k_period": 14,
+    "k_smooth": 3,
+    "d_period": 3,
+    "stoch_lower": 20,
+    "stoch_upper": 80,
+    "vol_fast_window": 14,
+    "vol_slow_window": 28,
+    "stop_loss": 0.0075, # [0.005, 0.0075, 0.01, 0.0125, 0.015]
+    "take_profit": 1.25, # [0.75, 1.00, 1.25, 1.5, 1.75, 2.00]
+    "trailing_ratio": 0.05
+}
+run_one_backtest( # Stochastic
+    "AAPL",
+    StochasticIndicator,
+    start_date="2024-8-01",
+    end_date="2025-5-01",
+    plot=True,
+    **strategy_kwargs
+)
 
 # multiple_symbol_performance(
-#     symbols, 
+#     symbols[5:17], 
 #     StochasticIndicator, 
 #     "2023-11-01", 
 #     "2025-11-01", 
@@ -316,7 +316,7 @@ walk_forward_optimize("MSFT", VolumeDecayIndicator)
 #     save_plot=True, 
 #     **strategy_kwargs
 #     )
-# grid_search("MSFT", StochasticIndicator, start_date="2023-10-01", end_date="2024-10-01")
+# grid_search("AAPL", StochasticIndicator, start_date="2024-8-01", end_date="2025-5-01")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 
 

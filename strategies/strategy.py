@@ -31,9 +31,10 @@ class Strategy:
         self.volume = None
         self.ts = None
 
+        self.prices = []
+        self.opens = []
         self.highs = []
         self.lows = []
-        self.prices = []
         self.volumes = [] 
 
         self.risk_manager = RiskManager()
@@ -66,6 +67,7 @@ class Strategy:
             self.ts = row.timestamp
 
         self.prices.append(self.close)
+        self.opens.append(self.open)
         self.highs.append(self.high)
         self.lows.append(self.low)
         self.volumes.append(self.volume)
@@ -73,6 +75,7 @@ class Strategy:
     def reset_data(self):
         if self.trade_window((9, 30), (9, 30)):
             self.prices = [self.prices[-1]]
+            self.opens = [self.opens[-1]]
             self.highs = [self.highs[-1]]
             self.lows = [self.lows[-1]]
             self.volumes = [self.volumes[-1]]
@@ -288,12 +291,13 @@ class Strategy:
         return atr
     
     def compute_adx(self, period=14):
-        highs = np.array(self.highs)
-        lows = np.array(self.lows)
+        highs  = np.array(self.highs)
+        lows   = np.array(self.lows)
         closes = np.array(self.prices)
 
-        if len(highs) < period + 2:
-            return None  # not enough data
+        n = len(highs)
+        if n < period + 2:
+            return None
 
         up_move   = highs[1:] - highs[:-1]
         down_move = lows[:-1] - lows[1:]
@@ -301,41 +305,59 @@ class Strategy:
         plus_dm  = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
         minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
 
-        tr1 = highs[1:] - lows[1:]
-        tr2 = np.abs(highs[1:] - closes[:-1])
-        tr3 = np.abs(lows[1:] - closes[:-1])
-        tr = np.maximum.reduce([tr1, tr2, tr3])
+        tr = np.maximum.reduce([
+            highs[1:] - lows[1:],
+            np.abs(highs[1:] - closes[:-1]),
+            np.abs(lows[1:]  - closes[:-1])
+        ])
 
-        tr14        = tr[:period].sum()
-        plus_dm14   = plus_dm[:period].sum()
-        minus_dm14  = minus_dm[:period].sum()
+        tr14       = tr[:period].sum()
+        plus_dm14  = plus_dm[:period].sum()
+        minus_dm14 = minus_dm[:period].sum()
 
-        for i in range(period, len(tr)):
-            tr14        = tr14 - (tr14 / period) + tr[i]
-            plus_dm14   = plus_dm14 - (plus_dm14 / period) + plus_dm[i]
-            minus_dm14  = minus_dm14 - (minus_dm14 / period) + minus_dm[i]
+        dx_vals = []
+        for i in range(period, n-1):
+            tr14       = tr14 - tr14/period + tr[i]
+            plus_dm14  = plus_dm14 - plus_dm14/period + plus_dm[i]
+            minus_dm14 = minus_dm14 - minus_dm14/period + minus_dm[i]
 
-        plus_di  = 100 * (plus_dm14 / tr14)
-        minus_di = 100 * (minus_dm14 / tr14)
-        dx = abs(plus_di - minus_di) / (plus_di + minus_di) * 100
+            pdi = plus_dm14 / tr14
+            mdi = minus_dm14 / tr14
+            dx_vals.append(abs(pdi - mdi) / (pdi + mdi + 1e-9))
 
-        dx_series = []
-        tr14_tmp, plus_dm14_tmp, minus_dm14_tmp = tr[:period].sum(), plus_dm[:period].sum(), minus_dm[:period].sum()
+        if len(dx_vals) < period:
+            return None
 
-        for i in range(period, len(tr)):
-            tr14_tmp        = tr14_tmp - (tr14_tmp / period) + tr[i]
-            plus_dm14_tmp   = plus_dm14_tmp - (plus_dm14_tmp / period) + plus_dm[i]
-            minus_dm14_tmp  = minus_dm14_tmp - (minus_dm14_tmp / period) + minus_dm[i]
-            pdi = 100 * (plus_dm14_tmp / tr14_tmp)
-            mdi = 100 * (minus_dm14_tmp / tr14_tmp)
-            dx_series.append(abs(pdi - mdi) / (pdi + mdi) * 100)
+        adx = sum(dx_vals[:period]) / period
+        for d in dx_vals[period:]:
+            adx = (adx*(period-1) + d) / period
 
-        adx = np.mean(dx_series[:period])
-        for d in dx_series[period:]:
-            adx = ((adx * (period - 1)) + d) / period
-
-        return adx
+        return adx * 100
+    
+    def compute_swing(self, mode="low", window=2, lookback=15):
+        if len(self.prices) < window * 2 + 1:
+            return None
         
+        highs = self.highs[-lookback:]
+        lows = self.lows[-lookback:]
+        n = len(highs)
+
+        if mode == "high":
+            for i in range(n - window - 1, window - 1, -1):
+                left = highs[i - window:i]
+                right = highs[i + 1:i + 1 + window]
+                if highs[i] > max(left) and highs[i] > max(right):
+                    return highs[i]
+            return max(highs)
+
+        elif mode == "low":
+            for i in range(n - window - 1, window - 1, -1):
+                left = lows[i - window:i]
+                right = lows[i + 1:i + 1 + window]
+                if lows[i] < min(left) and lows[i] < min(right):
+                    return lows[i]
+            return min(lows)
+            
     def is_trailing(self):
         return self.trailing
     
