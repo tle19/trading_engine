@@ -20,7 +20,8 @@ def main():
     if strategy_class is None:
         raise ValueError(f"Unknown Strategy: {args.strategy}")
     if args.symbol:
-        args.symbols = [args.symbol.upper() + ":1.0"] 
+        args.symbol = args.symbol.upper()
+        args.symbols = [args.symbol + ":1.0"] 
 
     if args.live:
         eq = Equities(args.symbols, strategy_class, margin=args.margin)

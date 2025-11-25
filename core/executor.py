@@ -89,7 +89,7 @@ class Equities:
         if signal == 1 and position == "long":
             self.entry_ids[symbol] = self.buy_market(symbol, shares, "BUY")
             self.exit_ids[symbol] = self.long_bracket(symbol, shares, stop_price, profit_price)
-            fill_price = self.get_fill_price(self.entry_ids[symbol])
+            fill_price = self.get_fill_price(self.entry_ids[symbol], shares)
             strategy.update_entry_price(fill_price)
             self.trade_log.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
 
@@ -97,7 +97,7 @@ class Equities:
         elif signal == -1 and position == "short":
             self.entry_ids[symbol] = self.sell_market(symbol, shares, "SELL_SHORT")
             self.exit_ids[symbol] = self.short_bracket(symbol, shares, stop_price, profit_price)
-            fill_price = self.get_fill_price(self.entry_ids[symbol])
+            fill_price = self.get_fill_price(self.entry_ids[symbol], shares)
             strategy.update_entry_price(fill_price)
             self.trade_log.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
 
@@ -111,16 +111,16 @@ class Equities:
                 
         # --- Exit Position --- 
         elif (signal == 0 or self.force_close) and position is not None:
-            fill_price = self.get_fill_price(self.exit_ids[symbol], type="oco", timeout=0.25)
+            fill_price = self.get_fill_price(self.exit_ids[symbol], shares, type="oco", timeout=0.25)
             exit_price = None
             
             if fill_price is None:
-                self.cancel_order(self.exit_ids[symbol]) # partial fill, shares = remaining_shares
+                self.cancel_order(self.exit_ids[symbol])
                 if position == "long":
                     exit_id = self.sell_market(symbol, shares, "SELL")
                 elif position == "short":
                     exit_id = self.buy_market(symbol, shares, "BUY_TO_COVER")
-                fill_price = self.get_fill_price(exit_id)
+                fill_price = self.get_fill_price(exit_id, shares)
                 exit_price = strategy.get_price()
             else:
                 if position == "long":
@@ -167,7 +167,7 @@ class Equities:
 
         response = self.client.order_place(self.hash, order_dict)
         order_id = self.get_order_id(response)
-        fill_price = self.get_fill_price(order_id)
+        fill_price = self.get_fill_price(order_id, quantity)
         print(f"BOT +{quantity} {symbol} @ {fill_price}")
         return order_id
     
@@ -191,7 +191,7 @@ class Equities:
 
         response = self.client.order_place(self.hash, order_dict)
         order_id = self.get_order_id(response)
-        fill_price = self.get_fill_price(order_id)
+        fill_price = self.get_fill_price(order_id, quantity)
         print(f"SOLD -{quantity} {symbol} @ {fill_price}")
         return order_id
     
@@ -316,7 +316,7 @@ class Equities:
         time.sleep(polling_rate)
         return response.status_code # 200 == success; 500 == failed
         
-    def get_fill_price(self, order_id, type="single", timeout=5, polling_rate=0.25): 
+    def get_fill_price(self, order_id, quantity, type="single", timeout=5, polling_rate=0.25): 
         start = time.time()
         while True:
             order_details = self.get_order_details(order_id)
@@ -325,10 +325,13 @@ class Equities:
                     (c for c in order_details.get('childOrderStrategies', []) if c.get('status') == 'FILLED'),
                     None
                 )
+
             if order_details and order_details.get('orderActivityCollection'):
                 legs = order_details['orderActivityCollection'][0]['executionLegs']
-                fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / sum(leg['quantity'] for leg in legs)
-                return round(fill_price, 2)
+                total_qty = sum(leg['quantity'] for leg in legs)
+                if total_qty == quantity:
+                    fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / total_qty
+                    return round(fill_price, 2)
             
             if time.time() - start > timeout:
                 return None

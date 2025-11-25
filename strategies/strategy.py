@@ -159,7 +159,7 @@ class Strategy:
         min_dist = spread * min_dist_ratio
         return min_dist
     
-    def compute_spread(self, stability_window=10):
+    def compute_spread(self, stability_window=5):
         if len(self.prices) < stability_window:
             return None
 
