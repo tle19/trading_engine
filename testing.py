@@ -227,18 +227,24 @@ symbols = [
 # )
 
 # strategy_kwargs = { # MACD
-#     "fast_window": 4,
-#     "slow_window": 9,
-#     "signal_window": 6,
-#     "stop_loss": 0.001,
-#     "take_profit": 0.005
+#     "fast_window1": 6, 
+#     "slow_window1": 13, 
+#     "signal_window1": 5,
+#     "fast_window2": 12, 
+#     "slow_window2": 26, 
+#     "signal_window2": 9,
+#     "fast_window3": 24, 
+#     "slow_window3": 52, 
+#     "signal_window3": 18,
+#     "stop_loss": 0.001, 
+#     "take_profit": 0.05
 # }
 # run_one_backtest( # MACD
 #     "NVDA",
 #     MACDIndicator,
-#     start_date="2025-10-01",
+#     start_date="2025-1-01",
 #     end_date="2025-10-31",
-#     plot=False,
+#     plot=True,
 #     **strategy_kwargs
 # )
 
@@ -293,17 +299,17 @@ strategy_kwargs = { # Stochastic
     "vol_fast_window": 14,
     "vol_slow_window": 28,
     "stop_loss": 0.0075,
-    "take_profit": 1.50,
+    "take_profit": 1.25,
     "trailing_ratio": 0.05
 }
-# run_one_backtest( # Stochastic
-#     "AAPL",
-#     StochasticIndicator,
-#     start_date="2023-11-01",
-#     end_date="2025-11-01",
-#     plot=True,
-#     **strategy_kwargs
-# )
+run_one_backtest( # Stochastic
+    "AAPL",
+    StochasticIndicator,
+    start_date="2023-12-01",
+    end_date="2024-12-01",
+    plot=True,
+    **strategy_kwargs
+)
 
 # multiple_symbol_performance(
 #     symbols[5:17], 
@@ -314,7 +320,7 @@ strategy_kwargs = { # Stochastic
 #     save_plot=True, 
 #     **strategy_kwargs
 #     )
-grid_search("AAPL", StochasticIndicator, start_date="2023-11-01", end_date="2025-11-01")
+# grid_search("AAPL", StochasticIndicator, start_date="2023-11-01", end_date="2025-11-01")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 
 

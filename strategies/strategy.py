@@ -253,10 +253,10 @@ class Strategy:
         self.slow_ema = self.compute_ema(self.slow_ema, price, slow_window)
 
         macd = self.fast_ema - self.slow_ema
-        self.signal_ema = signal = self.compute_ema(self.signal_ema, macd, signal_window)
-        hist = macd - signal
+        self.signal_ema = self.compute_ema(self.signal_ema, macd, signal_window)
+        hist = macd - self.signal_ema
         
-        return hist, macd, signal
+        return hist, macd, self.signal_ema
     
     def compute_volume_oscillator(self, data, fast_window=14, slow_window=28):
         vol_fast_ma = self.compute_ma(data, fast_window)
@@ -334,7 +334,7 @@ class Strategy:
 
         return adx * 100
     
-    def compute_swing(self, mode="low", window=2, lookback=15):
+    def compute_swing(self, mode="low", window=2, lookback=10):
         if len(self.prices) < window * 2 + 1:
             return None
         

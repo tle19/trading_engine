@@ -5,7 +5,7 @@ from utils import *
 
 class ORBIndicator(Strategy):
     def __init__(self, symbol, orb_window=5, rsi_period=14, safety_dist=0.5,
-                 stop_loss=0.001, take_profit=0.001, trailing_ratio=0.1, position_size=1.0,
+                 stop_loss=0.001, take_profit=1.0, trailing_ratio=0.1, position_size=1.0,
                  target=0.0001, loss=-0.0001):
         super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size)
         self.orb_window = orb_window
@@ -64,7 +64,7 @@ class ORBIndicator(Strategy):
         elif self.close < self.lower_support:
             signal = self.sell()
             diff = self.upper_support - self.lower_support
-            self.stop_price = round(self.upper_support * (1 + self.take_profit), 2)
+            self.stop_price = round(self.upper_support * (1 + self.stop_loss), 2)
             self.profit_price = round(self.lower_support - (diff * self.take_profit), 2)
             # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
             return signal
