@@ -33,7 +33,7 @@ class ORBIndicator(Strategy):
         status = self.check_status()
         if status is not None:
             return status
-        if not self.trade_window((9, 30), (16, 00)) and self.position is None:
+        if not self.trade_window((9, 30), (15, 30)) and self.position is None:
             return None
 
         signal = None

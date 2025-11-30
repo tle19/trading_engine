@@ -257,59 +257,59 @@ symbols = [
 #     "trailing_ratio": 0.1
 # }
 # run_one_backtest( # ORB
-#     "AAPL",
+#     "TSLA",
 #     ORBIndicator,
-#     start_date="2023-10-01",
+#     start_date="2023-11-01",
 #     end_date="2025-11-01",
 #     plot=True,
 #     **strategy_kwargs
 # )
 
-# strategy_kwargs = { # Volume
-#     "fast_window": 14,
-#     "slow_window": 28,
-#     "rsi_period": 14,
-#     "rsi_thresh": 1,
-#     "vol_decay_factor": 2,
-#     "vol_accel_factor": 1.1,
-#     "stop_loss": 0.01,
-#     "take_profit": 0.01
-# }
-# run_one_backtest( # Volume
-#     "AAPL",
-#     VolumeDecayIndicator,
-#     start_date="2023-10-01",
-#     end_date="2025-10-31",
-#     plot=True,
-#     **strategy_kwargs
-# )
-# walk_forward_optimize("MSFT", VolumeDecayIndicator)
-
-strategy_kwargs = { # Stochastic
-    "fast_window": 12,
-    "slow_window": 26,
-    "signal_window": 9,
-    "htf_window": 20, 
+strategy_kwargs = { # Volume
+    "fast_window": 14,
+    "slow_window": 28,
     "rsi_period": 14,
-    "k_period": 14,
-    "k_smooth": 3,
-    "d_period": 3,
-    "stoch_lower": 20,
-    "stoch_upper": 80,
-    "vol_fast_window": 14,
-    "vol_slow_window": 28,
-    "stop_loss": 0.0075,
-    "take_profit": 1.25,
-    "trailing_ratio": 0.05
+    "rsi_thresh": 1,
+    "vol_decay_factor": 2,
+    "vol_accel_factor": 1.1,
+    "stop_loss": 0.01,
+    "take_profit": 0.01
 }
-run_one_backtest( # Stochastic
-    "AVGO",
-    StochasticIndicator,
-    start_date="2023-11-1",
-    end_date="2025-11-1",
+run_one_backtest( # Volume
+    "TSLA",
+    VolumeDecayIndicator,
+    start_date="2025-10-20",
+    end_date="2025-11-01",
     plot=True,
     **strategy_kwargs
 )
+# walk_forward_optimize("MSFT", VolumeDecayIndicator)
+
+# strategy_kwargs = { # Stochastic
+#     "fast_window": 12,
+#     "slow_window": 26,
+#     "signal_window": 9,
+#     "htf_window": 20, 
+#     "rsi_period": 14,
+#     "k_period": 14,
+#     "k_smooth": 3,
+#     "d_period": 3,
+#     "stoch_lower": 20,
+#     "stoch_upper": 80,
+#     "vol_fast_window": 14,
+#     "vol_slow_window": 28,
+#     "stop_loss": 0.0075,
+#     "take_profit": 1.25,
+#     "trailing_ratio": 0.05
+# }
+# run_one_backtest( # Stochastic
+#     "MSFT",
+#     StochasticIndicator,
+#     start_date="2023-11-1",
+#     end_date="2025-11-1",
+#     plot=True,
+#     **strategy_kwargs
+# )
 
 # multiple_symbol_performance(
 #     symbols[5:17], 

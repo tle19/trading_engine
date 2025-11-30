@@ -31,16 +31,10 @@ class VolumeDecayIndicator(Strategy):
         self.reset_indicators()
         self.minimum_computations()
 
-        # self.risk_manager.check_daily_target()
-        # self.risk_manager.check_daily_stop()
-        # if self.risk_manager.day_pause():
-        #     return None
-
         vol = self.compute_volume_oscillator(self.volumes, self.fast_window, self.slow_window)
         rsi = self.compute_rsi(self.prices, self.rsi_period)
         
         if self.rolling_rsi and self.rolling_vol:
-            #ema isntead?
             rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
         self.rolling_rsi.append(rsi)
         self.rolling_vol.append(vol)
@@ -101,12 +95,12 @@ class VolumeDecayIndicator(Strategy):
         if self.position == "long" and vol_cond and self.close > self.entry_price:
             self.stop_price = round(self.close, 2)
             self.vol_anchor = 0
-            print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
+            # print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
             return self.sell()
         if self.position == "short" and vol_cond and self.close < self.entry_price:
             self.stop_price = round(self.close, 2)
             self.vol_anchor = 0
-            print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
+            # print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
             return self.buy()
       
     def reset_indicators(self):
