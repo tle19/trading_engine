@@ -303,10 +303,10 @@ strategy_kwargs = { # Stochastic
     "trailing_ratio": 0.05
 }
 run_one_backtest( # Stochastic
-    "AAPL",
+    "AVGO",
     StochasticIndicator,
-    start_date="2023-12-01",
-    end_date="2024-12-01",
+    start_date="2023-11-1",
+    end_date="2025-11-1",
     plot=True,
     **strategy_kwargs
 )

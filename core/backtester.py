@@ -97,6 +97,7 @@ class Backtest:
             self.risk_manager.update_risk(pnl)
             self.stats.update_trade(pnl)
             self.strategy.flatten()
+            position = None
             # print(self.ts, ": ", pnl)
 
         self.update_equity(position, shares)
