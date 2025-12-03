@@ -7,7 +7,7 @@ class StochasticIndicator(Strategy):
     def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=20,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
                  vol_fast_window=14, vol_slow_window=28, vol_threshold=0.025, atr_window=10,
-                 stop_loss=0.0075, take_profit=1.25, trailing_ratio=0.05, position_size=1.0,
+                 stop_loss=0.01, take_profit=0.01, trailing_ratio=0.05, position_size=1.0,
                  target=0.001, loss=-0.001):
         super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size)
         self.fast_window = fast_window
@@ -50,7 +50,7 @@ class StochasticIndicator(Strategy):
         vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
         # atr = self.compute_atr()
         # adaptive sl and tp based on ATR/volatility/spread
-        # clamp sl (0.005, 0.01) and tp (0.75, 1.5) in predetermined range
+        # clamp sl (0.005, 0.015) and tp (0.005, 0.015) in predetermined range
 
         self.compute_signal_direction(k, d)
         self.rolling_rsi.append(rsi)
@@ -75,19 +75,36 @@ class StochasticIndicator(Strategy):
         if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
             if vol > self.vol_threshold: #and vol > prev_vol (ROC compared to last 3)
                 signal = self.buy() 
-                self.stop_price = round(self.low * (1 - self.stop_loss), 2)
-                stop_dist = self.entry_price -  self.stop_price
-                self.profit_price = round(self.entry_price + (stop_dist * self.take_profit), 2)
                 # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
         if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0:
             if vol > self.vol_threshold:
                 signal = self.sell() 
-                self.stop_price = round(self.high * (1 + self.stop_loss), 2)
-                stop_dist = self.stop_price - self.entry_price
-                self.profit_price = round(self.entry_price - (stop_dist * self.take_profit), 2)
                 # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
+
+    # def enter_trade(self, k, d, rsi, hist, vol): # original version
+    #     if not (self.stoch_lower < min(k, d) and max(k, d) < self.stoch_upper):
+    #         return None
+
+    #     if self.stoch_signal == "long" and rsi > 50 and hist > 0:
+    #         if vol > self.vol_threshold:
+    #             signal = self.buy() 
+    #             swing_point = self.compute_swing(mode="low", lookback=10)
+    #             self.stop_price = round(swing_point * (1 - self.stop_loss), 2)
+    #             diff = self.close - self.stop_price
+    #             self.profit_price = round(self.close + (1 * diff), 2)
+    #             # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
+    #             return signal
+    #     if self.stoch_signal == "short" and rsi < 50 and hist < 0:
+    #         if vol > self.vol_threshold:
+    #             signal = self.sell() 
+    #             swing_point = self.compute_swing(mode="high", lookback=10)
+    #             self.stop_price = round(swing_point * (1 + self.stop_loss), 2)
+    #             diff = self.stop_price - self.close
+    #             self.profit_price = round(self.close - (1 * diff), 2)
+    #             # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
+    #             return signal
         
     def exit_trade(self, rsi, hist):
         if self.position == "long":

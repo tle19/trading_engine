@@ -98,7 +98,7 @@ class Backtest:
             self.stats.update_trade(pnl)
             self.strategy.flatten()
             position = None
-            print(self.ts, ": ", pnl)
+            # print(self.ts, ": ", pnl)
 
         self.update_equity(position, shares)
 

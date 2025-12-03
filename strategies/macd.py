@@ -4,39 +4,40 @@ from strategies import Strategy, RiskManager
 from utils import *
 
 class MACDIndicator(Strategy):
-    def __init__(self, symbol, fast_window1=6, slow_window1=13, signal_window1=5,
-                 fast_window2=12, slow_window2=26, signal_window2=9,
-                 fast_window3=24, slow_window3=52, signal_window3=18,
+    def __init__(self, symbol, fast_window_low=5, slow_window_low=8, signal_window_low=9,
+                 fast_window_med=13, slow_window_med=21, signal_window_med=9,
+                 fast_window_high=34, slow_window_high=144, signal_window_high=18,
                  stop_loss=0.001, take_profit=0.05, position_size=1.0,
                  target=0.001, loss=-0.001):
         super().__init__(symbol, stop_loss, take_profit, position_size)
-        self.fast_window1 = fast_window1
-        self.slow_window1 = slow_window1
-        self.signal_window1 = signal_window1
-        self.fast_window2 = fast_window2
-        self.slow_window2 = slow_window2
-        self.signal_window2 = signal_window2
-        self.fast_window3 = fast_window3
-        self.slow_window3 = slow_window3
-        self.signal_window3 = signal_window3
+        self.fast_window_low = fast_window_low
+        self.slow_window_low = slow_window_low
+        self.signal_window_low = signal_window_low
+        self.fast_window_med = fast_window_med
+        self.slow_window_med = slow_window_med
+        self.signal_window_med = signal_window_med
+        self.fast_window_high = fast_window_high
+        self.slow_window_high = slow_window_high
+        self.signal_window_high = signal_window_high
 
-        self.fast_ema1 = None
-        self.slow_ema1 = None
-        self.signal_ema1 = None
-        self.fast_ema2 = None
-        self.slow_ema2 = None
-        self.signal_ema2 = None
-        self.fast_ema3 = None
-        self.slow_ema3 = None
-        self.signal_ema3 = None
-        self.prev_hist1 = None
-        self.prev_hist2 = None
-        self.prev_hist3 = None
+        self.fast_ema_low = None
+        self.slow_ema_low = None
+        self.signal_ema_low = None
+        self.fast_ema_med = None
+        self.slow_ema_med = None
+        self.signal_ema_med = None
+        self.fast_ema_high = None
+        self.slow_ema_high = None
+        self.signal_ema_high = None
+        self.prev_hist_low = None
+        self.prev_hist_med = None
+        self.prev_hist_high = None
 
-        self.orb_window = 15
-        self.upper_support = None
-        self.lower_support = None
         self.direction = None
+        self.cond_1 = False
+        self.cond_2 = False
+        self.cond_3 = False
+        self.cond_4 = False
 
         self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
 
@@ -46,59 +47,99 @@ class MACDIndicator(Strategy):
         self.reset_indicators()
         self.minimum_computations()
 
-        hist1, macd_line1, self.fast_ema1, self.slow_ema1, self.signal_ema1 = self.compute_macd(self.fast_ema1, self.slow_ema1, self.signal_ema1, self.fast_window1, self.slow_window1, self.signal_window1)
-        hist2, macd_line2, self.fast_ema2, self.slow_ema2, self.signal_ema2 = self.compute_macd(self.fast_ema2, self.slow_ema2, self.signal_ema2, self.fast_window2, self.slow_window2, self.signal_window2)
-        hist3, macd_line3, self.fast_ema3, self.slow_ema3, self.signal_ema3 = self.compute_macd(self.fast_ema3, self.slow_ema3, self.signal_ema3, self.fast_window3, self.slow_window3, self.signal_window3)
+        hist_low, macd_line_low, self.fast_ema_low, self.slow_ema_low, self.signal_ema_low = self.compute_macd(self.fast_ema_low, self.slow_ema_low, self.signal_ema_low, self.fast_window_low, self.slow_window_low, self.signal_window_low)
+        hist_med, macd_line_med, self.fast_ema_med, self.slow_ema_med, self.signal_ema_med = self.compute_macd(self.fast_ema_med, self.slow_ema_med, self.signal_ema_med, self.fast_window_med, self.slow_window_med, self.signal_window_med)
+        hist_high, macd_line_high, self.fast_ema_high, self.slow_ema_high, self.signal_ema_high = self.compute_macd(self.fast_ema_high, self.slow_ema_high, self.signal_ema_high, self.fast_window_high, self.slow_window_high, self.signal_window_high)
         
-        if self.close > self.upper_support:
-            self.direction = "long"
-        elif self.close < self.lower_support:
-            self.direction = "short"
-        else:
-            self.direction = None
-
         status = self.check_status()
         if status is not None:
             return status
-        if not self.trade_window((9, 30), (14, 00)) and self.position is None:
+        if not self.trade_window((9, 30), (15, 00)) and self.position is None:
             return None
         
         signal = None
         if self.position is None and self.activated:
-            signal = self.enter_trade(hist1, hist2, hist3)
-        elif self.position is not None and self.activated:
-            signal = self.exit_trade(hist1, hist2, hist3)
-        self.prev_hist1 = hist1
-        self.prev_hist2 = hist2
-        self.prev_hist3 = hist3
+            signal = self.enter_trade(hist_low, hist_med, hist_high)
+        # elif self.position is not None and self.activated:
+        #     signal = self.exit_trade(hist_low, hist_med, hist_high)
+        self.prev_hist_low = hist_low
+        self.prev_hist_med = hist_med
+        self.prev_hist_high = hist_high
         return signal
 
-    def enter_trade(self, hist1, hist2, hist3):
-        vol_osc = self.compute_volume_oscillator(self.volumes)
-        vol_avg = self.compute_ma(self.volumes, 3)
-        if hist1 > 0 and hist2 > 0 and hist3 > 0 and self.prev_hist1 < hist1 and self.prev_hist2 < hist2:
+    def enter_trade(self, hist_low, hist_med, hist_high):
+        if hist_high > 0:
+            if self.direction == "short":
+                self.cond_1 = False
+                self.cond_2 = False
+                self.cond_3 = False
+                self.cond_4 = False
+            self.direction = "long"
+        elif hist_high < 0:
             if self.direction == "long":
+                self.cond_1 = False
+                self.cond_2 = False
+                self.cond_3 = False
+                self.cond_4 = False
+            self.direction = "short"
+
+        if hist_high > 0:
+            if not self.cond_1:
+                self.cond_1 = hist_med > 0 and hist_med < self.prev_hist_med
+            if not self.cond_2 and self.cond_1:
+                if self.prev_hist_low > 0:
+                    self.cond_2 = hist_low < 0
+                elif self.prev_hist_low < 0:
+                    self.cond_1 = False 
+            if not self.cond_3 and self.cond_2 and self.cond_1:
+                if hist_med > 0:
+                    self.cond_3 = hist_med > self.prev_hist_med
+                elif hist_med < 0:
+                    self.cond_3 = hist_high > self.prev_hist_high
+        elif hist_high < 0:
+            if not self.cond_1:
+                self.cond_1 = hist_med < 0 and hist_med > self.prev_hist_med
+            if not self.cond_2 and self.cond_1:
+                self.cond_2 = hist_low > 0 and self.prev_hist_low < 0
+            if not self.cond_3 and self.cond_2 and self.cond_1:
+                if hist_med < 0:
+                    self.cond_3 = hist_med < self.prev_hist_med
+                elif hist_med > 0:
+                    self.cond_3 = hist_high < self.prev_hist_high
+
+        if self.direction == "long":
+            if self.cond_1 and self.cond_2 and self.cond_3: 
                 signal = self.buy()
                 swing_point = self.compute_swing(mode="low", lookback=10)
                 self.stop_price = round(swing_point * (1 - self.stop_loss), 2)
-                self.stop_price = round(self.low * (1 - self.stop_loss), 2)
-                print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}")
+                diff = self.close - self.stop_price
+                self.profit_price = round(self.close + (1 * diff), 2)
+                self.cond_1 = False
+                self.cond_2 = False
+                self.cond_3 = False
+                self.cond_4 = False
+                # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}")
                 return signal
-        if hist1 < 0 and hist2 < 0 and hist3 < 0 and self.prev_hist1 > hist1 and self.prev_hist2 > hist2:
-            if self.direction == "short":
+        if self.direction == "short":
+            if self.cond_1 and self.cond_2 and self.cond_3: 
                 signal = self.sell()
                 swing_point = self.compute_swing(mode="high", lookback=10)
                 self.stop_price = round(swing_point * (1 + self.stop_loss), 2)
-                self.stop_price = round(self.high * (1 + self.stop_loss), 2)
-                print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}")
+                diff = self.stop_price - self.close
+                self.profit_price = round(self.close - (1 * diff), 2)
+                self.cond_1 = False
+                self.cond_2 = False
+                self.cond_3 = False
+                self.cond_4 = False
+                # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}")
                 return signal
         
-    def exit_trade(self, hist1, hist2, hist3):
-        if self.position == "long" and hist1 < 0 and hist2 < 0:
+    def exit_trade(self, hist_low, hist_med, hist_high):
+        if self.position == "long" and hist_low < 0 and hist_med < 0:
             self.stop_price = round(self.close, 2)
             print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
             return self.sell()
-        if self.position == "short" and hist1 > 0 and hist2 > 0:
+        if self.position == "short" and hist_low > 0 and hist_med > 0:
             self.stop_price = round(self.close, 2)
             print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
             return self.buy()
@@ -106,33 +147,37 @@ class MACDIndicator(Strategy):
     def minimum_computations(self):
         if not self.activated:
             required_data = max(
-                self.fast_window1,
-                self.slow_window1,
-                self.signal_window1,
-                self.fast_window2,
-                self.slow_window2,
-                self.signal_window2,
-                self.fast_window3,
-                self.slow_window3,
-                self.signal_window3,
+                self.fast_window_low,
+                self.slow_window_low,
+                self.signal_window_low,
+                self.fast_window_med,
+                self.slow_window_med,
+                self.signal_window_med,
+                self.fast_window_high,
+                self.slow_window_high, # delete?
+                self.signal_window_high,
             ) + 1
-            self.upper_support, self.lower_support = self.donchian_channel(self.orb_window)
             self.activated = len(self.prices) > required_data
 
     def reset_indicators(self):
         if self.trade_window((9, 30), (9, 30)):
-            self.fast_ema1 = None
-            self.slow_ema1 = None
-            self.signal_ema1 = None
-            self.fast_ema2 = None
-            self.slow_ema2 = None
-            self.signal_ema2 = None
-            self.fast_ema3 = None
-            self.slow_ema3 = None
-            self.signal_ema3 = None
-            self.prev_hist1 = None
-            self.prev_hist2 = None
-            self.prev_hist3 = None
+            self.fast_ema_low = None
+            self.slow_ema_low = None
+            self.signal_ema_low = None
+            self.fast_ema_med = None
+            self.slow_ema_med = None
+            self.signal_ema_med = None
+            self.fast_ema_high = None
+            self.slow_ema_high = None
+            self.signal_ema_high = None
+            self.prev_hist_low = None
+            self.prev_hist_med = None
+            self.prev_hist_high = None
+            self.direction = None
+            self.cond_1 = False
+            self.cond_2 = False
+            self.cond_3 = False
+            self.cond_4 = False
             return None
 
     def compute_macd(self, fast_ema, slow_ema, signal_ema, fast_window, slow_window, signal_window):

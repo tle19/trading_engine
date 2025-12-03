@@ -164,7 +164,7 @@ def optimize_params(symbol, strategy_class, start, end):
         "vol_fast_window": [14], # [7, 10, 12, 14]
         "vol_slow_window": [28], # [15, 20, 25, 28]
         "stop_loss": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015],
-        "take_profit": [0.25, 0.50, 0.75, 1.00, 1.25, 1.5, 1.75, 2.00, 2.25, 2.50, 2.75, 3.00, 3.25, 3.50, 3.75, 4.00, 4.25, 4.50, 4.75, 5.00],
+        "take_profit": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02],
         "trailing_ratio": [0.05]
     }
 
@@ -206,6 +206,8 @@ symbols = [
     "MRK", "PFE", "TMO", "AMGN" 
 ]
 
+symbols = ["QQQ", "AAPL", "MSFT", "CRM", "ADBE", "GOOG", "QCOM", "UPS"]
+
 # strategy_kwargs = { # SMA
 #     "fast_window": 10,
 #     "slow_window": 20,
@@ -226,27 +228,27 @@ symbols = [
 #     **strategy_kwargs
 # )
 
-# strategy_kwargs = { # MACD
-#     "fast_window1": 6, 
-#     "slow_window1": 13, 
-#     "signal_window1": 5,
-#     "fast_window2": 12, 
-#     "slow_window2": 26, 
-#     "signal_window2": 9,
-#     "fast_window3": 24, 
-#     "slow_window3": 52, 
-#     "signal_window3": 18,
-#     "stop_loss": 0.001, 
-#     "take_profit": 0.05
-# }
-# run_one_backtest( # MACD
-#     "NVDA",
-#     MACDIndicator,
-#     start_date="2025-1-01",
-#     end_date="2025-10-31",
-#     plot=True,
-#     **strategy_kwargs
-# )
+strategy_kwargs = { # MACD
+    "fast_window_low": 6, 
+    "slow_window_low": 13, 
+    "signal_window_low": 5,
+    "fast_window_med": 12, 
+    "slow_window_med": 26, 
+    "signal_window_med": 9,
+    "fast_window_high": 24, 
+    "slow_window_high": 52, 
+    "signal_window_high": 18,
+    "stop_loss": 0.001, 
+    "take_profit": 0.05
+}
+run_one_backtest( # MACD
+    "AAPL",
+    MACDIndicator,
+    start_date="2023-11-01",
+    end_date="2025-11-01",
+    plot=True,
+    **strategy_kwargs
+)
 
 # strategy_kwargs = { # ORB
 #     "orb_window": 5,
@@ -265,25 +267,24 @@ symbols = [
 #     **strategy_kwargs
 # )
 
-strategy_kwargs = { # Volume
-    "fast_window": 14,
-    "slow_window": 28,
-    "rsi_period": 14,
-    "rsi_thresh": 1,
-    "vol_decay_factor": 2,
-    "vol_accel_factor": 1.1,
-    "stop_loss": 0.01,
-    "take_profit": 0.01
-}
-run_one_backtest( # Volume
-    "TSLA",
-    VolumeDecayIndicator,
-    start_date="2025-10-20",
-    end_date="2025-11-01",
-    plot=True,
-    **strategy_kwargs
-)
-# walk_forward_optimize("MSFT", VolumeDecayIndicator)
+# strategy_kwargs = { # Volume
+#     "fast_window": 14,
+#     "slow_window": 28,
+#     "rsi_period": 14,
+#     "rsi_thresh": 1,
+#     "vol_decay_factor": 2,
+#     "vol_accel_factor": 1.1,
+#     "stop_loss": 0.01,
+#     "take_profit": 0.01
+# }
+# run_one_backtest( # Volume
+#     "TSLA",
+#     VolumeDecayIndicator,
+#     start_date="2025-10-20",
+#     end_date="2025-11-01",
+#     plot=True,
+#     **strategy_kwargs
+# )
 
 # strategy_kwargs = { # Stochastic
 #     "fast_window": 12,
@@ -298,12 +299,12 @@ run_one_backtest( # Volume
 #     "stoch_upper": 80,
 #     "vol_fast_window": 14,
 #     "vol_slow_window": 28,
-#     "stop_loss": 0.0075,
-#     "take_profit": 1.25,
+#     "stop_loss": 0.01,
+#     "take_profit": 0.01,
 #     "trailing_ratio": 0.05
 # }
 # run_one_backtest( # Stochastic
-#     "MSFT",
+#     "TSLA",
 #     StochasticIndicator,
 #     start_date="2023-11-1",
 #     end_date="2025-11-1",
@@ -321,6 +322,6 @@ run_one_backtest( # Volume
 #     **strategy_kwargs
 #     )
 # grid_search("AAPL", StochasticIndicator, start_date="2023-11-01", end_date="2025-11-01")
-# walk_forward_optimize("MSFT", StochasticIndicator)
+# walk_forward_optimize("QCOM", StochasticIndicator)
 
 
