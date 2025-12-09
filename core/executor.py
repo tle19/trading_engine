@@ -140,7 +140,7 @@ class Equities:
         elif position == "short":
             pnl = (strategy.get_entry_price() - fill_price) * shares
         self.cash += pnl
-        strategy.get_risk_manager().update_risk(pnl)
+        strategy.get_risk_manager().update_trade(pnl)
 
     def flatten(self, symbol, strategy):
         self.entry_ids[symbol] = None

@@ -3,7 +3,7 @@ from collections import deque
 from strategies import Strategy, RiskManager
 from utils import *
 
-class VolumeDecayIndicator(Strategy):
+class VolumeDecay(Strategy):
     def __init__(self, symbol, fast_window=14, slow_window=28, rsi_period=14,
                  rsi_thresh=2, vol_decay_factor=2, vol_accel_factor=1.1,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0,

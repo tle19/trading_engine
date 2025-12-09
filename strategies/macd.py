@@ -6,10 +6,10 @@ from utils import *
 class MACDIndicator(Strategy):
     def __init__(self, symbol, fast_window_low=5, slow_window_low=8, signal_window_low=9,
                  fast_window_med=13, slow_window_med=21, signal_window_med=9,
-                 fast_window_high=34, slow_window_high=144, signal_window_high=18,
+                 fast_window_high=34, slow_window_high=144, signal_window_high=18, htf_window=25,
                  stop_loss=0.0001, take_profit=0.02, multiple_pos=True,
-                 target=0.001, loss=-0.001):
-        super().__init__(symbol, stop_loss, take_profit, multiple_pos)
+                 pnl_target=0.01, pnl_loss=-0.01):
+        super().__init__(symbol, stop_loss * 100, take_profit * 100, multiple_pos)
         self.fast_window_low = fast_window_low
         self.slow_window_low = slow_window_low
         self.signal_window_low = signal_window_low
@@ -20,6 +20,7 @@ class MACDIndicator(Strategy):
         self.slow_window_high = slow_window_high
         self.signal_window_high = signal_window_high
 
+        self.ema = None
         self.fast_ema_low = None
         self.slow_ema_low = None
         self.signal_ema_low = None
@@ -40,7 +41,7 @@ class MACDIndicator(Strategy):
 
         self.rolling_adx = deque(maxlen=10)
 
-        self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
+        self.risk_manager = RiskManager(pnl_target, pnl_loss)
 
     def generate_signal(self, row):
         self.update(row)
@@ -58,17 +59,14 @@ class MACDIndicator(Strategy):
         # big price move within single candle (volume may or may not support?)
         # ema for multiple confluence in determing direction
 
-        status = self.check_status()
-        if status is not None:
-            return status
         if not self.trade_window((9, 30), (15, 00)) and self.position is None:
             return None
         
         signal = None
-        if self.activated:
+        if self.position is None and self.activated:
             signal = self.enter_trade(hist_low, hist_med, hist_high, adx)
-        # elif self.position is not None and self.activated:
-        #     signal = self.exit_trade(hist_low, hist_med, hist_high)
+        elif self.position is not None and self.activated:
+            signal = self.exit_trade(hist_low, hist_med, hist_high)
         self.prev_hist_low = hist_low
         self.prev_hist_med = hist_med
         self.prev_hist_high = hist_high
@@ -111,26 +109,21 @@ class MACDIndicator(Strategy):
         if self.cond_1 and self.cond_2 and self.cond_3:
             signal = None
             adx_ma = sum(self.rolling_adx) / len(self.rolling_adx)
-            if hist_high > 0 and (adx > adx_ma and adx > 20):
-                print(self.ts, 'buy')
-            elif hist_high < 0 and (adx > adx_ma and adx > 20):
-                print(self.ts, 'sell')
-            if (adx > adx_ma and adx > 20) and self.position is None:
+            adx_cond = (adx > adx_ma and adx > 30) or ((adx < adx_ma and adx > 40))
+            if adx_cond:
                 if hist_high > 0:
                     signal = self.buy()
-                    swing_point = self.compute_swing(mode="low", lookback=10)
-                    diff = self.close - max(swing_point, self.stop_price)
-                    self.stop_price = max(swing_point * (1 - 0.0001), self.stop_price)
-                    self.stop_price = round(self.stop_price, 2)
-                    self.profit_price = round(self.close + ((self.take_profit * 100) * diff), 2)
+                    swing_low = self.compute_swing(mode="low", lookback=10)
+                    diff = self.close - max(swing_low, self.stop_price)
+                    self.stop_price = round(max(swing_low * (1 - 0.0001), self.stop_price), 2)
+                    self.profit_price = round(self.close + (diff * self.take_profit), 2)
                     print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 if hist_high < 0:
                     signal = self.sell()
-                    swing_point = self.compute_swing(mode="high", lookback=10)
-                    diff = min(swing_point, self.stop_price) - self.close
-                    self.stop_price = min(swing_point * (1 + 0.0001), self.stop_price)
-                    self.stop_price = round(self.stop_price, 2)
-                    self.profit_price = round(self.close - ((self.take_profit * 100) * diff), 2)
+                    swing_high = self.compute_swing(mode="high", lookback=10)
+                    diff = min(swing_high, self.stop_price) - self.close
+                    self.stop_price = round(min(swing_high * (1 + 0.0001), self.stop_price), 2)
+                    self.profit_price = round(self.close - (diff * self.take_profit), 2)
                     print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
             self.cond_1 = False
             self.cond_2 = False
@@ -139,31 +132,21 @@ class MACDIndicator(Strategy):
             return signal
         
     def exit_trade(self, hist_low, hist_med, hist_high):
-        if self.position == "long" and hist_low < 0 and hist_med < 0:
-            self.stop_price = round(self.close, 2)
-            print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
-            return self.sell()
-        if self.position == "short" and hist_low > 0 and hist_med > 0:
-            self.stop_price = round(self.close, 2)
-            print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
-            return self.buy()
+        status = self.check_status()
+        if status is not None:
+            return status
+        # if self.position == "long" and hist_low < 0 and hist_med < 0:
+        #     self.stop_price = round(self.close, 2)
+        #     print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
+        #     return self.sell()
+        # if self.position == "short" and hist_low > 0 and hist_med > 0:
+        #     self.stop_price = round(self.close, 2)
+        #     print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
+        #     return self.buy()
         
-    def minimum_computations(self):
-        if not self.activated:
-            required_data = max(
-                self.fast_window_low,
-                self.slow_window_low,
-                self.signal_window_low,
-                self.fast_window_med,
-                self.slow_window_med,
-                self.signal_window_med,
-                self.fast_window_high,
-                self.signal_window_high,
-            ) + 1
-            self.activated = len(self.prices) > required_data
-
     def reset_indicators(self):
         if self.trade_window((9, 30), (9, 30)):
+            self.ema = None
             self.fast_ema_low = None
             self.slow_ema_low = None
             self.signal_ema_low = None
@@ -184,6 +167,20 @@ class MACDIndicator(Strategy):
 
             self.rolling_adx = deque(maxlen=10)
             return None
+        
+    def minimum_computations(self):
+        if not self.activated:
+            required_data = max(
+                self.fast_window_low,
+                self.slow_window_low,
+                self.signal_window_low,
+                self.fast_window_med,
+                self.slow_window_med,
+                self.signal_window_med,
+                self.fast_window_high,
+                self.signal_window_high
+            ) + 1
+            self.activated = len(self.prices) > required_data
 
     def compute_macd(self, fast_ema, slow_ema, signal_ema, fast_window, slow_window, signal_window):
         price = self.prices[-1]

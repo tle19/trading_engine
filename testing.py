@@ -111,27 +111,6 @@ def grid_search(symbol, strategy_class, start_date="2023-10-01", end_date="2024-
 def optimize_params(symbol, strategy_class, start, end):
     start_time = time.perf_counter()
 
-    param_grid = { # SMA
-        "fast_window": [10],
-        "slow_window": [20],
-        "htf_window": [50],
-        "rsi_period": [6],
-        "rsi_lower": [30],
-        "rsi_upper": [70],
-        "stop_loss": [0.003],
-        "take_profit": [0.003],
-        "trailing_ratio": [0.05],
-        "position_size": [1.0]
-    }
-
-    param_grid = { # MACD
-        "fast_window": [3, 4, 5, 6],
-        "slow_window": [7, 8, 9, 10, 11, 12],
-        "signal_window": [4, 5, 6, 7, 8, 9],
-        "stop_loss": [0.001],
-        "take_profit": [0.005]
-    }
-
     param_grid = { # ORB
         "orb_window": [5, 10, 15, 30, 45, 60],
         "stop_loss": [0.25, 0.50, 0.75, 1.00, 1.25, 1.5, 1.75, 2.00],
@@ -149,6 +128,14 @@ def optimize_params(symbol, strategy_class, start, end):
         "stop_loss": [0.0025, 0.005, 0.0075, 0.01],
         "take_profit": [0.03] # 0.01, 0.015, 0.02, 0.03
         }
+    
+    param_grid = { # MACD
+        "fast_window": [3, 4, 5, 6],
+        "slow_window": [7, 8, 9, 10, 11, 12],
+        "signal_window": [4, 5, 6, 7, 8, 9],
+        "stop_loss": [0.001],
+        "take_profit": [0.005]
+    }
 
     param_grid = { # Stochastic
         "fast_window": [12],
@@ -167,7 +154,6 @@ def optimize_params(symbol, strategy_class, start, end):
         "take_profit": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02],
         "trailing_ratio": [0.05]
     }
-
 
     best_score = -np.inf
     best_params = None
@@ -208,65 +194,6 @@ symbols = [
 
 symbols = ["QQQ", "AAPL", "MSFT", "CRM", "ADBE", "GOOG", "QCOM", "UPS"]
 
-# strategy_kwargs = { # SMA
-#     "fast_window": 10,
-#     "slow_window": 20,
-#     "htf_window": 50,
-#     "rsi_period": 6,
-#     "rsi_lower": 30,
-#     "rsi_upper": 70,
-#     "stop_loss": 0.0075,
-#     "take_profit": 0.0075,
-#     "trailing_ratio": 0.05
-# }
-# run_one_backtest( # SMA
-#     "TSLA",
-#     SMACrossoverIndicator,
-#     start_date="2023-11-01",
-#     end_date="2025-11-01",
-#     plot=True,
-#     **strategy_kwargs
-# )
-
-strategy_kwargs = { # MACD
-    "fast_window_low": 5, 
-    "slow_window_low": 8, 
-    "signal_window_low": 9,
-    "fast_window_med": 13, 
-    "slow_window_med": 21, 
-    "signal_window_med": 9,
-    "fast_window_high": 34, 
-    "slow_window_high": 144, 
-    "signal_window_high": 18,
-    "stop_loss": 0.005, 
-    "take_profit": 0.01
-}
-run_one_backtest( # MACD
-    "NVDA",
-    MACDIndicator,
-    start_date="2025-10-29",
-    end_date="2025-11-01",
-    plot=True,
-    **strategy_kwargs
-)
-
-# strategy_kwargs = { # ORB
-#     "orb_window": 5,
-#     "rsi_period": 14,
-#     "safety_dist": 0.75,
-#     "stop_loss": 0.001,
-#     "take_profit": 0.75,
-#     "trailing_ratio": 0.1
-# }
-# run_one_backtest( # ORB
-#     "TSLA",
-#     ORBIndicator,
-#     start_date="2023-11-01",
-#     end_date="2025-11-01",
-#     plot=True,
-#     **strategy_kwargs
-# )
-
 # strategy_kwargs = { # Volume
 #     "fast_window": 14,
 #     "slow_window": 28,
@@ -285,6 +212,46 @@ run_one_backtest( # MACD
 #     plot=True,
 #     **strategy_kwargs
 # )
+
+# strategy_kwargs = { # ORB
+#     "orb_window": 5,
+#     "rsi_period": 14,
+#     "safety_dist": 0.75,
+#     "stop_loss": 0.001,
+#     "take_profit": 0.75,
+#     "trailing_ratio": 0.1
+# }
+# run_one_backtest( # ORB
+#     "TSLA",
+#     ORBIndicator,
+#     start_date="2023-11-01",
+#     end_date="2025-11-01",
+#     plot=True,
+#     **strategy_kwargs
+# )
+
+strategy_kwargs = { # MACD
+    "fast_window_low": 5, 
+    "slow_window_low": 8, 
+    "signal_window_low": 9,
+    "fast_window_med": 13, 
+    "slow_window_med": 21, 
+    "signal_window_med": 9,
+    "fast_window_high": 34, 
+    "slow_window_high": 144, 
+    "signal_window_high": 18,
+    "htf_window": 25,
+    "stop_loss": 0.005, 
+    "take_profit": 0.01
+}
+run_one_backtest( # MACD
+    "TSLA",
+    MACDIndicator,
+    start_date="2025-10-01",
+    end_date="2025-11-01",
+    plot=True,
+    **strategy_kwargs
+)
 
 # strategy_kwargs = { # Stochastic
 #     "fast_window": 12,
@@ -312,6 +279,7 @@ run_one_backtest( # MACD
 #     plot=True,
 #     **strategy_kwargs
 # )
+
 
 # multiple_symbol_performance(
 #     symbols, 

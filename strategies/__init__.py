@@ -1,26 +1,24 @@
 from .strategy import Strategy, RiskManager
-from .volume_decay import VolumeDecayIndicator
+from .example import SMACrossover
 from .stochastic import StochasticIndicator
-from .orb import ORBIndicator
 from .macd import MACDIndicator
-from .sma_crossover import SMACrossoverIndicator
-from .ema_crossover import EMACrossoverIndicator
+from .orb import ORBIndicator
+from .volume_decay import VolumeDecay
 
 __all__ = [
-    "VolumeDecayIndicator",
+    "SMACrossover",
     "StochasticIndicator",
-    "ORBIndicator",
     "MACDIndicator",
-    "SMACrossoverIndicator",
-    "strategy_map",
+    "ORBIndicator",
+    "VolumeDecay",
+    "strategy_map"
 ]
 
 strategy_map = {
-    "volume": VolumeDecayIndicator,
+    "sma": SMACrossover,
     "stochastic": StochasticIndicator,
-    "orb": ORBIndicator,
     "macd": MACDIndicator,
-    "sma": SMACrossoverIndicator,
-    "ema": EMACrossoverIndicator
+    "orb": ORBIndicator,
+    "volume": VolumeDecay
 }
 

@@ -94,7 +94,7 @@ class Backtest:
                 pnl = (self.entry_price - exit_price) * shares
 
             self.cash += pnl
-            self.risk_manager.update_risk(pnl)
+            self.risk_manager.update_trade(pnl)
             self.stats.update_trade(pnl)
             self.strategy.flatten()
             position = None

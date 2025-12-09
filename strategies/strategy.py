@@ -18,12 +18,12 @@ class Strategy:
         self.position_size = position_size
         self.multiple_pos = multiple_pos
 
-        self.position = None
         self.activated = False
-        self.trailing = False
+        self.position = None
         self.entry_price = None
         self.stop_price = None
         self.profit_price = None
+        self.trailing = False
 
         # if self.multiple_pos:
         #     self.position = []
@@ -130,10 +130,10 @@ class Strategy:
     def flatten(self):
         self.position_size = self.default_position_size
         self.position = None
-        self.trailing = False
         self.entry_price = None
         self.stop_price = None
         self.profit_price = None
+        self.trailing = False
     
     def set_trailing_stop(self):
         self.trailing = False
@@ -392,66 +392,33 @@ class Strategy:
         self.entry_price = float(fill_price)
 
 class RiskManager:
-    def __init__(self, start_cash=0, risk_threshold=3, pause_duration=5, pnl_target=0.02, pnl_loss=-0.01, trade_max=3):
-        self.start_cash = start_cash
-        self.risk_threshold = risk_threshold
-        self.pause_duration = pause_duration
+    def __init__(self, pnl_target=0.02, pnl_loss=-0.01, trade_max=3):
         self.pnl_target = pnl_target
         self.pnl_loss = pnl_loss
         self.trade_max = trade_max
-
+        
+        self.start_cash = 0
         self.trades = 0
         self.pnl = 0
-        self.risk = 0
-        self._pause_counter = 0
-        self._intraday_pause = False
         self._day_pause = False
 
-    def update_risk(self, pnl):
+    def update_trade(self, pnl):
         self.pnl += pnl
         self.trades += 1
-        if pnl < 0:
-            self.risk += 1
-        elif pnl > 0:
-            self.risk = max(0, self.risk - 1)
 
         if self.trades >= self.trade_max:
             self._day_pause = True
 
-        self._check_intraday_pause()
-
-    def _check_intraday_pause(self):
-        if self.risk >= self.risk_threshold:
-            self._intraday_pause = True
-
-    def tick(self):
-        self._pause_counter += 1
-        if self._pause_counter >= self.pause_duration:
-            self._reset_intraday_pause()
-
-    def _reset_intraday_pause(self):
-        self._intraday_pause = False
-        self._pause_counter = 0
-        self.risk = 0
-
-    def check_daily_target(self):
         if self.pnl / self.start_cash >= self.pnl_target:
             self._day_pause = True
 
-    def check_daily_stop(self):
         if self.pnl / self.start_cash <= self.pnl_loss:
             self._day_pause = True
 
     def reset(self):
         self.trades = 0
         self.pnl = 0
-        self.risk = 0
-        self._pause_counter = 0
-        self._intraday_pause = False
         self._day_pause = False
-
-    def intraday_pause(self):
-        return self._intraday_pause
     
     def day_pause(self):
         return self._day_pause
