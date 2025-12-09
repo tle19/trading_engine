@@ -229,22 +229,22 @@ symbols = ["QQQ", "AAPL", "MSFT", "CRM", "ADBE", "GOOG", "QCOM", "UPS"]
 # )
 
 strategy_kwargs = { # MACD
-    "fast_window_low": 6, 
-    "slow_window_low": 13, 
-    "signal_window_low": 5,
-    "fast_window_med": 12, 
-    "slow_window_med": 26, 
+    "fast_window_low": 5, 
+    "slow_window_low": 8, 
+    "signal_window_low": 9,
+    "fast_window_med": 13, 
+    "slow_window_med": 21, 
     "signal_window_med": 9,
-    "fast_window_high": 24, 
-    "slow_window_high": 52, 
+    "fast_window_high": 34, 
+    "slow_window_high": 144, 
     "signal_window_high": 18,
-    "stop_loss": 0.001, 
-    "take_profit": 0.05
+    "stop_loss": 0.005, 
+    "take_profit": 0.01
 }
 run_one_backtest( # MACD
-    "AAPL",
+    "NVDA",
     MACDIndicator,
-    start_date="2023-11-01",
+    start_date="2025-10-29",
     end_date="2025-11-01",
     plot=True,
     **strategy_kwargs
@@ -299,12 +299,13 @@ run_one_backtest( # MACD
 #     "stoch_upper": 80,
 #     "vol_fast_window": 14,
 #     "vol_slow_window": 28,
-#     "stop_loss": 0.01,
+#     "vol_threshold": 0.025,
+#     "stop_loss": 0.0075,
 #     "take_profit": 0.01,
 #     "trailing_ratio": 0.05
 # }
 # run_one_backtest( # Stochastic
-#     "TSLA",
+#     "MSFT",
 #     StochasticIndicator,
 #     start_date="2023-11-1",
 #     end_date="2025-11-1",
@@ -313,7 +314,7 @@ run_one_backtest( # MACD
 # )
 
 # multiple_symbol_performance(
-#     symbols[5:17], 
+#     symbols, 
 #     StochasticIndicator, 
 #     "2023-11-01", 
 #     "2025-11-01", 

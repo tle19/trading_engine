@@ -34,6 +34,7 @@ class StochasticIndicator(Strategy):
         self.current_atr = None
         self.regime = None
         self.rolling_rsi = deque(maxlen=10)
+        self.rolling_vol = deque(maxlen=5)
 
         self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
 
@@ -54,6 +55,7 @@ class StochasticIndicator(Strategy):
 
         self.compute_signal_direction(k, d)
         self.rolling_rsi.append(rsi)
+        self.rolling_vol.append(vol)
 
         status = self.check_status()
         if status is not None:
@@ -71,9 +73,10 @@ class StochasticIndicator(Strategy):
         if not (self.stoch_lower < min(k, d) and max(k, d) < self.stoch_upper):
             return None
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
-
+        vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
+        
         if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
-            if vol > self.vol_threshold: #and vol > prev_vol (ROC compared to last 3)
+            if vol > self.vol_threshold: #and vol > vol_ma
                 signal = self.buy() 
                 # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
@@ -106,25 +109,25 @@ class StochasticIndicator(Strategy):
     #             # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
     #             return signal
         
-    def exit_trade(self, rsi, hist):
-        if self.position == "long":
-            if self.prices[-1] > self.local_high:
-                self.local_high = self.prices[-1]
-                self.hold_time = 0
-        elif self.position == "short":
-            if self.prices[-1] < self.local_low:
-                self.local_low = self.prices[-1] 
-                self.hold_time = 0
-        self.hold_time += 1
+    # def exit_trade(self, rsi, hist):
+    #     if self.position == "long":
+    #         if self.prices[-1] > self.local_high:
+    #             self.local_high = self.prices[-1]
+    #             self.hold_time = 0
+    #     elif self.position == "short":
+    #         if self.prices[-1] < self.local_low:
+    #             self.local_low = self.prices[-1] 
+    #             self.hold_time = 0
+    #     self.hold_time += 1
                 
-        if self.position == "long" and hist < 0 and rsi < 50 and self.close < self.local_high and self.local_high >= self.entry_price + 0.75 * (self.take_profit - self.entry_price) and self.hold_time > 30:
-            self.stop_price = round(self.close, 2)
-            # print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
-            return self.sell()
-        if self.position == "short" and hist > 0 and rsi > 50 and self.close > self.local_low and self.local_low <= self.entry_price + 0.75 * (self.entry_price - self.take_profit) and self.hold_time > 60:
-            self.stop_price = round(self.close, 2)
-            # print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
-            return self.buy()
+    #     if self.position == "long" and hist < 0 and rsi < 50 and self.close < self.local_high and self.local_high >= self.entry_price + 0.75 * (self.take_profit - self.entry_price) and self.hold_time > 30:
+    #         self.stop_price = round(self.close, 2)
+    #         # print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
+    #         return self.sell()
+    #     if self.position == "short" and hist > 0 and rsi > 50 and self.close > self.local_low and self.local_low <= self.entry_price + 0.75 * (self.entry_price - self.take_profit) and self.hold_time > 60:
+    #         self.stop_price = round(self.close, 2)
+    #         # print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
+    #         return self.buy()
       
     def reset_indicators(self):
         if self.trade_window((9, 30), (9, 30)):
@@ -136,6 +139,8 @@ class StochasticIndicator(Strategy):
             self.current_atr = None
             self.regime = None
             self.rolling_rsi = deque(maxlen=10)
+            self.rolling_vol = deque(maxlen=3)
+
       
     def minimum_computations(self):
         if not self.activated:

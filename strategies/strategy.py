@@ -9,13 +9,14 @@ HOLD = None
 
 class Strategy:
     def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, 
-                 trailing_ratio=0.15, position_size=1.0):
+                 trailing_ratio=0.15, position_size=1.0, multiple_pos=False):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.trailing_ratio = trailing_ratio
         self.default_position_size = position_size
         self.position_size = position_size
+        self.multiple_pos = multiple_pos
 
         self.position = None
         self.activated = False
@@ -23,6 +24,11 @@ class Strategy:
         self.entry_price = None
         self.stop_price = None
         self.profit_price = None
+
+        # if self.multiple_pos:
+        #     self.position = []
+        #     self.stop_price = []
+        #     self.profit_price = []
 
         self.open = None
         self.close = None
@@ -223,8 +229,8 @@ class Strategy:
         return 100.0 - (100.0 / (1.0 + rs))
     
     def compute_stochastic(self, high, low, close, k_period=14, k_smooth=3, d_period=3):
-        if len(close) < k_period + k_smooth + d_period - 2:
-            return None, None
+        if len(close) == 0:
+            return 50.0, 50.0
 
         k_values = []
         for i in range(k_smooth):
@@ -276,8 +282,8 @@ class Strategy:
         lows = np.array(self.lows)
         closes = np.array(self.prices)
 
-        if len(highs) < period + 1:
-            return None
+        if len(highs) < 2:
+            return 0.0
 
         tr1 = highs[1:] - lows[1:]
         tr2 = np.abs(highs[1:] - closes[:-1])
@@ -296,8 +302,8 @@ class Strategy:
         closes = np.array(self.prices)
 
         n = len(highs)
-        if n < period + 2:
-            return None
+        if n < 3:
+            return 20.0
 
         up_move   = highs[1:] - highs[:-1]
         down_move = lows[:-1] - lows[1:]
@@ -325,8 +331,8 @@ class Strategy:
             mdi = minus_dm14 / tr14
             dx_vals.append(abs(pdi - mdi) / (pdi + mdi + 1e-9))
 
-        if len(dx_vals) < period:
-            return None
+        if len(dx_vals) == 0:
+            return 20.0
 
         adx = sum(dx_vals[:period]) / period
         for d in dx_vals[period:]:
@@ -335,28 +341,25 @@ class Strategy:
         return adx * 100
     
     def compute_swing(self, mode="low", window=2, lookback=10):
-        if len(self.prices) < window * 2 + 1:
-            return None
-        
-        highs = self.highs[-lookback:]
-        lows = self.lows[-lookback:]
-        n = len(highs)
+        arr = self.lows[-lookback:] if mode == "low" else self.highs[-lookback:]
+        n = len(arr)
 
-        if mode == "high":
-            for i in range(n - window - 1, window - 1, -1):
-                left = highs[i - window:i]
-                right = highs[i + 1:i + 1 + window]
-                if highs[i] > max(left) and highs[i] > max(right):
-                    return highs[i]
-            return max(highs)
+        if n < window*2 + 1:
+            return min(arr) if mode == "low" else max(arr)
 
-        elif mode == "low":
-            for i in range(n - window - 1, window - 1, -1):
-                left = lows[i - window:i]
-                right = lows[i + 1:i + 1 + window]
-                if lows[i] < min(left) and lows[i] < min(right):
-                    return lows[i]
-            return min(lows)
+        for i in range(n - window - 1, window - 1, -1):
+            swing_window = arr[i - window : i + window + 1]
+
+            if mode == "low":
+                if arr[i] == min(swing_window):
+                    return arr[i]
+
+            elif mode == "high":
+                if arr[i] == max(swing_window):
+                    return arr[i]
+                
+        return min(arr) if mode == "low" else max(arr)
+
             
     def is_trailing(self):
         return self.trailing
