@@ -60,11 +60,13 @@ class Backtest:
         if signal == 1 and position == "long":
             self.entry_price = self.close * self.slip_up
             self.strategy.update_entry_price(self.entry_price)
+            print(f"{self.ts} | ENTRY (L): {self.entry_price}, STOP: {self.strategy.get_stop_price()}, PROFIT: {self.strategy.get_profit_price()}")
 
         # --- Enter Short ---
         elif signal == -1 and position == "short":
             self.entry_price = self.close * self.slip_dn
             self.strategy.update_entry_price(self.entry_price)
+            print(f"{self.ts} | ENTRY (S): {self.entry_price}, STOP: {self.strategy.get_stop_price()}, PROFIT: {self.strategy.get_profit_price()}")
 
         # --- Exit Position ---
         elif signal == 0 and position is not None:
@@ -98,7 +100,7 @@ class Backtest:
             self.stats.update_trade(pnl)
             self.strategy.flatten()
             position = None
-            print(self.ts, ": ", pnl)
+            print(f"{self.ts} | EXIT: {exit_price}, PNL: {pnl}")
 
         self.update_equity(position, shares)
 

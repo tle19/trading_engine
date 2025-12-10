@@ -9,7 +9,7 @@ HOLD = None
 
 class Strategy:
     def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, 
-                 trailing_ratio=0.15, position_size=1.0, multiple_pos=False):
+                 trailing_ratio=0.15, position_size=1.0, multiple_pos=False, pos_split=0.25):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
@@ -17,6 +17,7 @@ class Strategy:
         self.default_position_size = position_size
         self.position_size = position_size
         self.multiple_pos = multiple_pos
+        self.pos_split = pos_split
 
         self.activated = False
         self.position = None
@@ -24,11 +25,6 @@ class Strategy:
         self.stop_price = None
         self.profit_price = None
         self.trailing = False
-
-        # if self.multiple_pos:
-        #     self.position = []
-        #     self.stop_price = []
-        #     self.profit_price = []
 
         self.open = None
         self.close = None
@@ -113,6 +109,14 @@ class Strategy:
             self.entry_price = round(self.close, 2)
             self.stop_price = round(self.entry_price * (1 - self.stop_loss), 2)
             self.profit_price = round(self.entry_price * (1 + self.take_profit), 2)
+            if self.stop_price >= self.entry_price:
+                raise ValueError("Invalid long: stop >= entry")
+            if self.profit_price <= self.entry_price:
+                raise ValueError("Invalid long: profit <= entry")
+            if self.stop_price >= self.profit_price:
+                raise ValueError("Invalid long: stop >= profit")
+            if self.stop_price <= 0 or self.profit_price <= 0:
+                raise ValueError("Computed prices must be > 0")
             return LONG
         elif self.position == "short":
             return EXIT
@@ -123,6 +127,14 @@ class Strategy:
             self.entry_price = round(self.close, 2)
             self.stop_price = round(self.entry_price * (1 + self.stop_loss), 2)
             self.profit_price = round(self.entry_price * (1 - self.take_profit), 2)
+            if self.stop_price <= self.entry_price:
+                raise ValueError("Invalid short: stop <= entry")
+            if self.profit_price >= self.entry_price:
+                raise ValueError("Invalid short: profit >= entry")
+            if self.stop_price <= self.profit_price:
+                raise ValueError("Invalid short: stop <= profit")
+            if self.stop_price <= 0 or self.profit_price <= 0:
+                raise ValueError("Computed prices must be > 0")
             return SHORT
         elif self.position == "long":
             return EXIT
@@ -340,25 +352,27 @@ class Strategy:
 
         return adx * 100
     
-    def compute_swing(self, mode="low", window=2, lookback=10):
-        arr = self.lows[-lookback:] if mode == "low" else self.highs[-lookback:]
+    def compute_swing(self, mode="high", lookback=10):
+        arr = self.highs[-lookback:] if mode == "high" else self.lows[-lookback:]
+        c = self.close
         n = len(arr)
 
-        if n < window*2 + 1:
-            return min(arr) if mode == "low" else max(arr)
+        if n < 3:
+            return max(arr) if mode == "high" else min(arr)
 
-        for i in range(n - window - 1, window - 1, -1):
-            swing_window = arr[i - window : i + window + 1]
+        for i in range(n-2, 0, -1):
+            a = arr[i]
+            l = arr[i-1]
+            r = arr[i+1]
 
-            if mode == "low":
-                if arr[i] == min(swing_window):
-                    return arr[i]
+            if mode == "high":
+                if ((a > l and a >= r) or (a >= l and a > r)) and a > c:
+                    return a
+            elif mode == "low":
+                if ((a < l and a <= r) or (a <= l and a < r)) and a < c:
+                    return a
 
-            elif mode == "high":
-                if arr[i] == max(swing_window):
-                    return arr[i]
-                
-        return min(arr) if mode == "low" else max(arr)
+        return max(arr) if mode == "high" else min(arr)
 
             
     def is_trailing(self):

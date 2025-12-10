@@ -59,14 +59,12 @@ class ORBIndicator(Strategy):
             diff = self.upper_support - self.lower_support
             self.stop_price = round(self.lower_support * (1 - self.stop_loss), 2)
             self.profit_price = round(self.upper_support + (diff * self.take_profit), 2)
-            # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
             return signal
         elif self.close < self.lower_support:
             signal = self.sell()
             diff = self.upper_support - self.lower_support
             self.stop_price = round(self.upper_support * (1 + self.stop_loss), 2)
             self.profit_price = round(self.lower_support - (diff * self.take_profit), 2)
-            # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
             return signal
         
     def reset_indicators(self):

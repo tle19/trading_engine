@@ -70,7 +70,6 @@ class VolumeDecay(Strategy):
             self.stop_price = round(swing_point * (1 - 0.001), 2)
             # self.stop_price = round(((self.low + self.high) / 2) - diff, 2)
             self.profit_price = round(((self.low + self.high) / 2) + diff, 2)
-            print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
             self.vol_anchor = 0
             self.rsi_anchor = None
             return signal
@@ -82,7 +81,6 @@ class VolumeDecay(Strategy):
             self.stop_price = round(swing_point * (1 + 0.001), 2)
             # self.stop_price = round(((self.low + self.high) / 2) + diff, 2)
             self.profit_price = round(((self.low + self.high) / 2) - diff, 2)
-            print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
             self.vol_anchor = 0
             self.rsi_anchor = None
             return signal
@@ -95,12 +93,10 @@ class VolumeDecay(Strategy):
         if self.position == "long" and vol_cond and self.close > self.entry_price:
             self.stop_price = round(self.close, 2)
             self.vol_anchor = 0
-            # print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
             return self.sell()
         if self.position == "short" and vol_cond and self.close < self.entry_price:
             self.stop_price = round(self.close, 2)
             self.vol_anchor = 0
-            # print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
             return self.buy()
       
     def reset_indicators(self):

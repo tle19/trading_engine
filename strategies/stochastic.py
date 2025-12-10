@@ -78,12 +78,10 @@ class StochasticIndicator(Strategy):
         if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
             if vol > self.vol_threshold: #and vol > vol_ma
                 signal = self.buy() 
-                # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
         if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0:
             if vol > self.vol_threshold:
                 signal = self.sell() 
-                # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
                 return signal
 
     # def enter_trade(self, k, d, rsi, hist, vol): # original version
@@ -97,7 +95,6 @@ class StochasticIndicator(Strategy):
     #             self.stop_price = round(swing_point * (1 - self.stop_loss), 2)
     #             diff = self.close - self.stop_price
     #             self.profit_price = round(self.close + (1 * diff), 2)
-    #             # print(f"{self.ts} ENTRY (L): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
     #             return signal
     #     if self.stoch_signal == "short" and rsi < 50 and hist < 0:
     #         if vol > self.vol_threshold:
@@ -106,7 +103,6 @@ class StochasticIndicator(Strategy):
     #             self.stop_price = round(swing_point * (1 + self.stop_loss), 2)
     #             diff = self.stop_price - self.close
     #             self.profit_price = round(self.close - (1 * diff), 2)
-    #             # print(f"{self.ts} ENTRY (S): {self.entry_price}, STOP: {self.stop_price}, PROFIT: {self.profit_price}")
     #             return signal
         
     # def exit_trade(self, rsi, hist):
@@ -122,11 +118,9 @@ class StochasticIndicator(Strategy):
                 
     #     if self.position == "long" and hist < 0 and rsi < 50 and self.close < self.local_high and self.local_high >= self.entry_price + 0.75 * (self.take_profit - self.entry_price) and self.hold_time > 30:
     #         self.stop_price = round(self.close, 2)
-    #         # print(f"{self.ts} EXIT (L): {self.entry_price}, STOP: {self.stop_price}")
     #         return self.sell()
     #     if self.position == "short" and hist > 0 and rsi > 50 and self.close > self.local_low and self.local_low <= self.entry_price + 0.75 * (self.entry_price - self.take_profit) and self.hold_time > 60:
     #         self.stop_price = round(self.close, 2)
-    #         # print(f"{self.ts} EXIT (S): {self.entry_price}, STOP: {self.stop_price}")
     #         return self.buy()
       
     def reset_indicators(self):
