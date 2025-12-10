@@ -6,9 +6,9 @@ from utils import *
 class VolumeDecay(Strategy):
     def __init__(self, symbol, fast_window=14, slow_window=28, rsi_period=14,
                  rsi_thresh=2, vol_decay_factor=2, vol_accel_factor=1.1,
-                 stop_loss=0.01, take_profit=0.01, position_size=1.0,
+                 stop_loss=0.01, take_profit=0.01,
                  target=0.01, loss=-0.03):
-        super().__init__(symbol, stop_loss, take_profit, position_size)
+        super().__init__(symbol, stop_loss, take_profit)
         self.fast_window = fast_window
         self.slow_window = slow_window
         self.rsi_period = rsi_period

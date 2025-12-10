@@ -7,9 +7,9 @@ class StochasticIndicator(Strategy):
     def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=20,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
                  vol_fast_window=14, vol_slow_window=28, vol_threshold=0.025, atr_window=10,
-                 stop_loss=0.01, take_profit=0.01, trailing_ratio=0.05, position_size=1.0,
+                 stop_loss=0.01, take_profit=0.01, trailing_ratio=0.05,
                  target=0.001, loss=-0.001):
-        super().__init__(symbol, stop_loss, take_profit, trailing_ratio, position_size)
+        super().__init__(symbol, stop_loss, take_profit, trailing_ratio)
         self.fast_window = fast_window
         self.slow_window = slow_window
         self.signal_window = signal_window
@@ -65,7 +65,6 @@ class StochasticIndicator(Strategy):
 
         signal = None
         if self.position is None and self.activated:
-            # self.regime_detection()
             signal = self.enter_trade(k, d, rsi, hist, vol)
         return signal
 
@@ -163,10 +162,3 @@ class StochasticIndicator(Strategy):
                 self.stoch_signal = None
             elif self.stoch_signal == "short" and (k < lower or d < lower):
                 self.stoch_signal = None
-
-    def regime_detection(self):
-        self.regime = "weak"
-        self.regime = "ranging"
-        self.regime = "strong"
-        # self.position_size = 1.0
-        raise NotImplementedError

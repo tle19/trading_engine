@@ -8,16 +8,14 @@ EXIT = 0
 HOLD = None
 
 class Strategy:
-    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, 
-                 trailing_ratio=0.15, position_size=1.0):
+    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, trailing_ratio=0.15):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.trailing_ratio = trailing_ratio
-        self.default_position_size = position_size
-        self.position_size = position_size
-
+        
         self.activated = False
+        self.position_size = 1.0
         self.position = None
         self.entry_price = None
         self.stop_price = None
@@ -66,7 +64,7 @@ class Strategy:
             self.volume = row.volume
             self.ts = row.timestamp
 
-        self.prices.append(self.close)
+        self.prices.append(self.close) # (self.close + self.open + self.high) / 3
         self.opens.append(self.open)
         self.highs.append(self.high)
         self.lows.append(self.low)
@@ -138,7 +136,7 @@ class Strategy:
             return EXIT
     
     def flatten(self):
-        self.position_size = self.default_position_size
+        self.position_size = 1.0
         self.position = None
         self.entry_price = None
         self.stop_price = None
