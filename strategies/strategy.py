@@ -9,15 +9,13 @@ HOLD = None
 
 class Strategy:
     def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, 
-                 trailing_ratio=0.15, position_size=1.0, multiple_pos=False, pos_split=0.25):
+                 trailing_ratio=0.15, position_size=1.0):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.trailing_ratio = trailing_ratio
         self.default_position_size = position_size
         self.position_size = position_size
-        self.multiple_pos = multiple_pos
-        self.pos_split = pos_split
 
         self.activated = False
         self.position = None

@@ -239,8 +239,9 @@ strategy_kwargs = { # MACD
     "signal_window_med": 9,
     "fast_window_high": 34, 
     "slow_window_high": 144, 
-    "signal_window_high": 18,
-    "htf_window": 25,
+    "signal_window_high": 9,
+    "htf_window": 50,
+    "ma_threshold": 0.001,
     "stop_loss": 0.005, 
     "take_profit": 0.01
 }

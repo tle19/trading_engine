@@ -6,11 +6,11 @@ from utils import *
 class MACDIndicator(Strategy):
     def __init__(self, symbol, fast_window_low=5, slow_window_low=8, signal_window_low=9,
                  fast_window_med=13, slow_window_med=21, signal_window_med=9,
-                 fast_window_high=34, slow_window_high=144, signal_window_high=18, 
+                 fast_window_high=34, slow_window_high=144, signal_window_high=9, 
                  htf_window=50, ma_threshold=0.001,
-                 stop_loss=0.005, take_profit=0.01, multiple_pos=True, pos_split=0.25,
-                 pnl_target=0.01, pnl_loss=-0.01):
-        super().__init__(symbol, stop_loss, take_profit, multiple_pos, pos_split)
+                 stop_loss=0.005, take_profit=0.01,
+                 pnl_target=0.01, pnl_loss=-0.01, trade_max=20):
+        super().__init__(symbol, stop_loss, take_profit)
         self.fast_window_low = fast_window_low
         self.slow_window_low = slow_window_low
         self.signal_window_low = signal_window_low
@@ -33,6 +33,7 @@ class MACDIndicator(Strategy):
         self.fast_ema_high = None
         self.slow_ema_high = None
         self.signal_ema_high = None
+        
         self.prev_hist_low = None
         self.prev_hist_med = None
         self.prev_hist_high = None
@@ -43,8 +44,9 @@ class MACDIndicator(Strategy):
         self.cond_4 = False
 
         self.rolling_adx = deque(maxlen=10)
+        self.rolling_ema = deque(maxlen=10)
 
-        self.risk_manager = RiskManager(pnl_target, pnl_loss)
+        self.risk_manager = RiskManager(pnl_target, pnl_loss, trade_max)
 
     def generate_signal(self, row):
         self.update(row)
@@ -52,28 +54,27 @@ class MACDIndicator(Strategy):
         self.reset_indicators()
         self.minimum_computations()
 
-        hist_low, macd_line_low, self.fast_ema_low, self.slow_ema_low, self.signal_ema_low = self.compute_macd(self.fast_ema_low, self.slow_ema_low, self.signal_ema_low, self.fast_window_low, self.slow_window_low, self.signal_window_low)
-        hist_med, macd_line_med, self.fast_ema_med, self.slow_ema_med, self.signal_ema_med = self.compute_macd(self.fast_ema_med, self.slow_ema_med, self.signal_ema_med, self.fast_window_med, self.slow_window_med, self.signal_window_med)
-        hist_high, macd_line_high, self.fast_ema_high, self.slow_ema_high, self.signal_ema_high = self.compute_macd(self.fast_ema_high, self.slow_ema_high, self.signal_ema_high, self.fast_window_high, self.slow_window_high, self.signal_window_high)
+        hist_low, _, self.fast_ema_low, self.slow_ema_low, self.signal_ema_low = self.compute_macd(self.fast_ema_low, self.slow_ema_low, self.signal_ema_low, self.fast_window_low, self.slow_window_low, self.signal_window_low)
+        hist_med, _, self.fast_ema_med, self.slow_ema_med, self.signal_ema_med = self.compute_macd(self.fast_ema_med, self.slow_ema_med, self.signal_ema_med, self.fast_window_med, self.slow_window_med, self.signal_window_med)
+        hist_high, _, self.fast_ema_high, self.slow_ema_high, self.signal_ema_high = self.compute_macd(self.fast_ema_high, self.slow_ema_high, self.signal_ema_high, self.fast_window_high, self.slow_window_high, self.signal_window_high)
         self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
-        ma = self.compute_ma(self.prices, self.htf_window)
-
         adx = self.compute_adx()
 
         self.rolling_adx.append(adx)
+        self.rolling_ema.append(self.ema)
         # adx slope strength
         # big price move within single candle (volume may or may not support?)
-        # ema for multiple confluence in determing direction
-        # swing point pct distance from ema/ma
         # check for final agreement with lower timeframe macd
         # if move more than 50% towards profit, move stop to breakeven
 
+        # if self.risk_manager.day_pause(): 
+        #     return None
         if not self.trade_window((9, 30), (15, 00)) and self.position is None:
             return None
         
         signal = None
         if self.position is None and self.activated:
-            signal = self.enter_trade(hist_low, hist_med, hist_high, adx, ma)
+            signal = self.enter_trade(hist_low, hist_med, hist_high, adx)
         elif self.position is not None and self.activated:
             signal = self.exit_trade(hist_low, hist_med, hist_high)
         self.prev_hist_low = hist_low
@@ -81,7 +82,7 @@ class MACDIndicator(Strategy):
         self.prev_hist_high = hist_high
         return signal
 
-    def enter_trade(self, hist_low, hist_med, hist_high, adx, ma):
+    def enter_trade(self, hist_low, hist_med, hist_high, adx):
         if (hist_high > 0 and self.prev_hist_high < 0) or (hist_high < 0 and self.prev_hist_high > 0):
             self.cond_1 = False
             self.cond_2 = False
@@ -120,16 +121,18 @@ class MACDIndicator(Strategy):
             adx_ma = sum(self.rolling_adx) / len(self.rolling_adx)
             adx_cond = (adx > adx_ma and adx > 30) or ((adx < adx_ma and adx > 40))
             
-            if hist_high > 0:
+            if hist_high > 0 and self.close > self.ema:
                 swing_low = self.compute_swing(mode="low", lookback=10)
-                if swing_low > ma * (1 + self.ma_threshold):
+                stop_in_band = min(self.low, swing_low) > self.ema * (1 + self.ma_threshold)
+                if stop_in_band:
                     signal = self.buy()
                     self.stop_price = round(max(swing_low * (1 - 0.0001), self.stop_price), 2)
                     diff = self.close - self.stop_price
                     self.profit_price = round(self.close + (diff * self.take_profit * 100), 2)
-            if hist_high < 0:
+            if hist_high < 0 and self.close < self.ema:
                 swing_high = self.compute_swing(mode="high", lookback=10)
-                if swing_high < ma * (1 - self.ma_threshold):
+                stop_in_band = max(self.high, swing_high) < self.ema * (1 - self.ma_threshold)
+                if stop_in_band:
                     signal = self.sell()
                     self.stop_price = round(min(swing_high * (1 + 0.0001), self.stop_price), 2)
                     diff = self.stop_price - self.close
