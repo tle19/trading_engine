@@ -66,6 +66,7 @@ class MACDIndicator(Strategy):
         # big price move within single candle (volume may or may not support?)
         # check for final agreement with lower timeframe macd
         # if move more than 50% towards profit, move stop to breakeven
+        # ema slope strength
 
         # if self.risk_manager.day_pause(): 
         #     return None
