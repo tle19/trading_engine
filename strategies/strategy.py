@@ -8,8 +8,7 @@ EXIT = 0
 HOLD = None
 
 class Strategy:
-    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02,
-                 position_size=1.0, trailing_ratio=0.15,
+    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, position_size=1.0, trailing_ratio=0.15,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=5):
         self.symbol = symbol
         self.stop_loss = stop_loss
