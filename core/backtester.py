@@ -1,34 +1,33 @@
+import time
 from collections import deque
 
 from metrics import *
 from utils import *
 
 class Backtest:
-    def __init__(self, symbol, strategy_class, cash=25_000, shares=50, 
+    def __init__(self, symbol, strategy_class, cash=25_000, 
                  margin=1.0, commission=0.0, slippage=0.1):
         self.symbol = symbol
         self.strategy = strategy_class
-        self.cash = cash
-        self.shares = shares
-        self.margin = margin
+        self.cash = cash * margin
         self.commission = commission
-        self.slippage = slippage
+        self.slippage = slippage  # execution time + spread
 
-        self.entry_price = None
         self.spread_window = deque(maxlen=10)
         self.slip_up = 0
         self.slip_dn = 0
 
+        self.position_manager = self.strategy.position_manager
+        self.risk_manager = self.strategy.risk_manager
+        
         self.stats = Stats(symbol)
         self.plotting = Plotting(symbol)
-        # self.trade_log = TradeLogger()
-        self.risk_manager = self.strategy.get_risk_manager()
 
     def run(self, start_date="2023-11-01", end_date="2025-11-01", plot=False, save_plot=False):
+        start_time = time.perf_counter()
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
-        rows = df.itertuples(index=False)
 
-        for row in rows:
+        for row in df.itertuples(index=False):
             self.open = row.open
             self.close = row.close
             self.high = row.high
@@ -36,8 +35,7 @@ class Backtest:
             self.ts = row.timestamp
 
             if (self.ts.hour, self.ts.minute) == (9, 30):
-                self.risk_manager.set_start_cash(self.cash)
-                self.shares = self.cash // self.open
+                self.risk_manager.start_cash = self.cash
 
             signal = self.strategy.generate_signal(row)
             self.dynamic_slippage(signal)
@@ -45,64 +43,72 @@ class Backtest:
             
         self.stats.update_dates(start_date, end_date)
         self.stats.summary()
+        elapsed_time = time.perf_counter() - start_time
+        print(f"Elapsed Backtest Time: {elapsed_time:.6f} seconds")
         if plot:
             self.plotting.update_dates(start_date, end_date)
             self.plotting.plot_equity(save_plot, overlay=True)
 
     def interpret_signal(self, signal):
-        stop_price = self.strategy.get_stop_price()
-        profit_price = self.strategy.get_profit_price()
-        position = self.strategy.get_position()
-        position_size = self.strategy.get_position_size()
-        shares = max(1, int(self.shares * position_size))
+        direction = self.position_manager.direction()
+        if direction is not None:
+            curr_leg = self.position_manager.legs[-1]
+            entry_price = curr_leg.entry_price
+            stop_price = curr_leg.stop_price
+            target_price = curr_leg.target_price
         
         # --- Enter Long ---
-        if signal == 1 and position == "long":
-            self.entry_price = self.close * self.slip_up
-            self.strategy.update_entry_price(self.entry_price)
-            print(f"{self.ts} | ENTRY (L): {self.entry_price}, STOP: {self.strategy.get_stop_price()}, PROFIT: {self.strategy.get_profit_price()}")
+        if signal == 1:
+            entry_adj = entry_price * self.slip_up
+            curr_leg.entry_price = entry_adj
+            # print(f"{self.ts} | ENTRY (L): {entry_adj}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Enter Short ---
-        elif signal == -1 and position == "short":
-            self.entry_price = self.close * self.slip_dn
-            self.strategy.update_entry_price(self.entry_price)
-            print(f"{self.ts} | ENTRY (S): {self.entry_price}, STOP: {self.strategy.get_stop_price()}, PROFIT: {self.strategy.get_profit_price()}")
+        elif signal == -1:
+            entry_adj = entry_price * self.slip_dn
+            curr_leg.entry_price = entry_adj
+            # print(f"{self.ts} | ENTRY (S): {entry_adj}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Exit Position ---
-        elif signal == 0 and position is not None:
-            exit_price = None
-            pnl = 0
+        elif signal == 0:
+            for leg in self.position_manager.legs.copy():
+                if leg.check_exit(self.ts, self.low, self.high) == 0:
+                    pnl = 0
+                    exit_price = None
+                    entry_price = leg.entry_price
+                    stop_price = leg.stop_price
+                    target_price = leg.target_price
+                    shares = leg.shares
 
-            if position == "long":
-                if self.low <= stop_price:
-                    exit_price = stop_price * self.slip_dn
-                elif self.high >= profit_price:
-                    exit_price = profit_price
-                elif (self.ts.hour, self.ts.minute) >= (15, 58):
-                    exit_price = self.close * self.slip_dn
-                else:
-                    exit_price = self.close * self.slip_dn
-                pnl = (exit_price - self.entry_price) * shares
-    
-            elif position == "short":
-                if self.high >= stop_price:
-                    exit_price = stop_price * self.slip_up
-                elif self.low <= profit_price:
-                    exit_price = profit_price
-                elif (self.ts.hour, self.ts.minute) >= (15, 58):
-                    exit_price = self.close * self.slip_up
-                else:
-                    exit_price = self.close * self.slip_up
-                pnl = (self.entry_price - exit_price) * shares
+                    if direction == "long":
+                        if self.low <= stop_price:
+                            exit_price = stop_price * self.slip_dn
+                        elif self.high >= target_price:
+                            exit_price = target_price
+                        elif (self.ts.hour, self.ts.minute) >= (15, 58):
+                            exit_price = self.close * self.slip_dn
+                        else:
+                            exit_price = self.close * self.slip_dn
+                        pnl = (exit_price - entry_price) * shares
+            
+                    elif direction == "short":
+                        if self.high >= stop_price:
+                            exit_price = stop_price * self.slip_up
+                        elif self.low <= target_price:
+                            exit_price = target_price
+                        elif (self.ts.hour, self.ts.minute) >= (15, 58):
+                            exit_price = self.close * self.slip_up
+                        else:
+                            exit_price = self.close * self.slip_up
+                        pnl = (entry_price - exit_price) * shares
 
-            self.cash += pnl
-            self.risk_manager.update_trade(pnl)
-            self.stats.update_trade(pnl)
-            self.strategy.flatten()
-            position = None
-            print(f"{self.ts} | EXIT: {exit_price}, PNL: {pnl}")
+                    self.cash += pnl
+                    self.risk_manager.update_trade(pnl)
+                    self.stats.update_trade(pnl)
+                    self.position_manager.remove_leg(leg)
+                    # print(f"{self.ts} | EXIT: {exit_price}, PnL: {pnl}")
 
-        self.update_equity(position, shares)
+        self.update_equity()
 
     def dynamic_slippage(self, signal):
         self.spread_window.append((self.high - self.low) / self.close)
@@ -112,16 +118,14 @@ class Backtest:
             self.slip_up = 1 + slippage
             self.slip_dn = 1 - slippage
 
-    def update_equity(self, position, shares):
+    def update_equity(self):
         current_equity = self.cash
         
-        if position == "long":
-            current_equity += (self.close - self.entry_price) * shares
-        elif position == "short":
-            current_equity += (self.entry_price - self.close) * shares
+        for leg in self.position_manager.legs:
+            if leg.direction == "long":
+                current_equity += (self.close - leg.entry_price) * leg.shares
+            elif leg.direction == "short":
+                current_equity += (leg.entry_price - self.close) * leg.shares
 
         self.stats.update_intraday_equity(self.ts, current_equity)
         self.plotting.update_intraday_equity(current_equity)
-
-    def get_stats_class(self):
-        return self.stats

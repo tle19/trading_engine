@@ -91,7 +91,7 @@ class Equities:
             self.exit_ids[symbol] = self.long_bracket(symbol, shares, stop_price, profit_price)
             fill_price = self.get_fill_price(self.entry_ids[symbol], shares)
             strategy.update_entry_price(fill_price)
-            self.trade_log.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
+            self.trade_log.log_entry(symbol, position, shares, strategy.ts, strategy.price, fill_price)
 
         # --- Enter Short ---
         elif signal == -1 and position == "short":
@@ -99,7 +99,7 @@ class Equities:
             self.exit_ids[symbol] = self.short_bracket(symbol, shares, stop_price, profit_price)
             fill_price = self.get_fill_price(self.entry_ids[symbol], shares)
             strategy.update_entry_price(fill_price)
-            self.trade_log.log_entry(symbol, position, shares, strategy.get_time(), strategy.get_price(), fill_price)
+            self.trade_log.log_entry(symbol, position, shares, strategy.ts, strategy.price, fill_price)
 
         # --- Holding ---
         elif signal is None and position is not None:
@@ -121,7 +121,7 @@ class Equities:
                 elif position == "short":
                     exit_id = self.buy_market(symbol, shares, "BUY_TO_COVER")
                 fill_price = self.get_fill_price(exit_id, shares)
-                exit_price = strategy.get_price()
+                exit_price = strategy.price
             else:
                 if position == "long":
                     print(f"SOLD -{shares} {symbol} @ {fill_price}")
@@ -130,7 +130,7 @@ class Equities:
                 stop_price_f, profit_price_f = float(stop_price), float(profit_price)
                 exit_price = min([stop_price_f, profit_price_f], key=lambda x: abs(fill_price - x))
             
-            self.trade_log.update_exit(symbol, position, shares, strategy.get_time(), exit_price, fill_price)
+            self.trade_log.update_exit(symbol, position, shares, strategy.ts, exit_price, fill_price)
             self.update_pnl(strategy, position, fill_price, shares)
             self.flatten(symbol, strategy)
         

@@ -7,9 +7,10 @@ class StochasticIndicator(Strategy):
     def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=20,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
                  vol_fast_window=14, vol_slow_window=28, vol_threshold=0.025, atr_window=10,
-                 stop_loss=0.01, take_profit=0.01, trailing_ratio=0.05,
-                 target=0.001, loss=-0.001):
-        super().__init__(symbol, stop_loss, take_profit, trailing_ratio)
+                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05,
+                 pnl_target=0.001, pnl_loss=-0.001, trade_max=5):
+        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio,
+                         pnl_target, pnl_loss, trade_max)
         self.fast_window = fast_window
         self.slow_window = slow_window
         self.signal_window = signal_window
@@ -36,15 +37,13 @@ class StochasticIndicator(Strategy):
         self.rolling_rsi = deque(maxlen=10)
         self.rolling_vol = deque(maxlen=5)
 
-        self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
-
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
         self.reset_indicators()
         self.minimum_computations()
         
-        k, d = self.compute_stochastic(self.highs, self.lows, self.prices, self.k_period, self.k_smooth, self.d_period)
+        k, d = self.compute_stochastic(self.highs, self.lows, self.closes, self.k_period, self.k_smooth, self.d_period)
         rsi = self.compute_rsi(self.prices, self.rsi_period)
         hist, _, _ = self.compute_macd(self.fast_window, self.slow_window, self.signal_window)
         # self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
@@ -57,15 +56,14 @@ class StochasticIndicator(Strategy):
         self.rolling_rsi.append(rsi)
         self.rolling_vol.append(vol)
 
-        status = self.check_status()
-        if status is not None:
-            return status
-        if not self.trade_window((9, 30), (15, 30)) and self.position is None:
+        if not self.trade_window((9, 30), (15, 30)) and not self.position_manager.in_trade():
             return None
 
         signal = None
-        if self.position is None and self.activated:
-            signal = self.enter_trade(k, d, rsi, hist, vol)
+        if self.activated:
+            signal = self.exit_trade()
+            if signal is None:
+                signal = self.enter_trade(k, d, rsi, hist, vol)
         return signal
 
     def enter_trade(self, k, d, rsi, hist, vol):

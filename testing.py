@@ -9,25 +9,16 @@ from strategies import *
 from utils import *
 
 def run_one_backtest(symbol, strategy_class, start_date, end_date, plot=True, save_plot=False, **strategy_kwargs):
-    start_time = time.perf_counter()
-
-    strat = strategy_class(symbol, **strategy_kwargs)
-    
+    strat = strategy_class(symbol, **strategy_kwargs)   
     bt = Backtest(
         symbol, 
         strat, 
         cash=25_000, 
-        shares=50, 
         margin=1.0, 
         commission=0.0, 
         slippage=0.1)
-    
     bt.run(start_date=start_date, end_date=end_date, plot=plot, save_plot=save_plot)
-
-    elapsed_time = time.perf_counter() - start_time
-    print(f"Elapsed Backtest Time: {elapsed_time:.6f} seconds")
-
-    return bt.get_stats_class()
+    return bt.stats
 
 def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, plot, **strategy_kwargs):
     ticker_pnls = []
@@ -248,7 +239,7 @@ strategy_kwargs = { # MACD
 run_one_backtest( # MACD
     "TSLA",
     MACDIndicator,
-    start_date="2025-10-01",
+    start_date="2023-11-01",
     end_date="2025-11-01",
     plot=True,
     **strategy_kwargs

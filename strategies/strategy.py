@@ -8,19 +8,14 @@ EXIT = 0
 HOLD = None
 
 class Strategy:
-    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, trailing_ratio=0.15):
+    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02,
+                 position_size=1.0, trailing_ratio=0.15,
+                 pnl_target=0.01, pnl_loss=-0.01, trade_max=5):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
+        self.position_size = position_size
         self.trailing_ratio = trailing_ratio
-        
-        self.activated = False
-        self.position_size = 1.0
-        self.position = None
-        self.entry_price = None
-        self.stop_price = None
-        self.profit_price = None
-        self.trailing = False
 
         self.open = None
         self.close = None
@@ -31,11 +26,14 @@ class Strategy:
 
         self.prices = []
         self.opens = []
+        self.closes = []
         self.highs = []
         self.lows = []
         self.volumes = [] 
 
-        self.risk_manager = RiskManager()
+        self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
+        self.position_manager = PositionManager()
+        self.activated = False
         
     def generate_signal(self, row):
         raise NotImplementedError
@@ -44,7 +42,7 @@ class Strategy:
         raise NotImplementedError
     
     def exit_trade(self):
-        raise NotImplementedError
+        return self.exit()
 
     def reset_indicators(self):
         raise NotImplementedError
@@ -64,104 +62,95 @@ class Strategy:
             self.volume = row.volume
             self.ts = row.timestamp
 
-        self.prices.append(self.close) # (self.close + self.open + self.high) / 3
+        self.price = self.close  # (self.close + self.open + self.high) / 3
+        self.prices.append(self.price)
         self.opens.append(self.open)
+        self.closes.append(self.close)
         self.highs.append(self.high)
         self.lows.append(self.low)
         self.volumes.append(self.volume)
                    
     def reset_data(self):
         if self.trade_window((9, 30), (9, 30)):
-            self.prices = [self.prices[-1]]
-            self.opens = [self.opens[-1]]
-            self.highs = [self.highs[-1]]
-            self.lows = [self.lows[-1]]
-            self.volumes = [self.volumes[-1]]
+            self.prices = [self.price]
+            self.opens = [self.open]
+            self.closes = [self.close]
+            self.highs = [self.high]
+            self.lows = [self.low]
+            self.volumes = [self.volume]
+            self.position_manager.flatten()
             self.risk_manager.reset()
             self.activated = False
 
-    def check_status(self):
-        if self.position == "long":
-            if self.stop_price >= self.profit_price:
-                raise ValueError("Invalid long: stop >= profit")
-            if self.low <= self.stop_price or self.high >= self.profit_price:
-                return self.sell()
-            elif not self.trade_window((9, 30), (15, 57)):
-                return self.sell()
-        elif self.position == "short":
-            if self.stop_price <= self.profit_price:
-                raise ValueError("Invalid short: stop <= profit")
-            if self.high >= self.stop_price or self.low <= self.profit_price:
-                return self.buy()
-            elif not self.trade_window((9, 30), (15, 57)):
-                return self.buy()
-
     def trade_window(self, start, end):
         return start <= (self.ts.hour, self.ts.minute) <= end
-           
+        
     def buy(self):
-        if self.position is None:
-            self.position = "long"
-            self.entry_price = round(self.close, 2)
-            self.stop_price = round(self.entry_price * (1 - self.stop_loss), 2)
-            self.profit_price = round(self.entry_price * (1 + self.take_profit), 2)
-            if self.stop_price >= self.entry_price:
-                raise ValueError("Invalid long: stop >= entry")
-            if self.profit_price <= self.entry_price:
-                raise ValueError("Invalid long: profit <= entry")
-            if self.stop_price >= self.profit_price:
-                raise ValueError("Invalid long: stop >= profit")
-            if self.stop_price <= 0 or self.profit_price <= 0:
-                raise ValueError("Computed prices must be > 0")
-            return LONG
-        elif self.position == "short":
-            return EXIT
-    
+        direction = self.position_manager.direction()
+        if direction in ("long", None):
+            entry_price = round(self.price, 2)
+            stop_price = round(entry_price * (1 - self.stop_loss), 2)
+            target_price = round(entry_price * (1 + self.take_profit), 2)
+
+            pos_leg = PositionLeg(
+                direction="long",
+                timestamp=self.ts,
+                position_size=self.position_size,
+                entry_price=entry_price,
+                stop_price=stop_price,
+                target_price=target_price,
+                cash=self.risk_manager.start_cash
+            )
+
+            cond = self.position_manager.add_leg(pos_leg)
+            return (LONG, pos_leg) if cond else (HOLD, None)
+        elif direction == "short":
+            return HOLD, None
+        
     def sell(self):
-        if self.position is None:
-            self.position = "short"
-            self.entry_price = round(self.close, 2)
-            self.stop_price = round(self.entry_price * (1 + self.stop_loss), 2)
-            self.profit_price = round(self.entry_price * (1 - self.take_profit), 2)
-            if self.stop_price <= self.entry_price:
-                raise ValueError("Invalid short: stop <= entry")
-            if self.profit_price >= self.entry_price:
-                raise ValueError("Invalid short: profit >= entry")
-            if self.stop_price <= self.profit_price:
-                raise ValueError("Invalid short: stop <= profit")
-            if self.stop_price <= 0 or self.profit_price <= 0:
-                raise ValueError("Computed prices must be > 0")
-            return SHORT
-        elif self.position == "long":
-            return EXIT
-    
-    def flatten(self):
-        self.position_size = 1.0
-        self.position = None
-        self.entry_price = None
-        self.stop_price = None
-        self.profit_price = None
-        self.trailing = False
+        direction = self.position_manager.direction()
+        if direction in ("short", None):
+            entry_price = round(self.price, 2)
+            stop_price = round(entry_price * (1 + self.stop_loss), 2)
+            target_price = round(entry_price * (1 - self.take_profit), 2)
+
+            pos_leg = PositionLeg(
+                direction="short",
+                timestamp=self.ts,
+                position_size=self.position_size,
+                entry_price=entry_price,
+                stop_price=stop_price,
+                target_price=target_price,
+                cash=self.risk_manager.start_cash
+            )
+
+            cond = self.position_manager.add_leg(pos_leg)
+            return (SHORT, pos_leg) if cond else (HOLD, None)
+        elif direction == "long":
+            return HOLD, None
+          
+    def exit(self):
+        for leg in self.position_manager.legs:
+            if leg.check_exit(self.ts, self.low, self.high) == EXIT:
+                return EXIT
+        return HOLD
     
     def set_trailing_stop(self):
-        self.trailing = False
         if not self.in_safe_range():
             return None
         
         trailing_ratio = self.get_trailing_ratio(self.stop_price)
-        adjustment = trailing_ratio * abs(self.stop_price - self.close)
+        adjustment = trailing_ratio * abs(self.stop_price - self.price)
 
-        if self.position == "long" and self.close > self.entry_price:
+        if self.position == "long" and self.price > self.entry_price:
             self.stop_price = round(self.stop_price + adjustment, 2)
-            self.trailing = True
 
-        elif self.position == "short" and self.close < self.entry_price:
+        elif self.position == "short" and self.price < self.entry_price:
             self.stop_price = round(self.stop_price - adjustment, 2)
-            self.trailing = True
 
     def get_trailing_ratio(self, price):
         min_distance = self.compute_min_distance()
-        distance = abs(price - self.close)
+        distance = abs(price - self.price)
 
         max_ratio = 1 - (min_distance / distance)
         trailing_ratio = min(self.trailing_ratio, max_ratio)
@@ -182,8 +171,8 @@ class Strategy:
     
     def in_safe_range(self):
         min_distance = self.compute_min_distance()
-        stop_distance = abs(self.stop_price - self.close)
-        profit_distance = abs(self.profit_price - self.close)
+        stop_distance = abs(self.stop_price - self.price)
+        profit_distance = abs(self.profit_price - self.price)
 
         if min_distance is None:
             return False
@@ -237,7 +226,7 @@ class Strategy:
         return 100.0 - (100.0 / (1.0 + rs))
     
     def compute_stochastic(self, high, low, close, k_period=14, k_smooth=3, d_period=3):
-        if len(close) == 0:
+        if len(close) < 3:
             return 50.0, 50.0
 
         k_values = []
@@ -262,7 +251,7 @@ class Strategy:
         return k, d
     
     def compute_macd(self, fast_window=12, slow_window=26, signal_window=9):
-        price = self.prices[-1]
+        price = self.price
         self.fast_ema = self.compute_ema(self.fast_ema, price, fast_window)
         self.slow_ema = self.compute_ema(self.slow_ema, price, slow_window)
 
@@ -348,14 +337,14 @@ class Strategy:
 
         return adx * 100
     
-    def compute_swing(self, mode="high", lookback=10):
+    def compute_swing(self, mode="high", lookback=10): # fix swing
         arr = self.highs[-lookback:] if mode == "high" else self.lows[-lookback:]
-        c = self.close
+        c = self.price
         n = len(arr)
 
         if n < 3:
             return max(arr) if mode == "high" else min(arr)
-
+        
         for i in range(n-2, 0, -1):
             a = arr[i]
             l = arr[i-1]
@@ -370,36 +359,77 @@ class Strategy:
 
         return max(arr) if mode == "high" else min(arr)
 
-            
-    def is_trailing(self):
-        return self.trailing
+class PositionLeg:
+    __slots__ = ("direction", "entry_time", "position_size", "_entry_price", "stop_price", "target_price", "shares")
     
-    def get_time(self):
-        return self.ts
-    
-    def get_price(self):
-        return self.close
-    
-    def get_entry_price(self):
-        return self.entry_price
-      
-    def get_stop_price(self):
-        return self.stop_price
-    
-    def get_profit_price(self):
-        return self.profit_price
-    
-    def get_position(self):
-        return self.position
-    
-    def get_position_size(self):
-        return self.position_size
+    def __init__(self, direction, timestamp, position_size, entry_price, stop_price, target_price, cash):
+        self.direction = direction
+        self.entry_time = timestamp
+        self.position_size = position_size
+        self._entry_price = entry_price
+        self.stop_price = stop_price
+        self.target_price = target_price
+        self.shares = (cash * position_size) // entry_price
 
-    def get_risk_manager(self):
-        return self.risk_manager
-       
-    def update_entry_price(self, fill_price):
-        self.entry_price = float(fill_price)
+        if direction not in ("long", "short"):
+            raise ValueError(f"Invalid direction: {direction}")
+        if self.direction == "long":
+            if not (0 < self.stop_price < self.entry_price < self.target_price):
+                raise ValueError(f"Invalid long leg: stop={self.stop_price}, entry={self.entry_price}, target={self.target_price}")
+        elif self.direction == "short":
+            if not (0 < self.target_price < self.entry_price < self.stop_price):
+                raise ValueError(f"Invalid short leg: stop={self.stop_price}, entry={self.entry_price}, target={self.target_price}")
+     
+    def check_exit(self, ts, low, high):
+        if self.direction == "long":
+            if self.stop_price >= self.target_price:
+                raise ValueError("Invalid long: stop >= profit")
+            if low <= self.stop_price or high >= self.target_price:
+                return EXIT
+            if (ts.hour, ts.minute) >= (15, 58):
+                return EXIT
+        elif self.direction == "short":
+            if self.stop_price <= self.target_price:
+                raise ValueError("Invalid short: stop <= profit")
+            if high >= self.stop_price or low <= self.target_price:
+                return EXIT
+            if (ts.hour, ts.minute) >= (15, 58):
+                return EXIT
+        return HOLD
+    
+    @property
+    def entry_price(self):
+        return self._entry_price
+
+    @entry_price.setter
+    def entry_price(self, value):
+        if value <= 0:
+            raise ValueError("entry_price must be positive")
+        self._entry_price = float(value)
+            
+class PositionManager:
+    def __init__(self):
+        self.legs = [] # list of PositionLeg
+
+    def add_leg(self, leg: PositionLeg):
+        if 0.0 < self.total_size() + leg.position_size <= 1.0:
+            self.legs.append(leg)
+            return True
+
+    def remove_leg(self, leg):
+        self.legs.remove(leg)
+
+    def direction(self):
+        return self.legs[0].direction if self.legs else None
+
+    def total_size(self):
+        return sum(l.position_size for l in self.legs)  
+
+    def flatten(self):
+        self.legs = []
+    
+    def in_trade(self):
+        return bool(self.legs)
 
 class RiskManager:
     def __init__(self, pnl_target=0.02, pnl_loss=-0.01, trade_max=3):
@@ -407,7 +437,7 @@ class RiskManager:
         self.pnl_loss = pnl_loss
         self.trade_max = trade_max
         
-        self.start_cash = 0
+        self._start_cash = 0
         self.trades = 0
         self.pnl = 0
         self._day_pause = False
@@ -430,14 +460,15 @@ class RiskManager:
         self.pnl = 0
         self._day_pause = False
     
-    def day_pause(self):
-        return self._day_pause
-    
     def get_curr_cash(self):
         return self.start_cash + self.pnl
-    
-    def get_pnl(self):
-        return self.pnl
-    
-    def set_start_cash(self, cash):
-        self.start_cash = cash
+
+    @property
+    def start_cash(self):
+        return self._start_cash
+
+    @start_cash.setter
+    def start_cash(self, cash):
+        if cash < 0:
+            raise ValueError("start_cash must be positive")
+        self._start_cash = round(cash, 2)

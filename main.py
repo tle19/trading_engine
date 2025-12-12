@@ -32,7 +32,7 @@ def main():
         bt.run(plot=True, save_plot=False)
     elif args.fetch:
         dh = DataHandler()
-        dh.historical_data(args.symbol, from_date='2023-11-01', to_date='2025-11-01')
+        dh.historical_data(args.symbol, from_date='2023-12-01', to_date='2025-12-01')
         # dh.schwab_data(args.symbol, startDate=datetime(2025, 1, 1), endDate=datetime(2025, 11, 1))
     elif args.stream:
         dh = DataHandler()
