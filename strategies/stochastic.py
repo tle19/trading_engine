@@ -26,14 +26,11 @@ class StochasticIndicator(Strategy):
         self.vol_threshold = vol_threshold
         self.atr_window = atr_window
 
-        self.activated = False
         self.ema = None
         self.fast_ema = None
         self.slow_ema = None
         self.signal_ema = None
         self.stoch_signal = None
-        self.current_atr = None
-        self.regime = None
         self.rolling_rsi = deque(maxlen=10)
         self.rolling_vol = deque(maxlen=5)
 
@@ -52,13 +49,15 @@ class StochasticIndicator(Strategy):
         # adaptive sl and tp based on ATR/volatility/spread
         # clamp sl (0.005, 0.015) and tp (0.005, 0.015) in predetermined range
 
-        self.compute_signal_direction(k, d)
         self.rolling_rsi.append(rsi)
         self.rolling_vol.append(vol)
-
+        
+        # if self.risk_manager._day_pause: 
+        #     return None
         if not self.trade_window((9, 30), (15, 30)) and not self.position_manager.in_trade():
             return None
 
+        self.compute_signal_direction(k, d)
         signal = None
         if self.activated:
             signal = self.exit_trade()
@@ -67,19 +66,17 @@ class StochasticIndicator(Strategy):
         return signal
 
     def enter_trade(self, k, d, rsi, hist, vol):
-        if not (self.stoch_lower < min(k, d) and max(k, d) < self.stoch_upper):
-            return None
+        signal = None
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
         vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
         
         if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
             if vol > self.vol_threshold: #and vol > vol_ma
-                signal = self.buy() 
-                return signal
+                signal, _ = self.buy() 
         if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0:
             if vol > self.vol_threshold:
-                signal = self.sell() 
-                return signal
+                signal, _ = self.sell() 
+        return signal
 
     # def enter_trade(self, k, d, rsi, hist, vol): # original version
     #     if not (self.stoch_lower < min(k, d) and max(k, d) < self.stoch_upper):
@@ -127,11 +124,9 @@ class StochasticIndicator(Strategy):
             self.slow_ema = None
             self.signal_ema = None
             self.stoch_signal = None
-            self.current_atr = None
             self.regime = None
             self.rolling_rsi = deque(maxlen=10)
-            self.rolling_vol = deque(maxlen=3)
-
+            self.rolling_vol = deque(maxlen=5)
       
     def minimum_computations(self):
         if not self.activated:

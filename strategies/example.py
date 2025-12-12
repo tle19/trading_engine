@@ -38,7 +38,7 @@ class SMACrossover(Strategy):
         # enter/exit positions
         signal = None
         if self.activated:
-            signal = self.exit_trade()
+            signal = self.exit_trade(slow_ma)
             if signal is None:
                 signal = self.enter_trade(slow_ma, htf_ma)
         return signal
@@ -49,8 +49,12 @@ class SMACrossover(Strategy):
         if self.ema < slow_ma <= htf_ma:
             return self.sell()
         
-    def exit_trade(self):
-        return self.exit()
+    def exit_trade(self, slow_ma):
+        direction = self.position_manager.direction()
+        if direction == "long" and self.ema < slow_ma:
+            return self.exit()
+        if direction == "short" and self.ema > slow_ma:
+            return self.exit()
     
     def reset_indicators(self):
         if self.trade_window((9, 30), (9, 30)):

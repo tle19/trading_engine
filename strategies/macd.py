@@ -71,7 +71,8 @@ class MACDIndicator(Strategy):
         #     return None
         if not self.trade_window((9, 30), (15, 00)) and not self.position_manager.in_trade():
             return None
-        
+
+        self.condition_check(hist_low, hist_med, hist_high)
         signal = None
         if self.activated:
             signal = self.exit_trade()
@@ -83,6 +84,96 @@ class MACDIndicator(Strategy):
         return signal
 
     def enter_trade(self, hist_low, hist_med, hist_high, adx):
+        if self.cond_1 and self.cond_2 and self.cond_3:
+            signal = None
+            adx_ma = sum(self.rolling_adx) / len(self.rolling_adx)
+            adx_cond = (adx > adx_ma and adx > 30) or ((adx < adx_ma and adx > 40))
+            
+            if hist_high > 0 and self.close > self.ema:
+                swing_low = self.compute_swing(mode="low", lookback=10)
+                stop_in_band = min(self.low, swing_low) > self.ema * (1 + self.ma_threshold)
+                if stop_in_band:
+                    signal, pos_leg = self.buy()
+                    if pos_leg is not None:
+                        pos_leg.stop_price = round(max(swing_low * (1 - 0.0001), pos_leg.stop_price), 2)
+                        diff = self.close - pos_leg.stop_price
+                        pos_leg.target_price = round(self.close + (diff * self.take_profit * 100), 2)
+                # swing_low = self.compute_swing(mode="low", lookback=10)
+                # swing_high = self.compute_swing(mode="high", lookback=10)
+                # stop_in_band = min(self.low, swing_low) > self.ema * (1 + self.ma_threshold)
+                # if stop_in_band:
+                #     signal, pos_leg = self.sell()
+                #     if pos_leg is not None:
+                #         pos_leg.stop_price = round(min(self.high * (1 + 0.0005), pos_leg.stop_price), 2)
+                #         diff = pos_leg.stop_price - self.close
+                #         pos_leg.target_price = round(self.close - (diff * self.take_profit * 100), 2)
+            
+            if hist_high < 0 and self.close < self.ema:
+                swing_high = self.compute_swing(mode="high", lookback=10)
+                stop_in_band = max(self.high, swing_high) < self.ema * (1 - self.ma_threshold)
+                if stop_in_band:
+                    signal, pos_leg = self.sell()
+                    if pos_leg is not None:
+                        pos_leg.stop_price = round(min(swing_high * (1 + 0.0001), pos_leg.stop_price), 2)
+                        diff = pos_leg.stop_price - self.close
+                        pos_leg.target_price = round(self.close - (diff * self.take_profit * 100), 2)
+                # swing_low = self.compute_swing(mode="low", lookback=10)
+                # swing_high = self.compute_swing(mode="high", lookback=10)
+                # stop_in_band = max(self.high, swing_high) < self.ema * (1 - self.ma_threshold)
+                # if stop_in_band:
+                #     signal, pos_leg = self.buy()
+                #     if pos_leg is not None:
+                #         pos_leg.stop_price = round(max(self.low * (1 - 0.0005), pos_leg.stop_price), 2)
+                #         diff = self.close - pos_leg.stop_price
+                #         pos_leg.target_price = round(self.close + (diff * self.take_profit * 100), 2)
+
+            self.cond_1 = False
+            self.cond_2 = False
+            self.cond_3 = False
+            self.cond_4 = False
+            return signal
+        
+    def reset_indicators(self):
+        if self.trade_window((9, 30), (9, 30)):
+            self.fast_ema_low = None
+            self.slow_ema_low = None
+            self.signal_ema_low = None
+            self.fast_ema_med = None
+            self.slow_ema_med = None
+            self.signal_ema_med = None
+            self.fast_ema_high = None
+            self.slow_ema_high = None
+            self.signal_ema_high = None
+            self.ema = None
+
+            self.prev_hist_low = None
+            self.prev_hist_med = None
+            self.prev_hist_high = None
+
+            self.cond_1 = False
+            self.cond_2 = False
+            self.cond_3 = False
+            self.cond_4 = False
+
+            self.rolling_adx = deque(maxlen=10)
+            self.rolling_ema = deque(maxlen=10)
+        
+    def minimum_computations(self):
+        if not self.activated:
+            required_data = max(
+                self.fast_window_low,
+                self.slow_window_low,
+                self.signal_window_low,
+                self.fast_window_med,
+                self.slow_window_med,
+                self.signal_window_med,
+                self.fast_window_high,
+                self.signal_window_high,
+                self.htf_window
+            ) + 1
+            self.activated = len(self.prices) > required_data
+
+    def condition_check(self, hist_low, hist_med, hist_high):
         if (hist_high > 0 and self.prev_hist_high < 0) or (hist_high < 0 and self.prev_hist_high > 0):
             self.cond_1 = False
             self.cond_2 = False
@@ -115,76 +206,6 @@ class MACDIndicator(Strategy):
                     self.cond_3 = hist_med < self.prev_hist_med
                 elif hist_med > 0:
                     self.cond_3 = hist_high < self.prev_hist_high
-
-        if self.cond_1 and self.cond_2 and self.cond_3:
-            signal = None
-            adx_ma = sum(self.rolling_adx) / len(self.rolling_adx)
-            adx_cond = (adx > adx_ma and adx > 30) or ((adx < adx_ma and adx > 40))
-            
-            if hist_high > 0 and self.close > self.ema:
-                swing_low = self.compute_swing(mode="low", lookback=10)
-                stop_in_band = min(self.low, swing_low) > self.ema * (1 + self.ma_threshold)
-                if stop_in_band:
-                    signal, pos_leg = self.buy()
-                    if pos_leg is not None:
-                        pos_leg.stop_price = round(max(swing_low * (1 - 0.0001), pos_leg.stop_price), 2)
-                        diff = self.close - pos_leg.stop_price
-                        pos_leg.target_price = round(self.close + (diff * self.take_profit * 100), 2)
-            
-            if hist_high < 0 and self.close < self.ema:
-                swing_high = self.compute_swing(mode="high", lookback=10)
-                stop_in_band = max(self.high, swing_high) < self.ema * (1 - self.ma_threshold)
-                if stop_in_band:
-                    signal, pos_leg = self.sell()
-                    if pos_leg is not None:
-                        pos_leg.stop_price = round(min(swing_high * (1 + 0.0001), pos_leg.stop_price), 2)
-                        diff = pos_leg.stop_price - self.close
-                        pos_leg.target_price = round(self.close - (diff * self.take_profit * 100), 2)
-
-            self.cond_1 = False
-            self.cond_2 = False
-            self.cond_3 = False
-            self.cond_4 = False
-            return signal
-        
-    def reset_indicators(self):
-        if self.trade_window((9, 30), (9, 30)):
-            self.fast_ema_low = None
-            self.slow_ema_low = None
-            self.signal_ema_low = None
-            self.fast_ema_med = None
-            self.slow_ema_med = None
-            self.signal_ema_med = None
-            self.fast_ema_high = None
-            self.slow_ema_high = None
-            self.signal_ema_high = None
-            self.ema = None
-
-            self.prev_hist_low = None
-            self.prev_hist_med = None
-            self.prev_hist_high = None
-
-            self.cond_1 = False
-            self.cond_2 = False
-            self.cond_3 = False
-            self.cond_4 = False
-
-            self.rolling_adx = deque(maxlen=10)
-            return None
-        
-    def minimum_computations(self):
-        if not self.activated:
-            required_data = max(
-                self.fast_window_low,
-                self.slow_window_low,
-                self.signal_window_low,
-                self.fast_window_med,
-                self.slow_window_med,
-                self.signal_window_med,
-                self.fast_window_high,
-                self.signal_window_high
-            ) + 1
-            self.activated = len(self.prices) > required_data
 
     def compute_macd(self, fast_ema, slow_ema, signal_ema, fast_window, slow_window, signal_window):
         price = self.price

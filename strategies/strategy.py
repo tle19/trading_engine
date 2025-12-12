@@ -128,7 +128,7 @@ class Strategy:
         elif direction == "long":
             return HOLD, None
           
-    def exit(self):
+    def exit(self): # implement non-static exits
         for leg in self.position_manager.legs:
             if leg.check_exit(self.ts, self.low, self.high) == EXIT:
                 return EXIT
