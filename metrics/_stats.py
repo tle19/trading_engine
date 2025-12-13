@@ -211,9 +211,7 @@ class Stats:
 
         self.sharpe_ratio = np.sqrt(252) * (excess_daily_return / std)
     
-    def get_time_loss(self):
-        # find time of day where loss is irrecoverable, set loss there
-        # dont want to stop out day if loss is in very beggining of day (could recover)
+    def _calculate_avg_trade_duration(self):
         raise NotImplementedError
     
     def get_data_dict(self):
