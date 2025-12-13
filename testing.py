@@ -206,9 +206,8 @@ symbols = ["QQQ", "AAPL", "MSFT", "CRM", "ADBE", "GOOG", "QCOM", "UPS"]
 
 # strategy_kwargs = { # ORB
 #     "orb_window": 5,
-#     "rsi_period": 14,
-#     "stop_loss": 0.001,
-#     "take_profit": 0.75,
+#     "stop_loss": 0.01,
+#     "take_profit": 0.01,
 #     "trailing_ratio": 0.1
 # }
 # run_one_backtest( # ORB

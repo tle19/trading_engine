@@ -46,6 +46,7 @@ class StochasticIndicator(Strategy):
         vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
         # self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
         # atr = self.compute_atr()
+        # adx = self.compute_adx()
 
         self.rolling_rsi.append(rsi)
         self.rolling_vol.append(vol)

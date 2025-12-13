@@ -4,13 +4,12 @@ from strategies import Strategy
 from utils import *
 
 class ORBIndicator(Strategy):
-    def __init__(self, symbol, orb_window=5, rsi_period=14,
-                 stop_loss=0.001, take_profit=1.0, position_size=1.0, trailing_ratio=0.1,
+    def __init__(self, symbol, orb_window=5,
+                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.1,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=1):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio,
                          pnl_target, pnl_loss, trade_max)
         self.orb_window = orb_window
-        self.rsi_period = rsi_period
 
         self.upper_support = None
         self.lower_support = None
@@ -21,11 +20,9 @@ class ORBIndicator(Strategy):
         self.reset_indicators()
         self.minimum_computations()
 
-        # self.rsi = self.compute_rsi(self.prices, self.rsi_period)
-
         if self.risk_manager._day_pause: 
             return None
-        if not self.trade_window((9, 30), (15, 30)) and self.position is None:
+        if not self.trade_window((9, 30), (15, 30)) and not self.position_manager.in_trade():
             return None
 
         signal = None
@@ -39,16 +36,16 @@ class ORBIndicator(Strategy):
         signal = None
         if self.close > self.upper_support:
             signal, pos_leg = self.buy()
-            if pos_leg is not None:
-                diff = self.upper_support - self.lower_support
-                self.stop_price = round(self.lower_support * (1 - self.stop_loss), 2)
-                self.profit_price = round(self.upper_support + (diff * self.take_profit), 2)
+            # if pos_leg is not None:
+            #     diff = self.upper_support - self.lower_support
+            #     self.stop_price = round(self.lower_support * (1 - 0.0001), 2)
+            #     self.profit_price = round(self.upper_support + (diff * self.take_profit * 100), 2)
         elif self.close < self.lower_support:
             signal, pos_leg = self.sell()
-            if pos_leg is not None:
-                diff = self.upper_support - self.lower_support
-                self.stop_price = round(self.upper_support * (1 + self.stop_loss), 2)
-                self.profit_price = round(self.lower_support - (diff * self.take_profit), 2)
+            # if pos_leg is not None:
+            #     diff = self.upper_support - self.lower_support
+            #     self.stop_price = round(self.upper_support * (1 + 0.0001), 2)
+            #     self.profit_price = round(self.lower_support - (diff * self.take_profit * 100), 2)
         return signal
         
     def reset_indicators(self):
