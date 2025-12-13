@@ -39,13 +39,13 @@ class StochasticIndicator(Strategy):
         self.reset_data()
         self.reset_indicators()
         self.minimum_computations()
-        
+
         k, d = self.compute_stochastic(self.highs, self.lows, self.closes, self.k_period, self.k_smooth, self.d_period)
         rsi = self.compute_rsi(self.prices, self.rsi_period)
         hist, _, _ = self.compute_macd(self.fast_window, self.slow_window, self.signal_window)
         vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
-        self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
-        atr = self.compute_atr()
+        # self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
+        # atr = self.compute_atr()
 
         self.rolling_rsi.append(rsi)
         self.rolling_vol.append(vol)
@@ -104,7 +104,6 @@ class StochasticIndicator(Strategy):
             self.slow_ema = None
             self.signal_ema = None
             self.stoch_signal = None
-            self.regime = None
             self.rolling_rsi = deque(maxlen=10)
             self.rolling_vol = deque(maxlen=5)
       

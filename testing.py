@@ -139,8 +139,8 @@ def optimize_params(symbol, strategy_class, start, end):
         "d_period": [3],
         "stoch_lower": [20],
         "stoch_upper": [80],
-        "vol_fast_window": [14], # [7, 10, 12, 14]
-        "vol_slow_window": [28], # [15, 20, 25, 28]
+        "vol_fast_window": [14],
+        "vol_slow_window": [28],
         "stop_loss": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015],
         "take_profit": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02],
         "trailing_ratio": [0.05]
@@ -281,7 +281,7 @@ run_one_backtest( # Stochastic
 #     save_plot=True, 
 #     **strategy_kwargs
 #     )
-# grid_search("AAPL", StochasticIndicator, start_date="2023-11-01", end_date="2025-11-01")
+grid_search("META", StochasticIndicator, start_date="2023-11-01", end_date="2025-11-01")
 # walk_forward_optimize("QCOM", StochasticIndicator)
 
 

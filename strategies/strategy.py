@@ -138,7 +138,7 @@ class Strategy:
         if not self.in_safe_range():
             return None
         
-        trailing_ratio = self.get_trailing_ratio(self.stop_price)
+        trailing_ratio = self.compute_trailing_ratio(self.stop_price)
         adjustment = trailing_ratio * abs(self.stop_price - self.price)
 
         if self.position == "long" and self.price > self.entry_price:
@@ -147,7 +147,7 @@ class Strategy:
         elif self.position == "short" and self.price < self.entry_price:
             self.stop_price = round(self.stop_price - adjustment, 2)
 
-    def get_trailing_ratio(self, price):
+    def compute_trailing_ratio(self, price):
         min_distance = self.compute_min_distance()
         distance = abs(price - self.price)
 
@@ -161,21 +161,14 @@ class Strategy:
         min_dist = spread * min_dist_ratio
         return min_dist
     
-    def compute_spread(self, stability_window=5):
-        if len(self.prices) < stability_window:
-            return None
-
-        spread = self.compute_ma(self.highs, stability_window) - self.compute_ma(self.lows, stability_window)
-        return spread
-    
     def in_safe_range(self):
         min_distance = self.compute_min_distance()
         stop_distance = abs(self.stop_price - self.price)
-        profit_distance = abs(self.profit_price - self.price)
+        target_distance = abs(self.target_price - self.price)
 
         if min_distance is None:
             return False
-        elif stop_distance > min_distance and profit_distance > min_distance:
+        elif stop_distance > min_distance and target_distance > min_distance:
             return True
 
     def compute_ma(self, data, window):
@@ -187,72 +180,62 @@ class Strategy:
         alpha = 2.0 / (window + 1.0)
         return alpha * new_value + (1.0 - alpha) * prev_ema
     
-    def compute_rsi(self, prices, period=14, mode="wilder"):
+    def compute_spread(self, window=5):
+        spread = self.compute_ma(self.highs, window) - self.compute_ma(self.lows, window)
+        return spread
+       
+    def compute_rsi(self, prices, period=14):
         p = np.asarray(prices, dtype=float)
-        if p.size < period + 1:
-            return 50
+        if len(p) < 2:
+            return 50.0
 
         deltas = np.diff(p)
-        gains = np.where(deltas > 0, deltas, 0.0)
-        losses = np.where(deltas < 0, -deltas, 0.0)
-        if gains.size < period:
-            return None
+        gains = np.maximum(deltas, 0.0)
+        losses = np.maximum(-deltas, 0.0)
 
-        seed_gain = gains[:period].mean()
-        seed_loss = losses[:period].mean()
+        actual_period = min(period, len(p) - 1)
+        avg_gain = gains[:actual_period].mean()
+        avg_loss = losses[:actual_period].mean()
 
-        if mode == "simple":
-            avg_gain = gains[-period:].mean()
-            avg_loss = losses[-period:].mean()
-        else:
-            avg_gain = seed_gain
-            avg_loss = seed_loss
-            if mode == "wilder":
-                for g, l in zip(gains[period:], losses[period:]):
-                    avg_gain = (avg_gain * (period - 1) + g) / period
-                    avg_loss = (avg_loss * (period - 1) + l) / period
-            elif mode == "exponential":
-                alpha = 2.0 / (period + 1)
-                for g, l in zip(gains[period:], losses[period:]):
-                    avg_gain = (1 - alpha) * avg_gain + alpha * g
-                    avg_loss = (1 - alpha) * avg_loss + alpha * l
-            else:
-                raise ValueError("mode must be 'simple','wilder' or 'exponential'")
+        for g, l in zip(gains[actual_period:], losses[actual_period:]):
+            avg_gain = (avg_gain * (period - 1) + g) / period
+            avg_loss = (avg_loss * (period - 1) + l) / period
 
         if avg_loss == 0:
             return 100.0
+        if avg_gain == 0:
+            return 0.0
+
         rs = avg_gain / avg_loss
-        return 100.0 - (100.0 / (1.0 + rs))
+        return 100.0 - 100.0 / (1.0 + rs)
     
-    def compute_stochastic(self, high, low, close, k_period=14, k_smooth=3, d_period=3):
-        if len(close) < 3:
+    def compute_stochastic(self, high, low, close, k_period=14, k_smooth=3, d_period=14):
+        n = len(close)
+        if n == 0:
             return 50.0, 50.0
 
-        k_values = []
-        for i in range(k_smooth):
-            h = np.max(high[-k_period - i:-i or None])
-            l = np.min(low[-k_period - i:-i or None])
-            k_values.append(100 * (close[-1 - i] - l) / (h - l + 1e-9))
-        k = np.mean(k_values)
+        def compute_k(end_idx):
+            start_idx = max(0, end_idx - k_period)
+            window_h = high[start_idx:end_idx]
+            window_l = low[start_idx:end_idx]
+            if len(window_h) == 0:
+                return 50.0
+            h = max(window_h)
+            l = min(window_l)
+            return 50.0 if h == l else 100.0 * (close[end_idx - 1] - l) / (h - l)
 
-        d_values = []
-        for i in range(d_period):
-            if len(close) - i < k_period + k_smooth - 1:
-                break
-            sub_k = []
-            for j in range(k_smooth):
-                h = np.max(high[-k_period - i - j:-i - j or None])
-                l = np.min(low[-k_period - i - j:-i - j or None])
-                sub_k.append(100 * (close[-1 - i - j] - l) / (h - l + 1e-9))
-            d_values.append(np.mean(sub_k))
-        d = np.mean(d_values)
+        k_values = [compute_k(n - i) for i in range(k_smooth)]
+        k = sum(k_values) / len(k_values) if k_values else 50.0
+
+        d_values = [sum(compute_k(n - i - j) for j in range(k_smooth)) / k_smooth
+                    for i in range(d_period)]
+        d = sum(d_values) / len(d_values) if d_values else 50.0
 
         return k, d
     
     def compute_macd(self, fast_window=12, slow_window=26, signal_window=9):
-        price = self.price
-        self.fast_ema = self.compute_ema(self.fast_ema, price, fast_window)
-        self.slow_ema = self.compute_ema(self.slow_ema, price, slow_window)
+        self.fast_ema = self.compute_ema(self.fast_ema, self.price, fast_window)
+        self.slow_ema = self.compute_ema(self.slow_ema, self.price, slow_window)
 
         macd = self.fast_ema - self.slow_ema
         self.signal_ema = self.compute_ema(self.signal_ema, macd, signal_window)
@@ -264,8 +247,6 @@ class Strategy:
         vol_fast_ma = self.compute_ma(data, fast_window)
         vol_slow_ma = self.compute_ma(data, slow_window)
 
-        if vol_slow_ma == 0 or vol_slow_ma is None:
-            return 0.0
         return (vol_fast_ma - vol_slow_ma) / vol_slow_ma
     
     def donchian_channel(self, period):
@@ -382,14 +363,14 @@ class PositionLeg:
     def check_exit(self, ts, low, high):
         if self.direction == "long":
             if self.stop_price >= self.target_price:
-                raise ValueError("Invalid long: stop >= profit")
+                raise ValueError("Invalid long: stop >= target")
             if low <= self.stop_price or high >= self.target_price:
                 return EXIT
             if (ts.hour, ts.minute) >= (15, 58):
                 return EXIT
         elif self.direction == "short":
             if self.stop_price <= self.target_price:
-                raise ValueError("Invalid short: stop <= profit")
+                raise ValueError("Invalid short: stop <= target")
             if high >= self.stop_price or low <= self.target_price:
                 return EXIT
             if (ts.hour, ts.minute) >= (15, 58):
