@@ -61,6 +61,7 @@ class StochasticIndicator(Strategy):
             signal = self.exit_trade()
             if signal is None:
                 signal = self.enter_trade(rsi, hist, vol)
+        self.prev_hist = hist
         return signal
 
     def enter_trade(self, rsi, hist, vol):
@@ -71,9 +72,11 @@ class StochasticIndicator(Strategy):
         if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
             if vol > self.vol_threshold: #and vol > vol_ma
                 signal, _ = self.buy() 
+                # signal, _ = self.sell() 
         if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0:
             if vol > self.vol_threshold:
                 signal, _ = self.sell() 
+                # signal, _ = self.buy() 
         return signal
 
     # def enter_trade(self, k, d, rsi, hist, vol): # original version

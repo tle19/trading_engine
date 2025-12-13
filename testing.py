@@ -258,7 +258,7 @@ strategy_kwargs = { # Stochastic
     "vol_fast_window": 14,
     "vol_slow_window": 28,
     "vol_threshold": 0.025,
-    "stop_loss": 0.0075,
+    "stop_loss": 0.01,
     "take_profit": 0.01,
     "trailing_ratio": 0.05
 }
@@ -281,7 +281,7 @@ run_one_backtest( # Stochastic
 #     save_plot=True, 
 #     **strategy_kwargs
 #     )
-grid_search("META", StochasticIndicator, start_date="2023-11-01", end_date="2025-11-01")
+# grid_search("NVDA", StochasticIndicator, start_date="2023-11-01", end_date="2025-11-01")
 # walk_forward_optimize("QCOM", StochasticIndicator)
 
 

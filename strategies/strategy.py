@@ -209,7 +209,7 @@ class Strategy:
         rs = avg_gain / avg_loss
         return 100.0 - 100.0 / (1.0 + rs)
     
-    def compute_stochastic(self, high, low, close, k_period=14, k_smooth=3, d_period=14):
+    def compute_stochastic(self, high, low, close, k_period=14, k_smooth=3, d_period=3):
         n = len(close)
         if n == 0:
             return 50.0, 50.0
