@@ -1,10 +1,10 @@
 from collections import deque
 
-from strategies import Strategy, RiskManager
+from strategies import Strategy
 from utils import *
 
 class StochasticIndicator(Strategy):
-    def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=20,
+    def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=50,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
                  vol_fast_window=14, vol_slow_window=28, vol_threshold=0.025, atr_window=10,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05,
@@ -43,11 +43,9 @@ class StochasticIndicator(Strategy):
         k, d = self.compute_stochastic(self.highs, self.lows, self.closes, self.k_period, self.k_smooth, self.d_period)
         rsi = self.compute_rsi(self.prices, self.rsi_period)
         hist, _, _ = self.compute_macd(self.fast_window, self.slow_window, self.signal_window)
-        # self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
         vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
-        # atr = self.compute_atr()
-        # adaptive sl and tp based on ATR/volatility/spread
-        # clamp sl (0.005, 0.015) and tp (0.005, 0.015) in predetermined range
+        self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
+        atr = self.compute_atr()
 
         self.rolling_rsi.append(rsi)
         self.rolling_vol.append(vol)
@@ -56,16 +54,16 @@ class StochasticIndicator(Strategy):
         #     return None
         if not self.trade_window((9, 30), (15, 30)) and not self.position_manager.in_trade():
             return None
-
-        self.compute_signal_direction(k, d)
+        
         signal = None
         if self.activated:
+            self.compute_signal_direction(k, d)
             signal = self.exit_trade()
             if signal is None:
-                signal = self.enter_trade(k, d, rsi, hist, vol)
+                signal = self.enter_trade(rsi, hist, vol)
         return signal
 
-    def enter_trade(self, k, d, rsi, hist, vol):
+    def enter_trade(self, rsi, hist, vol):
         signal = None
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
         vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
@@ -98,24 +96,6 @@ class StochasticIndicator(Strategy):
     #             diff = self.stop_price - self.close
     #             self.profit_price = round(self.close - (1 * diff), 2)
     #             return signal
-        
-    # def exit_trade(self, rsi, hist):
-    #     if self.position == "long":
-    #         if self.prices[-1] > self.local_high:
-    #             self.local_high = self.prices[-1]
-    #             self.hold_time = 0
-    #     elif self.position == "short":
-    #         if self.prices[-1] < self.local_low:
-    #             self.local_low = self.prices[-1] 
-    #             self.hold_time = 0
-    #     self.hold_time += 1
-                
-    #     if self.position == "long" and hist < 0 and rsi < 50 and self.close < self.local_high and self.local_high >= self.entry_price + 0.75 * (self.take_profit - self.entry_price) and self.hold_time > 30:
-    #         self.stop_price = round(self.close, 2)
-    #         return self.sell()
-    #     if self.position == "short" and hist > 0 and rsi > 50 and self.close > self.local_low and self.local_low <= self.entry_price + 0.75 * (self.entry_price - self.take_profit) and self.hold_time > 60:
-    #         self.stop_price = round(self.close, 2)
-    #         return self.buy()
       
     def reset_indicators(self):
         if self.trade_window((9, 30), (9, 30)):
@@ -155,3 +135,9 @@ class StochasticIndicator(Strategy):
                 self.stoch_signal = None
             elif self.stoch_signal == "short" and (k < lower or d < lower):
                 self.stoch_signal = None
+
+    def train(self):
+        # xg boost
+        # adaptive sl and tp based on indicators used for entry
+        # clamp sl (0.005, 0.015) and tp (0.005, 0.015) in predetermined range
+        return NotImplementedError

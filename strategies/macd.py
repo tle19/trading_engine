@@ -1,6 +1,6 @@
 from collections import deque
 
-from strategies import Strategy, RiskManager
+from strategies import Strategy
 from utils import *
 
 class MACDIndicator(Strategy):

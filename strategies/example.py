@@ -1,6 +1,6 @@
 import numpy as np
 
-from strategies import Strategy, RiskManager
+from strategies import Strategy
 from utils import *
 
 class SMACrossover(Strategy):
