@@ -3,7 +3,7 @@ api_config.json
 tokens.json
 
 # --- Test files ---
-trade_history.json
+trade_logs.json
 gs_results.json
 wfo_results.json
 
