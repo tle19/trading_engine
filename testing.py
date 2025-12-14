@@ -257,6 +257,8 @@ strategy_kwargs = { # Stochastic
     "vol_fast_window": 14,
     "vol_slow_window": 28,
     "vol_threshold": 0.025,
+    "atr_window": 14, 
+    "adx_window": 14,
     "stop_loss": 0.01,
     "take_profit": 0.01,
     "trailing_ratio": 0.05

@@ -30,10 +30,12 @@ class Strategy:
         self.lows = []
         self.volumes = [] 
 
-        self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
-        self.position_manager = PositionManager()
         self.activated = False
-        
+        self.features = {}
+
+        self.position_manager = PositionManager()
+        self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
+
     def generate_signal(self, row):
         raise NotImplementedError
     
@@ -43,11 +45,26 @@ class Strategy:
     def exit_trade(self):
         return self.exit()
 
+    def compute_indicators(self):
+        raise NotImplementedError
+    
     def reset_indicators(self):
         raise NotImplementedError
         
     def minimum_computations(self):
         raise NotImplementedError
+    
+    def add_features(self):
+        self.features = {
+            "session_open": self.opens[0],
+            "session_low": min(self.lows),
+            "session_high": max(self.highs),
+            "opens": self.opens[-10:],
+            "closes": self.closes[-10:],
+            "lows": self.lows[-10:],
+            "highs": self.highs[-10:],
+            "volumes": self.volumes[-10:]
+        }
     
     def train(self):
         return NotImplementedError
@@ -101,8 +118,10 @@ class Strategy:
                 cash=self.risk_manager.start_cash
             )
 
-            cond = self.position_manager.add_leg(pos_leg)
-            return (LONG, pos_leg) if cond else (HOLD, None)
+            if self.position_manager.add_leg(pos_leg):
+                self.add_features()
+                return (LONG, pos_leg)
+            return (HOLD, None)
         elif direction == -1:
             return HOLD, None
         
@@ -123,8 +142,10 @@ class Strategy:
                 cash=self.risk_manager.start_cash
             )
 
-            cond = self.position_manager.add_leg(pos_leg)
-            return (SHORT, pos_leg) if cond else (HOLD, None)
+            if self.position_manager.add_leg(pos_leg):
+                self.add_features()
+                return (SHORT, pos_leg)
+            return (HOLD, None)
         elif direction == 1:
             return HOLD, None
           

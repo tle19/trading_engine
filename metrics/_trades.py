@@ -17,7 +17,7 @@ class TradeManager:
     def update_intraday_equity(self, ts, equity):
         self.intraday_equity[ts] = equity
 
-    def log_entry(self, leg, symbol, direction, position_size, shares, entry_time, entry_price, fill_price):
+    def log_entry(self, leg, symbol, direction, position_size, shares, entry_time, entry_price, fill_price, features=None):
         trade = {
             "symbol": symbol,
             "direction": direction,
@@ -30,7 +30,8 @@ class TradeManager:
             "exit_price": None,
             "exit_fill": None,
             "pnl": None,
-            "pnl_pct": None
+            "pnl_pct": None,
+            "features": features.copy()
         }
         self.open_trades[leg] = trade
     
@@ -47,17 +48,18 @@ class TradeManager:
 
     def save_logs(self):
         history_to_save = []
+        intraday_equity = {ts.isoformat(): val for ts, val in self.intraday_equity.items()}
         for trade in self.trade_history:
             trade_copy = trade.copy()
             for key in ["entry_time", "exit_time"]:
                 if isinstance(trade_copy.get(key), datetime):
                     trade_copy[key] = trade_copy[key].isoformat()
             history_to_save.append(trade_copy)
-
+        
         with open(self.log_file, "w") as f:
             json.dump({
                 "trade_history": history_to_save,
-                "intraday_equity": self.intraday_equity
+                "intraday_equity": intraday_equity
             }, f, indent=4)
             print(f"Saved {len(self.trade_history)} trades to {self.log_file}")
     

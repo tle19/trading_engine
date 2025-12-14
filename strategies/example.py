@@ -22,10 +22,7 @@ class SMACrossover(Strategy):
         self.minimum_computations() # ensure enough data for indicators
         
         # compute indicators
-        arr = np.array(self.prices)
-        self.ema = self.compute_ema(self.ema, self.prices[-1], self.fast_window)
-        slow_ma = self.compute_ma(arr, self.slow_window)
-        htf_ma = self.compute_ma(arr, self.htf_window)        
+        slow_ma, htf_ma = self.compute_indicators()
 
         # end day after pnl target/loss
         if self.risk_manager._day_pause: 
@@ -55,7 +52,15 @@ class SMACrossover(Strategy):
             return self.exit()
         if direction == -1 and self.ema > slow_ma:
             return self.exit()
-    
+        
+    def compute_indicators(self):
+        arr = np.array(self.prices)
+        self.ema = self.compute_ema(self.ema, self.prices[-1], self.fast_window)
+        slow_ma = self.compute_ma(arr, self.slow_window)
+        htf_ma = self.compute_ma(arr, self.htf_window)
+        
+        return slow_ma, htf_ma
+
     def reset_indicators(self):
         if self.trade_window((9, 30), (9, 30)):
             self.ema = None
@@ -69,6 +74,15 @@ class SMACrossover(Strategy):
                 self.htf_window
             ) + 1
             self.activated = len(self.prices) > required_data
+
+    def add_features(self):
+        self.features = {
+            "opens": self.opens[-10:],
+            "closes": self.closes[-10:],
+            "lows": self.lows[-10:],
+            "highs": self.highs[-10:],
+            "volumes": self.volumes[-10:],
+        }
 
     def train(self):
         return NotImplementedError
