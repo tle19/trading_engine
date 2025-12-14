@@ -42,19 +42,19 @@ class Backtest:
             self.dynamic_slippage(signal)
             self.interpret_signal(signal)
 
-        self.trade_manager.save_logs()
         self.stats.intraday_equity = self.trade_manager.intraday_equity
         self.stats.trade_history = self.trade_manager.trade_history
         self.stats.summary()
 
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Backtest Time: {elapsed_time:.6f} seconds")
+        self.trade_manager.save_logs()
         
         if plot:
             self.plotting.intraday_equity = self.trade_manager.intraday_equity
             self.plotting.update_dates()
             self.plotting.plot_equity(save_plot, overlay=True)
-
+        
     def interpret_signal(self, signal):
         direction = self.position_manager.direction()
         if direction:

@@ -8,9 +8,9 @@ class MACDIndicator(Strategy):
                  fast_window_med=13, slow_window_med=21, signal_window_med=9,
                  fast_window_high=34, slow_window_high=144, signal_window_high=9, 
                  htf_window=50, ma_threshold=0.001,
-                 stop_loss=0.005, take_profit=0.01, position_size=0.25,
+                 stop_loss=0.005, take_profit=0.01, position_size=0.25, trailing_ratio=0.15, pyramid=True,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=20):
-        super().__init__(symbol, stop_loss, take_profit, position_size,
+        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid,
                          pnl_target, pnl_loss, trade_max)
         self.fast_window_low = fast_window_low
         self.slow_window_low = slow_window_low

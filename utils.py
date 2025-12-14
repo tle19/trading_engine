@@ -9,8 +9,8 @@ import schwabdev
 data_path = "data"
 timezone = ZoneInfo("America/New_York")
 
-def load_config():
-    with open("configs/api_config.json") as f:
+def load_config(config_path="configs/api_config.json"):
+    with open(config_path) as f:
         config = json.load(f)
     return config
 
@@ -37,8 +37,31 @@ def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_tim
     df = df.set_index('timestamp').between_time(start_time, end_time).reset_index()
     return df
 
-def trade_history_to_csv():
-    return NotImplementedError
+def trade_history_to_csv(log_file="trade_logs.json", csv_file="trade_history.csv"):
+    with open(log_file, "r") as f:
+        data = json.load(f)
+
+    trade_history = []
+    for trade in data.get("trade_history", []):
+        trade_copy = trade.copy()
+        for key in ["entry_time", "exit_time"]:
+            if key in trade_copy and trade_copy[key] is not None:
+                trade_copy[key] = pd.Timestamp(trade_copy[key])
+
+        features = trade_copy.pop("features", {})
+        for feat_name, feat_val in features.items():
+            if isinstance(feat_val, list):
+                for i, v in enumerate(feat_val, start=1):
+                    trade_copy[f"{feat_name}_{i}"] = v
+            else:
+                trade_copy[feat_name] = feat_val
+
+        trade_history.append(trade_copy)
+
+    df = pd.DataFrame(trade_history)
+    df.to_csv(csv_file, index=False)
+    print(df)
+    print(f"Saved {len(df)} trades to {csv_file}")
 
 def fetch_latest_prices(symbols):
     config = load_config()

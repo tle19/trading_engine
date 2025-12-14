@@ -7,9 +7,9 @@ class StochasticIndicator(Strategy):
     def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=50,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
                  vol_fast_window=14, vol_slow_window=28, vol_threshold=0.025, atr_window=14, adx_window=14,
-                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05,
+                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False,
                  pnl_target=0.001, pnl_loss=-0.001, trade_max=5):
-        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio,
+        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid,
                          pnl_target, pnl_loss, trade_max)
         self.fast_window = fast_window
         self.slow_window = slow_window
@@ -169,10 +169,7 @@ class StochasticIndicator(Strategy):
 
 
     # def enter_trade(self, k, d, rsi, hist, vol): # original version
-    #     if not (self.stoch_lower < min(k, d) and max(k, d) < self.stoch_upper):
-    #         return None
-
-    #     if self.stoch_signal == "long" and rsi > 50 and hist > 0:
+    #     if self.stoch_signal == 1 and rsi > 50 and hist > 0:
     #         if vol > self.vol_threshold:
     #             signal = self.buy() 
     #             swing_point = self.compute_swing(mode="low", lookback=10)
@@ -180,7 +177,7 @@ class StochasticIndicator(Strategy):
     #             diff = self.close - self.stop_price
     #             self.profit_price = round(self.close + (1 * diff), 2)
     #             return signal
-    #     if self.stoch_signal == "short" and rsi < 50 and hist < 0:
+    #     if self.stoch_signal == -1 and rsi < 50 and hist < 0:
     #         if vol > self.vol_threshold:
     #             signal = self.sell() 
     #             swing_point = self.compute_swing(mode="high", lookback=10)

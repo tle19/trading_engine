@@ -8,13 +8,15 @@ EXIT = 0
 HOLD = None
 
 class Strategy:
-    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, position_size=1.0, trailing_ratio=0.15,
+    def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, 
+                 position_size=1.0, trailing_ratio=0.15, pyramid=False,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=5):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.position_size = position_size
         self.trailing_ratio = trailing_ratio
+        self.pyramid = pyramid
 
         self.open = None
         self.close = None
@@ -55,19 +57,10 @@ class Strategy:
         raise NotImplementedError
     
     def add_features(self):
-        self.features = {
-            "session_open": self.opens[0],
-            "session_low": min(self.lows),
-            "session_high": max(self.highs),
-            "opens": self.opens[-10:],
-            "closes": self.closes[-10:],
-            "lows": self.lows[-10:],
-            "highs": self.highs[-10:],
-            "volumes": self.volumes[-10:]
-        }
+        raise NotImplementedError
     
     def train(self):
-        return NotImplementedError
+        raise NotImplementedError
     
     def update(self, row=None): 
         if row is not None:

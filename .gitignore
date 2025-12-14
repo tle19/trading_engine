@@ -4,6 +4,7 @@ tokens.json
 
 # --- Test files ---
 trade_logs.json
+trade_history.csv
 gs_results.json
 wfo_results.json
 

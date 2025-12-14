@@ -5,9 +5,9 @@ from utils import *
 
 class ORBIndicator(Strategy):
     def __init__(self, symbol, orb_window=5,
-                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.1,
+                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.1, pyramid=False,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=1):
-        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio,
+        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid,
                          pnl_target, pnl_loss, trade_max)
         self.orb_window = orb_window
 

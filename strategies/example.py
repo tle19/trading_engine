@@ -5,9 +5,9 @@ from utils import *
 
 class SMACrossover(Strategy):
     def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=50, 
-                 stop_loss=0.01, take_profit=0.02, position_size=1.0, trailing_ratio=0.15, 
+                 stop_loss=0.01, take_profit=0.02, position_size=1.0, trailing_ratio=0.15, pyramid=False, 
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=3):
-        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio,
+        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid,
                          pnl_target, pnl_loss, trade_max)
         self.fast_window = fast_window
         self.slow_window = slow_window
@@ -77,11 +77,14 @@ class SMACrossover(Strategy):
 
     def add_features(self):
         self.features = {
+            "session_open": self.opens[0],
+            "session_low": min(self.lows),
+            "session_high": max(self.highs),
             "opens": self.opens[-10:],
             "closes": self.closes[-10:],
             "lows": self.lows[-10:],
             "highs": self.highs[-10:],
-            "volumes": self.volumes[-10:],
+            "volumes": self.volumes[-10:]
         }
 
     def train(self):
