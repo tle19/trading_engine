@@ -10,23 +10,26 @@ class Plotting:
     def __init__(self, symbol, img_path="plots"):
         self.symbol = symbol
         self.img_path = img_path
-        self.intraday_equity = []
+        
+        self.intraday_equity = {}
         self.start_date = None
         self.end_date = None
 
-    def update_intraday_equity(self, equity):
-        self.intraday_equity.append(equity)
+    # def _update_dates(self):
+    #     dates = list(self.intraday_equity)
+    #     self.duration = dates[-1].date() - dates[0].date()
 
     def update_dates(self, start_date: str, end_date: str):
         self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
         self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
 
     def plot_equity(self, save_plot=False, overlay=False):
-        if not self.intraday_equity:
+        intraday_equity = list(self.intraday_equity.values())
+        if not intraday_equity:
             print("No equity data to plot.")
             return
 
-        equity = np.array(self.intraday_equity)
+        equity = np.array(intraday_equity)
         dates = pd.date_range(self.start_date, self.end_date, periods=len(equity))
 
         max_points = 20000

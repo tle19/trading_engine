@@ -20,6 +20,7 @@ class Backtest:
         self.position_manager = self.strategy.position_manager
         self.risk_manager = self.strategy.risk_manager
         
+        self.trade_manager = TradeManager(self.position_manager)
         self.stats = Stats(symbol)
         self.plotting = Plotting(symbol)
 
@@ -40,8 +41,11 @@ class Backtest:
             signal = self.strategy.generate_signal(row)
             self.dynamic_slippage(signal)
             self.interpret_signal(signal)
-            
-        self.stats.update_dates(start_date, end_date)
+
+        self.stats.intraday_equity = self.trade_manager.intraday_equity
+        self.stats.trade_history = self.trade_manager.trade_history
+        self.plotting.intraday_equity = self.trade_manager.intraday_equity
+
         self.stats.summary()
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Backtest Time: {elapsed_time:.6f} seconds")
@@ -52,22 +56,26 @@ class Backtest:
     def interpret_signal(self, signal):
         direction = self.position_manager.direction()
         if direction is not None:
-            curr_leg = self.position_manager.legs[-1]
-            entry_price = curr_leg.entry_price
-            stop_price = curr_leg.stop_price
-            target_price = curr_leg.target_price
+            leg = self.position_manager.legs[-1]
+            entry_price = leg.entry_price
+            stop_price = leg.stop_price
+            target_price = leg.target_price
+            position_size = leg.position_size
+            shares = leg.shares
         
         # --- Enter Long ---
         if signal == 1:
-            entry_adj = entry_price * self.slip_up
-            curr_leg.entry_price = entry_adj
-            # print(f"{self.ts} | ENTRY (L): {entry_adj}, STOP: {stop_price}, PROFIT: {target_price}")
+            fill_price = entry_price * self.slip_up
+            leg.entry_price = fill_price
+            self.trade_manager.log_entry(self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price)
+            # print(f"{self.ts} | ENTRY (L): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Enter Short ---
         elif signal == -1:
-            entry_adj = entry_price * self.slip_dn
-            curr_leg.entry_price = entry_adj
-            # print(f"{self.ts} | ENTRY (S): {entry_adj}, STOP: {stop_price}, PROFIT: {target_price}")
+            fill_price = entry_price * self.slip_dn
+            leg.entry_price = fill_price
+            self.trade_manager.log_entry(self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price)
+            # print(f"{self.ts} | ENTRY (S): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Exit Position ---
         elif signal == 0:
@@ -75,6 +83,7 @@ class Backtest:
                 if leg.check_exit(self.ts, self.low, self.high) == 0:
                     pnl = 0
                     exit_price = None
+                    fill_price = None
                     entry_price = leg.entry_price
                     stop_price = leg.stop_price
                     target_price = leg.target_price
@@ -82,37 +91,45 @@ class Backtest:
 
                     if direction == "long":
                         if self.low <= stop_price:
-                            exit_price = stop_price * self.slip_dn
+                            fill_price = stop_price * self.slip_dn
+                            exit_price = stop_price
                         elif self.high >= target_price:
+                            fill_price = target_price
                             exit_price = target_price
                         elif (self.ts.hour, self.ts.minute) >= (15, 58):
-                            exit_price = self.close * self.slip_dn
+                            fill_price = self.close * self.slip_dn
+                            exit_price = self.close
                         else:
-                            exit_price = self.close * self.slip_dn
-                        pnl = (exit_price - entry_price) * shares
+                            fill_price = self.close * self.slip_dn
+                            exit_price = self.close
+                        pnl = (fill_price - entry_price) * shares
             
                     elif direction == "short":
                         if self.high >= stop_price:
-                            exit_price = stop_price * self.slip_up
+                            fill_price = stop_price * self.slip_up
+                            exit_price = stop_price
                         elif self.low <= target_price:
+                            fill_price = target_price
                             exit_price = target_price
                         elif (self.ts.hour, self.ts.minute) >= (15, 58):
-                            exit_price = self.close * self.slip_up
+                            fill_price = self.close * self.slip_up
+                            exit_price = self.close
                         else:
-                            exit_price = self.close * self.slip_up
-                        pnl = (entry_price - exit_price) * shares
+                            fill_price = self.close * self.slip_up
+                            exit_price = self.close
+                        pnl = (entry_price - fill_price) * shares
 
                     self.cash += pnl
+                    self.trade_manager.update_exit(self.symbol, direction, shares, self.ts, exit_price, fill_price)
                     self.risk_manager.update_trade(pnl)
-                    self.stats.update_trade(pnl)
                     self.position_manager.remove_leg(leg)
-                    # print(f"{self.ts} | EXIT: {exit_price}, PnL: {pnl}")
+                    # print(f"{self.ts} | EXIT: {fill_price}, PnL: {pnl}")
 
         self.update_equity()
 
     def dynamic_slippage(self, signal):
-        self.spread_window.append((self.high - self.low) / self.close)
-        if signal is not None and self.spread_window:
+        self.spread_window.append((self.high - self.low) / self.close) # normalize by average of close and open?
+        if signal is not None:
             avg_spread = sum(self.spread_window) / len(self.spread_window)
             slippage = avg_spread * self.slippage
             self.slip_up = 1 + slippage
@@ -127,5 +144,4 @@ class Backtest:
             elif leg.direction == "short":
                 current_equity += (leg.entry_price - self.close) * leg.shares
 
-        self.stats.update_intraday_equity(self.ts, current_equity)
-        self.plotting.update_intraday_equity(current_equity)
+        self.trade_manager.update_intraday_equity(self.ts, current_equity)

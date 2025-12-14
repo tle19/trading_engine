@@ -340,11 +340,11 @@ class Strategy:
         return max(arr) if mode == "high" else min(arr)
 
 class PositionLeg:
-    __slots__ = ("direction", "entry_time", "position_size", "_entry_price", "stop_price", "target_price", "shares")
+    __slots__ = ("entry_time", "direction", "position_size", "_entry_price", "stop_price", "target_price", "shares")
     
-    def __init__(self, direction, timestamp, position_size, entry_price, stop_price, target_price, cash):
-        self.direction = direction
+    def __init__(self, timestamp, direction, position_size, entry_price, stop_price, target_price, cash):
         self.entry_time = timestamp
+        self.direction = direction
         self.position_size = position_size
         self._entry_price = entry_price
         self.stop_price = stop_price

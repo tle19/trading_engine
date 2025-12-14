@@ -36,7 +36,10 @@ def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_tim
 
     df = df.set_index('timestamp').between_time(start_time, end_time).reset_index()
     return df
-    
+
+def convert_json_to_csv():
+    return NotImplementedError
+ 
 def fetch_latest_prices(symbols):
     config = load_config()
     client = schwabdev.Client(config["app_key"], config["app_secret"])

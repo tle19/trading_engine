@@ -3,11 +3,9 @@ api_config.json
 tokens.json
 
 # --- Test files ---
-trade_logs.json
+trade_history.json
 gs_results.json
-gs_results_*.json
 wfo_results.json
-wfo_results_*.json
 
 # --- Data folders ---
 data/

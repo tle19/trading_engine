@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 import schwabdev
 
+from metrics import *
 from utils import *
 
 class Equities:
@@ -91,7 +92,7 @@ class Equities:
             self.exit_ids[symbol] = self.long_bracket(symbol, shares, stop_price, profit_price)
             fill_price = self.get_fill_price(self.entry_ids[symbol], shares)
             strategy.update_entry_price(fill_price)
-            self.trade_log.log_entry(symbol, position, shares, strategy.ts, strategy.price, fill_price)
+            self.trade_log.log_entry(symbol, position, position_size, shares, strategy.ts, strategy.price, fill_price)
 
         # --- Enter Short ---
         elif signal == -1 and position == "short":
@@ -99,7 +100,7 @@ class Equities:
             self.exit_ids[symbol] = self.short_bracket(symbol, shares, stop_price, profit_price)
             fill_price = self.get_fill_price(self.entry_ids[symbol], shares)
             strategy.update_entry_price(fill_price)
-            self.trade_log.log_entry(symbol, position, shares, strategy.ts, strategy.price, fill_price)
+            self.trade_log.log_entry(symbol, position, position_size, shares, strategy.ts, strategy.price, fill_price)
 
         # --- Holding ---
         elif signal is None and position is not None:
@@ -393,63 +394,3 @@ class Equities:
     #     cash_allocation = price * self.shares_to_buy[symbol]
     #     self.strategies[symbol].get_risk_manager().set_start_cash(cash_allocation)
     #     self.prices.append(price)
-
-class TradeLogger:
-    def __init__(self, log_file="trade_logs.json"):
-        self.open_trades = {}
-        self.trade_history = []
-        self.log_file = log_file
-
-        try:
-            with open("trade_logs.json", "r") as f:
-                self.trade_history = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            self.trade_history = []
-
-    def log_entry(self, symbol, position, shares, entry_time, entry_price, fill_price):
-        trade = {
-            "symbol": symbol,
-            "position": position,
-            "shares": shares,
-            "entry_time": entry_time.isoformat(),
-            "entry_price": entry_price,
-            "entry_fill": fill_price,
-            "exit_time": None,
-            "exit_price": None,
-            "exit_fill": None,
-            "pnl_real": None,
-            "pnl_real_pct": None,
-            "pnl_theoretical": None,
-            "pnl_theoretical_pct": None,
-            "regime": None
-        }
-
-        self.open_trades[symbol] = trade
-    
-    def update_exit(self, symbol, position, shares, exit_time, exit_price, fill_price):
-        if symbol not in self.open_trades:
-            raise ValueError(f"No open trade for symbol {symbol}")
-
-        trade = self.open_trades.pop(symbol)
-        trade["exit_time"] = exit_time.isoformat()
-        trade["exit_price"] = exit_price
-        trade["exit_fill"] = fill_price
-
-        if position == "long":
-            trade["pnl_real"] = (fill_price - trade["entry_fill"]) * shares
-            trade["pnl_theoretical"] = (exit_price - trade["entry_price"]) * shares
-        elif position == "short":
-            trade["pnl_real"] = (trade["entry_fill"] - fill_price) * shares
-            trade["pnl_theoretical"] = (trade["entry_price"] - exit_price) * shares
-
-        trade["pnl_real"] = round(trade["pnl_real"], 2)
-        trade["pnl_real_pct"] = round(trade["pnl_real"] / trade["entry_fill"] * 100, 2)
-        trade["pnl_theoretical"] = round(trade["pnl_theoretical"], 2)
-        trade["pnl_theoretical_pct"] = round(trade["pnl_theoretical"] / trade["entry_price"] * 100, 2)
-
-        self.trade_history.append(trade)
-
-    def output_logs(self):
-        with open(self.log_file, "w") as f:
-            json.dump(self.trade_history, f, indent=4)
-        print(f"Saved {len(self.trade_history)} trades to {self.log_file}")
