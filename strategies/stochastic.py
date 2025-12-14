@@ -70,11 +70,11 @@ class StochasticIndicator(Strategy):
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
         vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
         
-        if self.stoch_signal == "long" and rsi > 55 and rsi > rsi_ma and hist > 0:
+        if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0:
             if vol > self.vol_threshold: #and vol > vol_ma
                 signal, _ = self.buy() 
                 # signal, _ = self.sell() 
-        if self.stoch_signal == "short" and rsi < 45 and rsi < rsi_ma and hist < 0:
+        if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0:
             if vol > self.vol_threshold:
                 signal, _ = self.sell() 
                 # signal, _ = self.buy() 
@@ -131,12 +131,12 @@ class StochasticIndicator(Strategy):
             lower, upper = self.stoch_lower, self.stoch_upper
 
             if k < lower and d < lower:
-                self.stoch_signal = "long"
+                self.stoch_signal = 1
             elif k > upper and d > upper:
-                self.stoch_signal = "short"
-            elif self.stoch_signal == "long" and (k > upper or d > upper):
+                self.stoch_signal = -1
+            elif self.stoch_signal == 1 and (k > upper or d > upper):
                 self.stoch_signal = None
-            elif self.stoch_signal == "short" and (k < lower or d < lower):
+            elif self.stoch_signal == -1 and (k < lower or d < lower):
                 self.stoch_signal = None
 
     def train(self):

@@ -44,52 +44,50 @@ class Backtest:
 
         self.stats.intraday_equity = self.trade_manager.intraday_equity
         self.stats.trade_history = self.trade_manager.trade_history
-        self.plotting.intraday_equity = self.trade_manager.intraday_equity
-
         self.stats.summary()
+
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Backtest Time: {elapsed_time:.6f} seconds")
+        
         if plot:
-            self.plotting.update_dates(start_date, end_date)
+            self.plotting.intraday_equity = self.trade_manager.intraday_equity
+            self.plotting.update_dates()
             self.plotting.plot_equity(save_plot, overlay=True)
 
     def interpret_signal(self, signal):
         direction = self.position_manager.direction()
-        if direction is not None:
+        if direction:
             leg = self.position_manager.legs[-1]
+            position_size = leg.position_size
+            shares = leg.shares
             entry_price = leg.entry_price
             stop_price = leg.stop_price
             target_price = leg.target_price
-            position_size = leg.position_size
-            shares = leg.shares
-        
+
         # --- Enter Long ---
         if signal == 1:
             fill_price = entry_price * self.slip_up
             leg.entry_price = fill_price
-            self.trade_manager.log_entry(self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price)
+            self.trade_manager.log_entry(leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price)
             # print(f"{self.ts} | ENTRY (L): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Enter Short ---
         elif signal == -1:
             fill_price = entry_price * self.slip_dn
             leg.entry_price = fill_price
-            self.trade_manager.log_entry(self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price)
+            self.trade_manager.log_entry(leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price)
             # print(f"{self.ts} | ENTRY (S): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Exit Position ---
         elif signal == 0:
             for leg in self.position_manager.legs.copy():
                 if leg.check_exit(self.ts, self.low, self.high) == 0:
-                    pnl = 0
-                    exit_price = None
-                    fill_price = None
                     entry_price = leg.entry_price
                     stop_price = leg.stop_price
                     target_price = leg.target_price
                     shares = leg.shares
 
-                    if direction == "long":
+                    if direction == 1:
                         if self.low <= stop_price:
                             fill_price = stop_price * self.slip_dn
                             exit_price = stop_price
@@ -104,7 +102,7 @@ class Backtest:
                             exit_price = self.close
                         pnl = (fill_price - entry_price) * shares
             
-                    elif direction == "short":
+                    elif direction == -1:
                         if self.high >= stop_price:
                             fill_price = stop_price * self.slip_up
                             exit_price = stop_price
@@ -120,7 +118,7 @@ class Backtest:
                         pnl = (entry_price - fill_price) * shares
 
                     self.cash += pnl
-                    self.trade_manager.update_exit(self.symbol, direction, shares, self.ts, exit_price, fill_price)
+                    self.trade_manager.update_exit(leg, self.ts, exit_price, fill_price)
                     self.risk_manager.update_trade(pnl)
                     self.position_manager.remove_leg(leg)
                     # print(f"{self.ts} | EXIT: {fill_price}, PnL: {pnl}")
@@ -139,9 +137,9 @@ class Backtest:
         current_equity = self.cash
         
         for leg in self.position_manager.legs:
-            if leg.direction == "long":
+            if leg.direction == 1:
                 current_equity += (self.close - leg.entry_price) * leg.shares
-            elif leg.direction == "short":
+            elif leg.direction == -1:
                 current_equity += (leg.entry_price - self.close) * leg.shares
 
         self.trade_manager.update_intraday_equity(self.ts, current_equity)

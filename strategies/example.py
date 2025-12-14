@@ -51,9 +51,9 @@ class SMACrossover(Strategy):
         
     def exit_trade(self, slow_ma):
         direction = self.position_manager.direction()
-        if direction == "long" and self.ema < slow_ma:
+        if direction == 1 and self.ema < slow_ma:
             return self.exit()
-        if direction == "short" and self.ema > slow_ma:
+        if direction == -1 and self.ema > slow_ma:
             return self.exit()
     
     def reset_indicators(self):

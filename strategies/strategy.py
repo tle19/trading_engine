@@ -86,13 +86,13 @@ class Strategy:
         
     def buy(self):
         direction = self.position_manager.direction()
-        if direction in ("long", None):
+        if direction in (1, 0):
             entry_price = round(self.price, 2)
             stop_price = round(entry_price * (1 - self.stop_loss), 2)
             target_price = round(entry_price * (1 + self.take_profit), 2)
 
             pos_leg = PositionLeg(
-                direction="long",
+                direction=1,
                 timestamp=self.ts,
                 position_size=self.position_size,
                 entry_price=entry_price,
@@ -103,18 +103,18 @@ class Strategy:
 
             cond = self.position_manager.add_leg(pos_leg)
             return (LONG, pos_leg) if cond else (HOLD, None)
-        elif direction == "short":
+        elif direction == -1:
             return HOLD, None
         
     def sell(self):
         direction = self.position_manager.direction()
-        if direction in ("short", None):
+        if direction in (-1, 0):
             entry_price = round(self.price, 2)
             stop_price = round(entry_price * (1 + self.stop_loss), 2)
             target_price = round(entry_price * (1 - self.take_profit), 2)
 
             pos_leg = PositionLeg(
-                direction="short",
+                direction=-1,
                 timestamp=self.ts,
                 position_size=self.position_size,
                 entry_price=entry_price,
@@ -125,7 +125,7 @@ class Strategy:
 
             cond = self.position_manager.add_leg(pos_leg)
             return (SHORT, pos_leg) if cond else (HOLD, None)
-        elif direction == "long":
+        elif direction == 1:
             return HOLD, None
           
     def exit(self): # implement non-static exits
@@ -141,10 +141,10 @@ class Strategy:
         trailing_ratio = self.compute_trailing_ratio(self.stop_price)
         adjustment = trailing_ratio * abs(self.stop_price - self.price)
 
-        if self.position == "long" and self.price > self.entry_price:
+        if self.position == 1 and self.price > self.entry_price:
             self.stop_price = round(self.stop_price + adjustment, 2)
 
-        elif self.position == "short" and self.price < self.entry_price:
+        elif self.position == -1 and self.price < self.entry_price:
             self.stop_price = round(self.stop_price - adjustment, 2)
 
     def compute_trailing_ratio(self, price):
@@ -351,24 +351,24 @@ class PositionLeg:
         self.target_price = target_price
         self.shares = (cash * position_size) // entry_price
 
-        if direction not in ("long", "short"):
+        if direction not in (1, -1):
             raise ValueError(f"Invalid direction: {direction}")
-        if self.direction == "long":
+        if self.direction == 1:
             if not (0 < self.stop_price < self.entry_price < self.target_price):
                 raise ValueError(f"Invalid long leg: stop={self.stop_price}, entry={self.entry_price}, target={self.target_price}")
-        elif self.direction == "short":
+        elif self.direction == -1:
             if not (0 < self.target_price < self.entry_price < self.stop_price):
                 raise ValueError(f"Invalid short leg: stop={self.stop_price}, entry={self.entry_price}, target={self.target_price}")
      
     def check_exit(self, ts, low, high):
-        if self.direction == "long":
+        if self.direction == 1:
             if self.stop_price >= self.target_price:
                 raise ValueError("Invalid long: stop >= target")
             if low <= self.stop_price or high >= self.target_price:
                 return EXIT
             if (ts.hour, ts.minute) >= (15, 58):
                 return EXIT
-        elif self.direction == "short":
+        elif self.direction == -1:
             if self.stop_price <= self.target_price:
                 raise ValueError("Invalid short: stop <= target")
             if high >= self.stop_price or low <= self.target_price:
@@ -400,7 +400,7 @@ class PositionManager:
         self.legs.remove(leg)
 
     def direction(self):
-        return self.legs[0].direction if self.legs else None
+        return self.legs[0].direction if self.legs else 0
 
     def total_size(self):
         return sum(l.position_size for l in self.legs)  

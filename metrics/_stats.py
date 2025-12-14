@@ -61,9 +61,9 @@ class Stats:
         print("=" * 50)
         print(f"{self.symbol} PERFORMANCE SUMMARY")
         print("=" * 50)
-        print(f"Start:                      {self.start_date}")
-        print(f"End:                        {self.end_date}")
-        print(f"Duration:                   {self.duration} days")
+        print(f"Start:                      {self.start_date.date()}")
+        print(f"End:                        {self.end_date.date()}")
+        print(f"Duration:                   {self.duration.days} days")
         print("-" * 50)
 
         # --- Equity ---
@@ -105,9 +105,8 @@ class Stats:
 
     def _update_dates(self):
         dates = list(self.intraday_equity)
-        self.start_date = dates[0].date()
-        self.end_date = dates[-1].date()
-
+        self.start_date = dates[0]
+        self.end_date = dates[-1]
         self.duration = self.end_date - self.start_date
 
     def _calculate_pnls(self, intraday_equity):
