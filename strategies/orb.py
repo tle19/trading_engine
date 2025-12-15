@@ -1,4 +1,4 @@
-import numpy as np
+from collections import deque
 
 from strategies import Strategy
 from utils import *

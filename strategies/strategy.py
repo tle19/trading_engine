@@ -56,12 +56,6 @@ class Strategy:
     def minimum_computations(self):
         raise NotImplementedError
     
-    def add_features(self):
-        raise NotImplementedError
-    
-    def train(self):
-        raise NotImplementedError
-    
     def update(self, row=None): 
         if row is not None:
             self.open = row.open
@@ -90,7 +84,10 @@ class Strategy:
             self.position_manager.flatten()
             self.risk_manager.reset()
             self.activated = False
-
+    
+    def add_features(self):
+        self.features = {}
+        
     def trade_window(self, start, end):
         return start <= (self.ts.hour, self.ts.minute) <= end
         

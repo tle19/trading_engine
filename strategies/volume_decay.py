@@ -115,11 +115,4 @@ class VolumeDecay(Strategy):
                 self.rsi_period,
             ) + 1
             self.activated = len(self.prices) > required_data
-
-    # def donchian_channel(self, period):
-    #     opens = self.opens[-period:]
-    #     closes = self.prices[-period:]
-    #     upper_band = max(max(opens), max(closes))
-    #     lower_band = min(min(opens), min(closes))
-    #     return upper_band, lower_band
         

@@ -86,7 +86,7 @@ class StochasticIndicator(Strategy):
         # self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
         # atr = self.compute_atr(self.atr_window)
         # adx = self.compute_adx(self.adx_window)
-
+        # clamp sl (0.005, 0.015) and tp (0.005, 0.015) in predetermined range
         self.rolling_k.append(k)
         self.rolling_d.append(d)
         self.rolling_rsi.append(rsi)
@@ -158,15 +158,6 @@ class StochasticIndicator(Strategy):
             "rolling_atr": list(self.rolling_atr),
             "rolling_adx": list(self.rolling_adx),
         }
-    
-    def train(self):
-        # xg boost
-        # adaptive sl and tp based on indicators used for entry
-        # clamp sl (0.005, 0.015) and tp (0.005, 0.015) in predetermined range
-        return NotImplementedError
-    
-
-
 
     # def enter_trade(self, k, d, rsi, hist, vol): # original version
     #     if self.stoch_signal == 1 and rsi > 50 and hist > 0:

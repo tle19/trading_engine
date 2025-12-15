@@ -86,6 +86,3 @@ class SMACrossover(Strategy):
             "highs": self.highs[-10:],
             "volumes": self.volumes[-10:]
         }
-
-    def train(self):
-        return NotImplementedError
