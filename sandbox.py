@@ -109,7 +109,7 @@ symbols = [
     "AMGN"  # Amgen
 ]
 
-# trade_history_to_csv()
+trade_history_to_csv()
 # fetch_multiple_symbols(symbols)
 # fetch_schwab_data("2025-10-15") 
 # get_average_spread(symbols, start_date="2025-8-01", end_date="2025-11-01")

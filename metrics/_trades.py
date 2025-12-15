@@ -17,8 +17,9 @@ class TradeManager:
     def update_intraday_equity(self, ts, equity):
         self.intraday_equity[ts] = equity
 
-    def log_entry(self, leg, symbol, direction, position_size, shares, entry_time, entry_price, fill_price, features=None):
+    def log_entry(self, name, leg, symbol, direction, position_size, shares, entry_time, entry_price, fill_price, features=None):
         trade = {
+            "strategy": name,
             "symbol": symbol,
             "direction": direction,
             "position_size": position_size,

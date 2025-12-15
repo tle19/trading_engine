@@ -60,7 +60,6 @@ def trade_history_to_csv(log_file="trade_logs.json", csv_file="trade_history.csv
 
     df = pd.DataFrame(trade_history)
     df.to_csv(csv_file, index=False)
-    print(df)
     print(f"Saved {len(df)} trades to {csv_file}")
 
 def fetch_latest_prices(symbols):

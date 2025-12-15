@@ -58,6 +58,7 @@ class Backtest:
     def interpret_signal(self, signal):
         direction = self.position_manager.direction()
         if direction:
+            name = self.strategy.__class__.__name__
             leg = self.position_manager.legs[-1]
             position_size = leg.position_size
             shares = leg.shares
@@ -69,14 +70,14 @@ class Backtest:
         if signal == 1:
             fill_price = entry_price * self.slip_up
             leg.entry_price = fill_price
-            self.trade_manager.log_entry(leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price, self.strategy.features)
+            self.trade_manager.log_entry(name, leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price, self.strategy.features)
             # print(f"{self.ts} | ENTRY (L): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Enter Short ---
         elif signal == -1:
             fill_price = entry_price * self.slip_dn
             leg.entry_price = fill_price
-            self.trade_manager.log_entry(leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price, self.strategy.features)
+            self.trade_manager.log_entry(name, leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price, self.strategy.features)
             # print(f"{self.ts} | ENTRY (S): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Exit Position ---
