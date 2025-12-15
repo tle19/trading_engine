@@ -114,7 +114,9 @@ symbols = [
 # fetch_schwab_data("2025-10-15") 
 # get_average_spread(symbols, start_date="2025-8-01", end_date="2025-11-01")
 # test_order(["ADBE:1.0"])
-tm = XGBModel()
-tm.initialize()
-tm.train()
-tm.test()
+
+mdl = XGBModel(strategy="StochasticIndicator")
+mdl.initialize()
+X_train, X_test, y_train, y_test = train_test_split_df(mdl.df, train_ratio=0.7)
+# mdl.train(X_train, y_train)
+# mdl.test(X_test, y_test)

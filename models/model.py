@@ -3,18 +3,23 @@ import json
 import pandas as pd
 
 class BaseModel:
-    def __init__(self):
-        self.df = pd.DataFrame()
+    def __init__(self, strategy):
+        self.strategy = strategy
         self.model = None
-        self.feature_columns = None
-
-    def open_trade_history(self, strategy_name="StochasticIndicator", log_file="trade_logs.json"):
+        self.df = pd.DataFrame()
+       
+    def initialize(self):
+        self.open_trade_hist()
+        self.model = None
+        self.prepare_features()
+    
+    def open_trade_hist(self, log_file="trade_logs.json"):
         with open(log_file, "r") as f:
             data = json.load(f)
 
         trade_history = []
         for trade in data.get("trade_history", []):
-            if strategy_name and trade.get("strategy") != strategy_name:
+            if self.strategy and trade.get("strategy") != self.strategy:
                 continue
 
             trade_copy = trade.copy()
@@ -33,20 +38,19 @@ class BaseModel:
             trade_history.append(trade_copy)
 
         if not trade_history:
-            print(f"No trades found for strategy: {strategy_name}")
-            return self.df
+            print(f"No trades found for strategy: {self.strategy}")
+            return
 
         self.df = pd.DataFrame(trade_history)
-        return self.df
-    
-    def initialize(self):
-        return NotImplementedError
+     
+    def prepare_features(self):
+        raise NotImplementedError
     
     def train(self):
-        return NotImplementedError
+        raise NotImplementedError
 
     def test(self):
-        return NotImplementedError
+        raise NotImplementedError
     
     def run(self):
-        return NotImplementedError
+        raise NotImplementedError

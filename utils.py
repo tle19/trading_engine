@@ -37,6 +37,18 @@ def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_tim
     df = df.set_index('timestamp').between_time(start_time, end_time).reset_index()
     return df
 
+def train_test_split_df(df, train_ratio=0.6, target_column="target"):
+    train_size = int(len(df) * train_ratio)
+    X = df.drop(columns=[target_column])
+    y = df[target_column]
+
+    X_train = X.iloc[:train_size]
+    y_train = y.iloc[:train_size]
+    X_test = X.iloc[train_size:]
+    y_test = y.iloc[train_size:]
+
+    return X_train, X_test, y_train, y_test
+
 def fetch_latest_prices(symbols):
     config = load_config()
     client = schwabdev.Client(config["app_key"], config["app_secret"])
