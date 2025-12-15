@@ -3,8 +3,7 @@ from datetime import datetime
 import pandas as pd
 
 class TradeManager:
-    def __init__(self, position_manager, log_file="trade_logs.json", live=False):
-        self.position_manager = position_manager
+    def __init__(self, log_file="trade_logs.json", live=False):
         self.log_file = log_file
 
         self.open_trades = {}

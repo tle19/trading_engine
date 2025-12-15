@@ -29,7 +29,7 @@ class Equities:
         else:
             self.strategy_class = strategy_class
 
-        self.trade_log = TradeLogger()
+        self.trade_log = TradeManager(log_file="trade_logs_live.json")
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
 
     def run(self):

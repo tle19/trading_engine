@@ -20,7 +20,7 @@ class Backtest:
         self.position_manager = self.strategy.position_manager
         self.risk_manager = self.strategy.risk_manager
         
-        self.trade_manager = TradeManager(self.position_manager)
+        self.trade_manager = TradeManager()
         self.stats = Stats(symbol)
         self.plotting = Plotting(symbol)
 
