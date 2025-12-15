@@ -1,18 +1,14 @@
-import pandas as pd
-import json
 import os
-# import joblib
-# from xgboost import XGBClassifier
-# from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-
+import json
+import pandas as pd
 
 class TradeModel:
     def __init__(self):
+        self.df = pd.DataFrame()
         self.model = None
         self.feature_columns = None
 
-    def trade_history_df(self, strategy_name="StochasticIndicator", 
-                             log_file="trade_logs.json"):
+    def open_trade_history(self, strategy_name="StochasticIndicator", log_file="trade_logs.json"):
         with open(log_file, "r") as f:
             data = json.load(f)
 
@@ -38,14 +34,19 @@ class TradeModel:
 
         if not trade_history:
             print(f"No trades found for strategy: {strategy_name}")
-            return pd.DataFrame()
+            return self.df
 
-        df = pd.DataFrame(trade_history)
-        return df
-
+        self.df = pd.DataFrame(trade_history)
+        return self.df
+    
+    def initialize(self):
+        return NotImplementedError
+    
     def train(self):
-        # xg boost / rf / nn
         return NotImplementedError
 
     def test(self):
+        return NotImplementedError
+    
+    def run(self):
         return NotImplementedError
