@@ -2,7 +2,7 @@ import os
 import json
 import pandas as pd
 
-class TradeModel:
+class BaseModel:
     def __init__(self):
         self.df = pd.DataFrame()
         self.model = None

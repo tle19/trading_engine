@@ -1,4 +1,4 @@
-from .strategy import Strategy, RiskManager
+from .strategy import Strategy, PositionLeg, PositionManager, RiskManager
 from .example import SMACrossover
 from .stochastic import StochasticIndicator
 from .macd import MACDIndicator

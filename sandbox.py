@@ -1,9 +1,9 @@
 import time
 from datetime import datetime, timedelta
 
-from models.base_model import TradeModel
 from core import *
 from strategies import *
+from models import *
 from utils import *
 
 def fetch_multiple_symbols(symbols):
@@ -114,6 +114,7 @@ symbols = [
 # fetch_schwab_data("2025-10-15") 
 # get_average_spread(symbols, start_date="2025-8-01", end_date="2025-11-01")
 # test_order(["ADBE:1.0"])
-tm = TradeModel()
+tm = XGBModel()
 tm.initialize()
-tm.run()
+tm.train()
+tm.test()

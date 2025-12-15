@@ -1,9 +1,9 @@
 import os
 import json
 import pandas as pd
-from models.models import TradeModel
+from models import BaseModel
 
-class XGBModel(TradeModel):
+class XGBModel(BaseModel):
     def __init__(self):
         self.model = None
         self.feature_columns = None
