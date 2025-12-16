@@ -3,7 +3,7 @@ import json
 import pandas as pd
 from zoneinfo import ZoneInfo
 
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
 
 timezone = ZoneInfo("America/New_York")
 
@@ -15,16 +15,12 @@ class BaseModel:
         self.df = pd.DataFrame()
        
     def initialize(self):
-        self.open_trade_hist()
         self.model = None
 
-        if self.live:
-            if hasattr(self, "df"):
-                del self.df
-        else:
+        if not self.live:
             self.open_trade_hist()
             if hasattr(self, "df") and not self.df.empty:
-                self.df = self.prepare_features(self.df, training=True) 
+                self.prepare_features(self.df)    
     
     def open_trade_hist(self, log_file="trade_logs.json"):
         with open(log_file, "r") as f:
@@ -56,8 +52,8 @@ class BaseModel:
 
         self.df = pd.DataFrame(trade_history)
      
-    def prepare_features(self):
-        df = self.df
+    def prepare_features(self, df):
+        df = df.copy()
         feature_cols = []
 
         # ohlcv normalization
@@ -76,21 +72,31 @@ class BaseModel:
         # lower_wick = min(open, close) - low
         # body_pct = body / range_
         
-    def train(self):
-        raise NotImplementedError
-
-    def test(self):
-        raise NotImplementedError
+    def train(self, X, y):
+        self.model.fit(X, y)
     
     def get_accuracy(self, X_train, y_train, X_test, y_test):
         y_train_pred = self.model.predict(X_train)
         y_test_pred = self.model.predict(X_test)
 
+        # Accuracy
         train_acc = accuracy_score(y_train, y_train_pred)
         test_acc = accuracy_score(y_test, y_test_pred)
-
         print(f"Train Accuracy: {train_acc:.4f}")
         print(f"Test Accuracy: {test_acc:.4f}")
+
+        # Confusion matrix
+        tn, fp, fn, tp = confusion_matrix(y_test, y_test_pred).ravel()
+        total = tp + fp + tn + fn
+        print(f"TP: {tp/total:.4f}, FP: {fp/total:.4f}, TN: {tn/total:.4f}, FN: {fn/total:.4f}")
+
+        # Precision, Recall, F1
+        precision = precision_score(y_test, y_test_pred)
+        recall = recall_score(y_test, y_test_pred)
+        f1 = f1_score(y_test, y_test_pred)
+        print(f"Test Precision: {precision:.4f}")
+        print(f"Test Recall:    {recall:.4f}")
+        print(f"Test F1 Score:  {f1:.4f}")
 
     def get_proba(self, feature_row):
         X_input = feature_row.values.reshape(1, -1) if isinstance(feature_row, pd.Series) else feature_row.reshape(1, -1)
