@@ -41,6 +41,8 @@ class StochasticIndicator(Strategy):
         self.rolling_atr = deque(maxlen=10)
         self.rolling_adx = deque(maxlen=10)
 
+        self.model = None
+
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
@@ -68,12 +70,12 @@ class StochasticIndicator(Strategy):
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
         vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
         
-        if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0:
-            if vol > self.vol_threshold: #and vol > vol_ma
+        if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > self.vol_threshold:
+            if True: #and vol > vol_ma
                 signal, _ = self.buy() 
                 # signal, _ = self.sell()
-        if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0:
-            if vol > self.vol_threshold:
+        if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > self.vol_threshold:
+            if True:
                 signal, _ = self.sell() 
                 # signal, _ = self.buy()
         return signal

@@ -115,8 +115,8 @@ symbols = [
 # get_average_spread(symbols, start_date="2025-8-01", end_date="2025-11-01")
 # test_order(["ADBE:1.0"])
 
-mdl = XGBModel(strategy="StochasticIndicator")
+mdl = XGBModel(strategy="StochasticIndicator", live=False)
 mdl.initialize()
-X_train, X_test, y_train, y_test = train_test_split_df(mdl.df, train_ratio=0.7)
-# mdl.train(X_train, y_train)
-# mdl.test(X_test, y_test)
+X_train, X_test, y_train, y_test = train_test_split_df(mdl.df, train_ratio=0.75)
+mdl.train(X_train, y_train)
+mdl.get_accuracy(X_train, y_train, X_test, y_test)
