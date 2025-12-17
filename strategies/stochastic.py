@@ -1,5 +1,6 @@
 from collections import deque
 
+from models import XGBModel
 from strategies import Strategy
 from utils import *
 
@@ -40,8 +41,9 @@ class StochasticIndicator(Strategy):
         self.rolling_adx = deque(maxlen=10)
         self.rolling_rsi = deque(maxlen=10)
         self.rolling_vol = deque(maxlen=10)
-
-        self.model = None
+        
+        self.model = XGBModel(live=True)
+        self.model.initialize()
 
     def generate_signal(self, row):
         self.update(row)
@@ -71,13 +73,13 @@ class StochasticIndicator(Strategy):
         vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
         
         if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > self.vol_threshold:
-            if True: #and vol > vol_ma
-                signal, _ = self.buy() 
-                # signal, _ = self.sell()
+            # signal, _ = self.buy() 
+            # signal, _ = self.sell()
+            signal = self.position_sizer()
         if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > self.vol_threshold:
-            if True:
-                signal, _ = self.sell() 
-                # signal, _ = self.buy()
+            # signal, _ = self.sell() 
+            # signal, _ = self.buy()
+            signal = self.position_sizer()
         return signal
 
     def compute_indicators(self):
@@ -141,6 +143,31 @@ class StochasticIndicator(Strategy):
                 self.stoch_signal = None
             elif self.stoch_signal == -1 and (k < lower or d < lower):
                 self.stoch_signal = None
+    
+    def position_sizer(self):
+        self.add_features()
+        self.features["direction"] = self.stoch_signal
+        self.features["entry_price"] = self.price
+        df = pd.DataFrame({k: [v] for k, v in self.features.items()})
+        self.model.prepare_features(df)
+        proba = self.model.get_proba(self.model.df)
+        if self.stoch_signal == 1:
+            if proba > 0.3:
+                signal, _ = self.buy() 
+                confidence = proba
+            else:
+                signal, _ = self.sell() 
+                confidence = 1 - proba
+        elif self.stoch_signal == -1:
+            if proba > 0.3:
+                signal, _ = self.sell()
+                confidence = 1 - proba
+            else:
+                signal, _ = self.buy() 
+                confidence = proba
+
+        # self.position_size = 0.25 + 0.75 * confidence        
+        return signal
 
     def add_features(self):
         self.features = {

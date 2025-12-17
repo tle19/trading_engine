@@ -7,6 +7,9 @@ trade_logs.json
 gs_results.json
 wfo_results.json
 
+# --- Pickle Files ---
+*_model.pkl
+
 # --- Data folders ---
 data/
 plots/

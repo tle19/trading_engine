@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 
 from utils import *
 
@@ -33,9 +34,10 @@ class Strategy:
         self.volumes = [] 
 
         self.activated = False
+        self.model = None
         self.features = {}
 
-        self.position_manager = PositionManager()
+        self.position_manager = PositionManager(pyramid)
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
 
     def generate_signal(self, row):
@@ -84,7 +86,7 @@ class Strategy:
             self.position_manager.flatten()
             self.risk_manager.reset()
             self.activated = False
-    
+
     def add_features(self):
         self.features = {}
         
@@ -399,10 +401,14 @@ class PositionLeg:
         self._entry_price = float(value)
             
 class PositionManager:
-    def __init__(self):
+    def __init__(self, pyramid):
+        self.pyramid = pyramid
         self.legs = [] # list of PositionLeg
 
     def add_leg(self, leg: PositionLeg):
+        if not self.pyramid and self.legs:
+            return False
+        
         if 0.0 < self.total_size() + leg.position_size <= 1.0:
             self.legs.append(leg)
             return True

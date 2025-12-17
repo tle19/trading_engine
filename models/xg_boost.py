@@ -4,37 +4,27 @@ from xgboost import XGBClassifier, XGBRegressor
 from models import BaseModel
 
 class XGBModel(BaseModel):
-    def __init__(self, strategy, live):
+    def __init__(self, strategy=None, live=False):
         super().__init__(strategy, live)
         
     def initialize(self):
-        self.model = XGBClassifier(
-            n_estimators=50,
-            max_depth=2,
-            learning_rate=0.2,
-            subsample=0.5,
-            colsample_bytree=1.0,
-            reg_alpha=1.0,
-            reg_lambda=1.0,
-            eval_metric='logloss',
-            random_state=42
-        )
-        # self.model = XGBRegressor(
-        #     objective="reg:squarederror",
-        #     max_depth=2,
-        #     n_estimators=200,
-        #     learning_rate=0.05,
-        #     subsample=0.8,
-        #     colsample_bytree=0.8,
-        #     reg_alpha=2.0,
-        #     reg_lambda=2.0,
-        #     random_state=42
-        # )
-
         if not self.live:
+            self.model = XGBClassifier(
+                n_estimators=50,
+                max_depth=2,
+                learning_rate=0.2,
+                subsample=0.5,
+                colsample_bytree=1.0,
+                reg_alpha=1.0,
+                reg_lambda=1.0,
+                eval_metric='logloss',
+                random_state=42
+            )
             self.open_trade_hist()
             if hasattr(self, "df") and not self.df.empty:
-                self.prepare_features(self.df)        
+                self.prepare_features(self.df)
+        else:
+            self.load_model(file="xgb_model.pkl")
     
     def prepare_features(self, df):
         df = df.copy()

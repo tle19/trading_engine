@@ -264,9 +264,9 @@ strategy_kwargs = { # Stochastic
     "trailing_ratio": 0.05
 }
 run_one_backtest( # Stochastic
-    "MSFT",
+    "AAPL",
     StochasticIndicator,
-    start_date="2023-11-01",
+    start_date="2025-6-01",
     end_date="2025-11-01",
     plot=True,
     **strategy_kwargs

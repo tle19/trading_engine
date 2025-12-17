@@ -1,6 +1,7 @@
 import os
 import json
 import pandas as pd
+import pickle
 from zoneinfo import ZoneInfo
 
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
@@ -9,7 +10,7 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 timezone = ZoneInfo("America/New_York")
 
 class BaseModel:
-    def __init__(self, strategy, live=False):
+    def __init__(self, strategy=None, live=False):
         self.strategy = strategy
         self.live = live
         self.model = None
@@ -23,6 +24,16 @@ class BaseModel:
             if hasattr(self, "df") and not self.df.empty:
                 self.prepare_features(self.df)    
     
+    def save_model(self, file="ml_model.pkl"):
+        with open(file, "wb") as f:
+            pickle.dump(self.model, f)
+        print(f"Saved model to {file}")
+                
+    def load_model(self, file="ml_model.pkl"):
+        with open(file, "rb") as f:
+            self.model = pickle.load(f)
+        print(f"Loaded model from {file}")
+
     def open_trade_hist(self, log_file="trade_logs.json"):
         with open(log_file, "r") as f:
             data = json.load(f)
@@ -64,7 +75,7 @@ class BaseModel:
         # regression target
         if not self.live and "pnl" in self.df.columns:
             df["target"] = df["pnl"] / (df["direction"] * (df["entry_price"] - df["stop_price"]))
-            
+
         # ohlcv normalization
         for base in ["opens", "closes", "lows", "highs", "volumes"]:
             cols = [f"{base}_{i}" for i in range(0, 10)]
@@ -123,6 +134,6 @@ class BaseModel:
         print(f"Test  MSE: {test_mse:.6f}, MAE: {test_mae:.6f}, R²: {test_r2:.4f}")
 
     def get_proba(self, feature_row):
-        X_input = feature_row.values.reshape(1, -1) if isinstance(feature_row, pd.Series) else feature_row.reshape(1, -1)
+        X_input = feature_row.values.reshape(1, -1) if isinstance(feature_row, pd.Series) else feature_row.values
         prob = self.model.predict_proba(X_input)[0, 1]
         return prob
