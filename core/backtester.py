@@ -70,14 +70,14 @@ class Backtest:
         if signal == 1:
             fill_price = entry_price * self.slip_up
             leg.entry_price = fill_price
-            self.trade_manager.log_entry(name, leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price, self.strategy.features)
+            self.trade_manager.log_entry(name, leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, self.strategy.features)
             # print(f"{self.ts} | ENTRY (L): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Enter Short ---
         elif signal == -1:
             fill_price = entry_price * self.slip_dn
             leg.entry_price = fill_price
-            self.trade_manager.log_entry(name, leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price, self.strategy.features)
+            self.trade_manager.log_entry(name, leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, self.strategy.features)
             # print(f"{self.ts} | ENTRY (S): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Exit Position ---

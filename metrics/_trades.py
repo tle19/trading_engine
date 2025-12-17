@@ -16,7 +16,7 @@ class TradeManager:
     def update_intraday_equity(self, ts, equity):
         self.intraday_equity[ts] = equity
 
-    def log_entry(self, name, leg, symbol, direction, position_size, shares, entry_time, entry_price, fill_price, features=None):
+    def log_entry(self, name, leg, symbol, direction, position_size, shares, entry_time, entry_price, fill_price, stop_price, target_price, features=None):
         trade = {
             "strategy": name,
             "symbol": symbol,
@@ -26,6 +26,8 @@ class TradeManager:
             "entry_time": entry_time,
             "entry_price": entry_price,
             "entry_fill": fill_price,
+            "stop_price": stop_price,
+            "target_price": target_price,
             "exit_time": None,
             "exit_price": None,
             "exit_fill": None,
@@ -42,7 +44,7 @@ class TradeManager:
         trade["exit_fill"] = fill_price
 
         trade["pnl"] = round(trade["direction"] * (fill_price - trade["entry_fill"]) * trade["shares"], 2)
-        trade["pnl_pct"] = round(trade["pnl"] / trade["entry_fill"] * 100, 2)
+        trade["pnl_pct"] = round(trade["pnl"] / (trade["entry_fill"] * trade["shares"]), 5)
 
         self.trade_history.append(trade)
 

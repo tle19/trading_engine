@@ -4,6 +4,7 @@ import pandas as pd
 from zoneinfo import ZoneInfo
 
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
 timezone = ZoneInfo("America/New_York")
 
@@ -56,6 +57,14 @@ class BaseModel:
         df = df.copy()
         feature_cols = []
 
+        # classification target
+        if not self.live and "pnl" in self.df.columns:
+            df["target"] = (df["pnl_pct"] > 0).astype(int)
+
+        # regression target
+        if not self.live and "pnl" in self.df.columns:
+            df["target"] = df["pnl"] / (df["direction"] * (df["entry_price"] - df["stop_price"]))
+            
         # ohlcv normalization
         for base in ["opens", "closes", "lows", "highs", "volumes"]:
             cols = [f"{base}_{i}" for i in range(0, 10)]
@@ -75,28 +84,43 @@ class BaseModel:
     def train(self, X, y):
         self.model.fit(X, y)
     
-    def get_accuracy(self, X_train, y_train, X_test, y_test):
+    def evaluate_classification(self, X_train, y_train, X_test, y_test):
         y_train_pred = self.model.predict(X_train)
         y_test_pred = self.model.predict(X_test)
 
-        # Accuracy
         train_acc = accuracy_score(y_train, y_train_pred)
         test_acc = accuracy_score(y_test, y_test_pred)
-        print(f"Train Accuracy: {train_acc:.4f}")
-        print(f"Test Accuracy: {test_acc:.4f}")
 
-        # Confusion matrix
         tn, fp, fn, tp = confusion_matrix(y_test, y_test_pred).ravel()
         total = tp + fp + tn + fn
-        print(f"TP: {tp/total:.4f}, FP: {fp/total:.4f}, TN: {tn/total:.4f}, FN: {fn/total:.4f}")
 
-        # Precision, Recall, F1
         precision = precision_score(y_test, y_test_pred)
         recall = recall_score(y_test, y_test_pred)
         f1 = f1_score(y_test, y_test_pred)
+
+        print("=== Classification Metrics ===")
+        print(f"Train Accuracy: {train_acc:.4f}")
+        print(f"Test Accuracy: {test_acc:.4f}")
+        print(f"TP: {tp/total:.4f}, FP: {fp/total:.4f}, TN: {tn/total:.4f}, FN: {fn/total:.4f}")
         print(f"Test Precision: {precision:.4f}")
         print(f"Test Recall:    {recall:.4f}")
         print(f"Test F1 Score:  {f1:.4f}")
+
+    def evaluate_regression(self, X_train, y_train, X_test, y_test):
+        y_train_pred = self.model.predict(X_train)
+        y_test_pred = self.model.predict(X_test)
+
+        train_mse = mean_squared_error(y_train, y_train_pred)
+        train_mae = mean_absolute_error(y_train, y_train_pred)
+        train_r2  = r2_score(y_train, y_train_pred)
+
+        test_mse = mean_squared_error(y_test, y_test_pred)
+        test_mae = mean_absolute_error(y_test, y_test_pred)
+        test_r2  = r2_score(y_test, y_test_pred)
+
+        print("=== Regression Metrics ===")
+        print(f"Train MSE: {train_mse:.6f}, MAE: {train_mae:.6f}, R²: {train_r2:.4f}")
+        print(f"Test  MSE: {test_mse:.6f}, MAE: {test_mae:.6f}, R²: {test_r2:.4f}")
 
     def get_proba(self, feature_row):
         X_input = feature_row.values.reshape(1, -1) if isinstance(feature_row, pd.Series) else feature_row.reshape(1, -1)

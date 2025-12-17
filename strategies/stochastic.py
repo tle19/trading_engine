@@ -35,11 +35,11 @@ class StochasticIndicator(Strategy):
 
         self.rolling_k = deque(maxlen=10)
         self.rolling_d = deque(maxlen=10)
-        self.rolling_rsi = deque(maxlen=10)
         self.rolling_hist = deque(maxlen=10)
-        self.rolling_vol = deque(maxlen=10)
         self.rolling_atr = deque(maxlen=10)
         self.rolling_adx = deque(maxlen=10)
+        self.rolling_rsi = deque(maxlen=10)
+        self.rolling_vol = deque(maxlen=10)
 
         self.model = None
 
@@ -91,11 +91,11 @@ class StochasticIndicator(Strategy):
         # clamp sl (0.005, 0.015) and tp (0.005, 0.015) in predetermined range
         self.rolling_k.append(k)
         self.rolling_d.append(d)
-        self.rolling_rsi.append(rsi)
         self.rolling_hist.append(hist)
-        self.rolling_vol.append(vol)
         # self.rolling_atr.append(atr)
         # self.rolling_adx.append(adx)
+        self.rolling_rsi.append(rsi)
+        self.rolling_vol.append(vol)
 
         return k, d, rsi, hist, vol
 
@@ -108,11 +108,11 @@ class StochasticIndicator(Strategy):
             self.stoch_signal = None
             self.rolling_k = deque(maxlen=10)
             self.rolling_d = deque(maxlen=10)
-            self.rolling_rsi = deque(maxlen=10)
             self.rolling_hist = deque(maxlen=10)
+            # self.rolling_atr = deque(maxlen=10)
+            # self.rolling_adx = deque(maxlen=10)
+            self.rolling_rsi = deque(maxlen=10)
             self.rolling_vol = deque(maxlen=10)
-            self.rolling_atr = deque(maxlen=10)
-            self.rolling_adx = deque(maxlen=10)
       
     def minimum_computations(self):
         if not self.activated:
@@ -160,21 +160,3 @@ class StochasticIndicator(Strategy):
             "rolling_atr": list(self.rolling_atr),
             "rolling_adx": list(self.rolling_adx),
         }
-
-    # def enter_trade(self, k, d, rsi, hist, vol): # original version
-    #     if self.stoch_signal == 1 and rsi > 50 and hist > 0:
-    #         if vol > self.vol_threshold:
-    #             signal = self.buy() 
-    #             swing_point = self.compute_swing(mode="low", lookback=10)
-    #             self.stop_price = round(swing_point * (1 - self.stop_loss), 2)
-    #             diff = self.close - self.stop_price
-    #             self.profit_price = round(self.close + (1 * diff), 2)
-    #             return signal
-    #     if self.stoch_signal == -1 and rsi < 50 and hist < 0:
-    #         if vol > self.vol_threshold:
-    #             signal = self.sell() 
-    #             swing_point = self.compute_swing(mode="high", lookback=10)
-    #             self.stop_price = round(swing_point * (1 + self.stop_loss), 2)
-    #             diff = self.stop_price - self.close
-    #             self.profit_price = round(self.close - (1 * diff), 2)
-    #             return signal
