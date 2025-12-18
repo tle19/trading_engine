@@ -117,7 +117,7 @@ symbols = [
 
 mdl = XGBModel(strategy="StochasticIndicator", live=False)
 mdl.initialize()
-X_train, X_test, y_train, y_test = train_test_split_df(mdl.df, train_ratio=0.75)
+X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=18)
 mdl.train(X_train, y_train)
 mdl.evaluate_classification(X_train, y_train, X_test, y_test)
 mdl.save_model(file="xgb_model.pkl")

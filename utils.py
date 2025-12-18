@@ -37,15 +37,19 @@ def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_tim
     df = df.set_index('timestamp').between_time(start_time, end_time).reset_index()
     return df
 
-def train_test_split_df(df, train_ratio=0.6, target_column="target"):
-    train_size = int(len(df) * train_ratio)
-    X = df.drop(columns=[target_column])
-    y = df[target_column]
+def train_test_split(df, n_months=18, datetime_column="entry_time", target_column="target"):
+    df = df.sort_values(datetime_column)
+    df[datetime_column] = pd.to_datetime(df[datetime_column])
 
-    X_train = X.iloc[:train_size]
-    y_train = y.iloc[:train_size]
-    X_test = X.iloc[train_size:]
-    y_test = y.iloc[train_size:]
+    split_date = df[datetime_column].max() - pd.DateOffset(months=n_months)
+
+    train_df = df[df[datetime_column] < split_date].drop(columns=[datetime_column])
+    test_df  = df[df[datetime_column] >= split_date].drop(columns=[datetime_column])
+
+    X_train = train_df.drop(columns=[target_column])
+    y_train = train_df[target_column]
+    X_test  = test_df.drop(columns=[target_column])
+    y_test  = test_df[target_column]
 
     return X_train, X_test, y_train, y_test
 

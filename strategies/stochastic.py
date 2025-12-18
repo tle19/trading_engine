@@ -68,10 +68,8 @@ class StochasticIndicator(Strategy):
         vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
         
         if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > self.vol_threshold:
-            # signal = self.model_check()
             signal, _ = self.buy()
         if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > self.vol_threshold:
-            # signal = self.model_check()
             signal, _ = self.sell()
         return signal
 
@@ -127,28 +125,28 @@ class StochasticIndicator(Strategy):
             elif self.stoch_signal == -1 and (k < lower or d < lower):
                 self.stoch_signal = None
     
-    def model_check(self, threshold=0.4):
-        self.add_features(self.stoch_signal, None, None)
+    def predict_trade(self, threshold=0.3):
+        # self.add_features(self.stoch_signal, None, None)
         df = pd.DataFrame({k: [v] for k, v in self.features.items()})
         self.model.prepare_features(df)
         proba = self.model.get_proba(self.model.df)
         if self.stoch_signal == 1:
             if proba > threshold:
-                signal, _ = self.buy() 
+                signal, leg = self.buy() 
                 confidence = proba
             else:
-                signal, _ = self.sell() 
+                signal, leg = self.sell() 
                 confidence = 1 - proba
         elif self.stoch_signal == -1:
             if proba > threshold:
-                signal, _ = self.sell()
+                signal, leg = self.sell()
                 confidence = 1 - proba
             else:
-                signal, _ = self.buy() 
+                signal, leg = self.buy() 
                 confidence = proba
 
-        # self.position_size = 0.25 + 0.75 * confidence        
-        return signal
+        # self.position_size = 0.25 + 0.75 * confidence       
+        return signal, leg
 
     def add_features(self, direction, stop_price, target_price):
         self.features = {

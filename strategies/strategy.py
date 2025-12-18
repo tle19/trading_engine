@@ -58,6 +58,12 @@ class Strategy:
     def minimum_computations(self):
         raise NotImplementedError
     
+    def add_features(self, direction, stop_price, target_price):
+        self.features = {}
+    
+    def predict_trade(self, threshold=0.5):
+        return (HOLD, None)
+    
     def update(self, row=None): 
         if row is not None:
             self.open = row.open
@@ -74,6 +80,7 @@ class Strategy:
         self.highs.append(self.high)
         self.lows.append(self.low)
         self.volumes.append(self.volume)
+        self.features = {}
                    
     def reset_data(self):
         if self.trade_window((9, 30), (9, 30)):
@@ -86,10 +93,8 @@ class Strategy:
             self.position_manager.flatten()
             self.risk_manager.reset()
             self.activated = False
+            self.features = {}
 
-    def add_features(self, direction, stop_price, target_price):
-        self.features = {}
-        
     def trade_window(self, start, end):
         return start <= (self.ts.hour, self.ts.minute) <= end
         
@@ -110,6 +115,9 @@ class Strategy:
                 cash=self.risk_manager.start_cash
             )
 
+            if self.model and not self.features:
+                self.add_features(1, stop_price, target_price)
+                return self.predict_trade()
             if self.position_manager.add_leg(pos_leg):
                 self.add_features(1, stop_price, target_price)
                 return (LONG, pos_leg)
@@ -133,7 +141,10 @@ class Strategy:
                 target_price=target_price,
                 cash=self.risk_manager.start_cash
             )
-            
+
+            if self.model and not self.features:
+                self.add_features(-1, stop_price, target_price)
+                return self.predict_trade()
             if self.position_manager.add_leg(pos_leg):
                 self.add_features(-1, stop_price, target_price)
                 return (SHORT, pos_leg)

@@ -52,11 +52,11 @@ class BaseModel:
 
             rows.append(features)
 
-        if not features:
+        if not rows:
             print(f"No trades found for strategy: {self.strategy}")
 
         self.df = pd.DataFrame(rows)
-     
+         
     def prepare_features(self, df):
         df = df.copy()
         feature_cols = []
@@ -97,7 +97,6 @@ class BaseModel:
 
         tn, fp, fn, tp = confusion_matrix(y_test, y_test_pred).ravel()
         total = tp + fp + tn + fn
-
         precision = precision_score(y_test, y_test_pred)
         recall = recall_score(y_test, y_test_pred)
         f1 = f1_score(y_test, y_test_pred)

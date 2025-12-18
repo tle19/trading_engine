@@ -33,6 +33,7 @@ class XGBModel(BaseModel):
         # classification target
         if not self.live and "pnl_pct" in self.df.columns:
             df["target"] = (df["pnl_pct"] > -0.001).astype(int)
+            feature_cols.append("entry_time")
             feature_cols.append("target")
 
         # session-relative prices
