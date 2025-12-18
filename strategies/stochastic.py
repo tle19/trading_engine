@@ -34,11 +34,6 @@ class StochasticIndicator(Strategy):
         self.signal_ema = None
         self.stoch_signal = None
 
-        self.rolling_k = deque(maxlen=10)
-        self.rolling_d = deque(maxlen=10)
-        self.rolling_hist = deque(maxlen=10)
-        self.rolling_atr = deque(maxlen=10)
-        self.rolling_adx = deque(maxlen=10)
         self.rolling_rsi = deque(maxlen=10)
         self.rolling_vol = deque(maxlen=10)
         
@@ -73,13 +68,11 @@ class StochasticIndicator(Strategy):
         vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
         
         if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > self.vol_threshold:
-            # signal, _ = self.buy() 
-            # signal, _ = self.sell()
-            signal = self.position_sizer()
+            # signal = self.model_check()
+            signal, _ = self.buy()
         if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > self.vol_threshold:
-            # signal, _ = self.sell() 
-            # signal, _ = self.buy()
-            signal = self.position_sizer()
+            # signal = self.model_check()
+            signal, _ = self.sell()
         return signal
 
     def compute_indicators(self):
@@ -91,11 +84,6 @@ class StochasticIndicator(Strategy):
         # atr = self.compute_atr(self.atr_window)
         # adx = self.compute_adx(self.adx_window)
         # clamp sl (0.005, 0.015) and tp (0.005, 0.015) in predetermined range
-        self.rolling_k.append(k)
-        self.rolling_d.append(d)
-        self.rolling_hist.append(hist)
-        # self.rolling_atr.append(atr)
-        # self.rolling_adx.append(adx)
         self.rolling_rsi.append(rsi)
         self.rolling_vol.append(vol)
 
@@ -108,11 +96,6 @@ class StochasticIndicator(Strategy):
             self.slow_ema = None
             self.signal_ema = None
             self.stoch_signal = None
-            self.rolling_k = deque(maxlen=10)
-            self.rolling_d = deque(maxlen=10)
-            self.rolling_hist = deque(maxlen=10)
-            # self.rolling_atr = deque(maxlen=10)
-            # self.rolling_adx = deque(maxlen=10)
             self.rolling_rsi = deque(maxlen=10)
             self.rolling_vol = deque(maxlen=10)
       
@@ -144,22 +127,20 @@ class StochasticIndicator(Strategy):
             elif self.stoch_signal == -1 and (k < lower or d < lower):
                 self.stoch_signal = None
     
-    def position_sizer(self):
-        self.add_features()
-        self.features["direction"] = self.stoch_signal
-        self.features["entry_price"] = self.price
+    def model_check(self, threshold=0.4):
+        self.add_features(self.stoch_signal, None, None)
         df = pd.DataFrame({k: [v] for k, v in self.features.items()})
         self.model.prepare_features(df)
         proba = self.model.get_proba(self.model.df)
         if self.stoch_signal == 1:
-            if proba > 0.3:
+            if proba > threshold:
                 signal, _ = self.buy() 
                 confidence = proba
             else:
                 signal, _ = self.sell() 
                 confidence = 1 - proba
         elif self.stoch_signal == -1:
-            if proba > 0.3:
+            if proba > threshold:
                 signal, _ = self.sell()
                 confidence = 1 - proba
             else:
@@ -169,21 +150,15 @@ class StochasticIndicator(Strategy):
         # self.position_size = 0.25 + 0.75 * confidence        
         return signal
 
-    def add_features(self):
+    def add_features(self, direction, stop_price, target_price):
         self.features = {
+            "direction": direction,
+            "entry_time": self.ts.isoformat(),
+            "entry_price": self.price,
+            "stop_price": stop_price,
+            "target_price": target_price,
             "session_open": self.opens[0],
             "session_low": min(self.lows),
             "session_high": max(self.highs),
-            "opens": self.opens[-10:],
-            "closes": self.closes[-10:],
-            "lows": self.lows[-10:],
-            "highs": self.highs[-10:],
-            "volumes": self.volumes[-10:],
-            "rolling_k": list(self.rolling_k),
-            "rolling_d": list(self.rolling_d),
-            "rolling_rsi": list(self.rolling_rsi),
-            "rolling_hist": list(self.rolling_hist),
-            "rolling_vol": list(self.rolling_vol),
-            "rolling_atr": list(self.rolling_atr),
-            "rolling_adx": list(self.rolling_adx),
+            "volumes": self.volumes[-10:]
         }

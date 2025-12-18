@@ -75,14 +75,15 @@ class SMACrossover(Strategy):
             ) + 1
             self.activated = len(self.prices) > required_data
 
-    def add_features(self):
+    def add_features(self, direction, stop_price, target_price):
         self.features = {
+            "direction": direction,
+            "entry_time": self.ts,
+            "entry_price": self.price,
+            "stop_price": stop_price,
+            "target_price": target_price,
             "session_open": self.opens[0],
             "session_low": min(self.lows),
             "session_high": max(self.highs),
-            "opens": self.opens[-10:],
-            "closes": self.closes[-10:],
-            "lows": self.lows[-10:],
-            "highs": self.highs[-10:],
             "volumes": self.volumes[-10:]
         }

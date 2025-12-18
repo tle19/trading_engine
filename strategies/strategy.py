@@ -87,7 +87,7 @@ class Strategy:
             self.risk_manager.reset()
             self.activated = False
 
-    def add_features(self):
+    def add_features(self, direction, stop_price, target_price):
         self.features = {}
         
     def trade_window(self, start, end):
@@ -111,7 +111,7 @@ class Strategy:
             )
 
             if self.position_manager.add_leg(pos_leg):
-                self.add_features()
+                self.add_features(1, stop_price, target_price)
                 return (LONG, pos_leg)
             return (HOLD, None)
         elif direction == -1:
@@ -133,9 +133,9 @@ class Strategy:
                 target_price=target_price,
                 cash=self.risk_manager.start_cash
             )
-
+            
             if self.position_manager.add_leg(pos_leg):
-                self.add_features()
+                self.add_features(-1, stop_price, target_price)
                 return (SHORT, pos_leg)
             return (HOLD, None)
         elif direction == 1:

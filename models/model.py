@@ -21,8 +21,7 @@ class BaseModel:
 
         if not self.live:
             self.open_trade_hist()
-            if hasattr(self, "df") and not self.df.empty:
-                self.prepare_features(self.df)    
+            self.prepare_features(self.df)    
     
     def save_model(self, file="ml_model.pkl"):
         with open(file, "wb") as f:
@@ -37,32 +36,26 @@ class BaseModel:
     def open_trade_hist(self, log_file="trade_logs.json"):
         with open(log_file, "r") as f:
             data = json.load(f)
-
-        trade_history = []
+        
+        rows = []
         for trade in data.get("trade_history", []):
             if self.strategy and trade.get("strategy") != self.strategy:
                 continue
+            
+            features = trade.get("features", {})
+            features["pnl_pct"] = trade["pnl_pct"]
 
-            trade_copy = trade.copy()
-            for key in ["entry_time", "exit_time"]:
-                if key in trade_copy and trade_copy[key] is not None:
-                    trade_copy[key] = pd.to_datetime(trade_copy[key], utc=True).tz_convert(timezone)
+            if "entry_time" in features and features["entry_time"] is not None:
+                features["entry_time"] = (
+                    pd.to_datetime(features["entry_time"], utc=True).tz_convert(timezone)
+                )
 
-            features = trade_copy.pop("features", {})
-            for feat_name, feat_val in features.items():
-                if isinstance(feat_val, list):
-                    for i, v in enumerate(feat_val, start=0):
-                        trade_copy[f"{feat_name}_{i}"] = v
-                else:
-                    trade_copy[feat_name] = feat_val
+            rows.append(features)
 
-            trade_history.append(trade_copy)
-
-        if not trade_history:
+        if not features:
             print(f"No trades found for strategy: {self.strategy}")
-            return
 
-        self.df = pd.DataFrame(trade_history)
+        self.df = pd.DataFrame(rows)
      
     def prepare_features(self, df):
         df = df.copy()

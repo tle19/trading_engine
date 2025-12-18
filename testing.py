@@ -266,7 +266,7 @@ strategy_kwargs = { # Stochastic
 run_one_backtest( # Stochastic
     "AAPL",
     StochasticIndicator,
-    start_date="2025-6-01",
+    start_date="2023-11-01",
     end_date="2025-11-01",
     plot=True,
     **strategy_kwargs

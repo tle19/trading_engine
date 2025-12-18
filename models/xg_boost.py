@@ -31,9 +31,10 @@ class XGBModel(BaseModel):
         feature_cols = []
 
         # classification target
-        if not self.live and "pnl" in self.df.columns:
+        if not self.live and "pnl_pct" in self.df.columns:
             df["target"] = (df["pnl_pct"] > -0.001).astype(int)
-        
+            feature_cols.append("target")
+
         # session-relative prices
         for col in ["session_open", "session_low", "session_high"]:
             if col in df.columns:
@@ -45,10 +46,7 @@ class XGBModel(BaseModel):
         # df["minutes_from_open"] = (df["entry_time"] - market_open).dt.total_seconds() / 60
         # feature_cols.append("minutes_from_open")
 
-        if not self.live:
-            self.df = df[feature_cols + ["target"]]
-        else:
-            self.df = df[feature_cols]
+        self.df = df[feature_cols]
         # print(f"Features: {feature_cols}")
         
     def train(self, X, y):
