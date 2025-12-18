@@ -183,7 +183,7 @@ symbols = [
     "MRK", "PFE", "TMO", "AMGN" 
 ]
 
-symbols = ["QQQ", "AAPL", "MSFT", "CRM", "ADBE", "GOOG", "QCOM", "UPS"]
+symbols = ["QQQ", "AAPL", "MSFT", "CRM", "ADBE", "GOOG"]
 
 # strategy_kwargs = { # Volume
 #     "fast_window": 14,
@@ -266,7 +266,7 @@ strategy_kwargs = { # Stochastic
 run_one_backtest( # Stochastic
     "AAPL",
     StochasticIndicator,
-    start_date="2025-5-01",
+    start_date="2023-11-01",
     end_date="2025-11-01",
     plot=True,
     **strategy_kwargs
@@ -278,7 +278,7 @@ run_one_backtest( # Stochastic
 #     StochasticIndicator, 
 #     "2023-11-01", 
 #     "2025-11-01", 
-#     plot=True, 
+#     plot=False, 
 #     save_plot=True, 
 #     **strategy_kwargs
 #     )

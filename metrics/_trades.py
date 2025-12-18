@@ -50,7 +50,7 @@ class TradeManager:
 
     def save_logs(self):
         intraday_equity = {ts.isoformat(): val for ts, val in self.intraday_equity.items()}
-        
+
         with open(self.log_file, "w") as f:
             json.dump({
                 "trade_history": self.trade_history,
@@ -68,13 +68,7 @@ class TradeManager:
                 for ts, val in data.get("intraday_equity", {}).items()
             }
 
-            self.trade_history = []
-            for trade in data.get("trade_history", []):
-                trade_parsed = trade.copy()
-                for key in ("entry_time", "exit_time"):
-                    if key in trade_parsed:
-                        trade_parsed[key] = pd.Timestamp(trade_parsed[key])
-                self.trade_history.append(trade_parsed)
+            self.trade_history = data.get("trade_history", [])
 
         except (FileNotFoundError, json.JSONDecodeError):
             self.trade_history = []

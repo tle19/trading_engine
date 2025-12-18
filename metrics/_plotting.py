@@ -21,7 +21,7 @@ class Plotting:
         self.end_date = dates[-1]
 
     def plot_equity(self, save_plot=False, overlay=False):
-        intraday_equity = list(self.intraday_equity.values())
+        intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
         if not intraday_equity:
             print("No equity data to plot.")
             return

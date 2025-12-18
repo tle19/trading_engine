@@ -12,7 +12,7 @@ class XGBModel(BaseModel):
             self.model = XGBClassifier(
                 n_estimators=50,
                 max_depth=2,
-                learning_rate=0.2,
+                learning_rate=0.15,
                 subsample=0.5,
                 colsample_bytree=1.0,
                 reg_alpha=1.0,
@@ -38,9 +38,13 @@ class XGBModel(BaseModel):
 
         # session-relative prices
         for col in ["session_open", "session_low", "session_high"]:
-            if col in df.columns:
-                df[f"{col}_pct_from_entry"] = df["direction"] * (df["entry_price"] - df[col]) / df["entry_price"]
-                feature_cols.append(f"{col}_pct_from_entry")
+            df[f"{col}_pct_from_entry"] = df["direction"] * (df["entry_price"] - df[col]) / df["entry_price"]
+            feature_cols.append(f"{col}_pct_from_entry")
+
+        df["entry_in_range"] = (df["entry_price"] - df["session_low"]) / (df["session_high"] - df["session_low"])
+        df["range_pct"]     = df["session_high"] - df["session_low"] / df["session_open"]
+        feature_cols.append("entry_in_range")
+        feature_cols.append("range_pct")
 
         # # time from market open
         # market_open = df["entry_time"].dt.normalize() + pd.Timedelta(hours=9, minutes=30)

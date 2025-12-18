@@ -62,7 +62,7 @@ class Strategy:
         self.features = {}
     
     def predict_trade(self, threshold=0.5):
-        return (HOLD, None)
+        raise NotImplementedError
     
     def update(self, row=None): 
         if row is not None:

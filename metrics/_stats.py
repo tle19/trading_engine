@@ -47,7 +47,7 @@ class Stats:
         self.max_day_loss_streak = 0
 
     def summary(self):
-        intraday_equity = list(self.intraday_equity.values())
+        intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
         self._update_dates()
         self._calculate_pnls(intraday_equity)
         self._calculate_daily_pnls()
@@ -104,7 +104,7 @@ class Stats:
         print("-" * 50)
 
     def _update_dates(self):
-        dates = list(self.intraday_equity)
+        dates = sorted(self.intraday_equity)
         self.start_date = dates[0]
         self.end_date = dates[-1]
         self.duration = self.end_date - self.start_date

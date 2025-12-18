@@ -37,8 +37,8 @@ class StochasticIndicator(Strategy):
         self.rolling_rsi = deque(maxlen=10)
         self.rolling_vol = deque(maxlen=10)
         
-        self.model = XGBModel(live=True)
-        self.model.initialize()
+        # self.model = XGBModel(live=True)
+        # self.model.initialize()
 
     def generate_signal(self, row):
         self.update(row)
@@ -125,8 +125,7 @@ class StochasticIndicator(Strategy):
             elif self.stoch_signal == -1 and (k < lower or d < lower):
                 self.stoch_signal = None
     
-    def predict_trade(self, threshold=0.3):
-        # self.add_features(self.stoch_signal, None, None)
+    def predict_trade(self, threshold=0.4):
         df = pd.DataFrame({k: [v] for k, v in self.features.items()})
         self.model.prepare_features(df)
         proba = self.model.get_proba(self.model.df)
@@ -140,10 +139,10 @@ class StochasticIndicator(Strategy):
         elif self.stoch_signal == -1:
             if proba > threshold:
                 signal, leg = self.sell()
-                confidence = 1 - proba
+                confidence = proba
             else:
                 signal, leg = self.buy() 
-                confidence = proba
+                confidence = 1 - proba
 
         # self.position_size = 0.25 + 0.75 * confidence       
         return signal, leg
