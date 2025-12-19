@@ -213,8 +213,8 @@ symbols = ["QQQ", "AAPL", "MSFT", "CRM", "ADBE", "GOOG"]
 # run_one_backtest( # ORB
 #     "TSLA",
 #     ORBIndicator,
-#     start_date="2023-11-01",
-#     end_date="2025-11-01",
+#     start_date="2025-11-01",
+#     end_date="2025-12-01",
 #     plot=True,
 #     **strategy_kwargs
 # )
@@ -243,35 +243,49 @@ symbols = ["QQQ", "AAPL", "MSFT", "CRM", "ADBE", "GOOG"]
 #     **strategy_kwargs
 # )
 
-strategy_kwargs = { # Stochastic
-    "fast_window": 12,
-    "slow_window": 26,
-    "signal_window": 9,
-    "htf_window": 50, 
-    "rsi_period": 14,
-    "k_period": 14,
-    "k_smooth": 3,
-    "d_period": 3,
-    "stoch_lower": 20,
-    "stoch_upper": 80,
-    "vol_fast_window": 14,
-    "vol_slow_window": 28,
-    "vol_threshold": 0.025,
-    "atr_window": 14, 
-    "adx_window": 14,
+# strategy_kwargs = { # Stochastic
+#     "fast_window": 12,
+#     "slow_window": 26,
+#     "signal_window": 9,
+#     "htf_window": 50, 
+#     "rsi_period": 14,
+#     "k_period": 14,
+#     "k_smooth": 3,
+#     "d_period": 3,
+#     "stoch_lower": 20,
+#     "stoch_upper": 80,
+#     "vol_fast_window": 14,
+#     "vol_slow_window": 28,
+#     "vol_threshold": 0.025,
+#     "atr_window": 14, 
+#     "adx_window": 14,
+#     "stop_loss": 0.01,
+#     "take_profit": 0.01,
+#     "trailing_ratio": 0.05
+# }
+# run_one_backtest( # Stochastic
+#     "AAPL",
+#     StochasticIndicator,
+#     start_date="2023-11-01",
+#     end_date="2025-11-01",
+#     plot=True,
+#     **strategy_kwargs
+# )
+
+strategy_kwargs = { # RSI
+    "rsi_period": 2,
+    "htf_window": 50,
     "stop_loss": 0.01,
-    "take_profit": 0.01,
-    "trailing_ratio": 0.05
+    "take_profit": 0.01
 }
-run_one_backtest( # Stochastic
-    "AAPL",
-    StochasticIndicator,
-    start_date="2023-11-01",
-    end_date="2025-11-01",
+run_one_backtest( # RSI
+    "TSLA",
+    RSIScalp,
+    start_date="2025-11-01",
+    end_date="2025-12-01",
     plot=True,
     **strategy_kwargs
 )
-
 
 # multiple_symbol_performance(
 #     symbols, 

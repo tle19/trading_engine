@@ -4,6 +4,7 @@ from .stochastic import StochasticIndicator
 from .macd import MACDIndicator
 from .orb import ORBIndicator
 from .volume_decay import VolumeDecay
+from .rsi_scalp import RSIScalp
 
 __all__ = [
     "SMACrossover",
@@ -11,6 +12,7 @@ __all__ = [
     "MACDIndicator",
     "ORBIndicator",
     "VolumeDecay",
+    "RSIScalp",
     "strategy_map"
 ]
 
@@ -19,6 +21,7 @@ strategy_map = {
     "stochastic": StochasticIndicator,
     "macd": MACDIndicator,
     "orb": ORBIndicator,
-    "volume": VolumeDecay
+    "volume": VolumeDecay,
+    "rsi": RSIScalp,
 }
 
