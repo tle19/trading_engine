@@ -196,6 +196,7 @@ class Strategy:
             return True
 
     def compute_ma(self, data, window):
+        data = np.array(data)
         return np.mean(data[-window:])
     
     def compute_ema(self, prev_ema, new_value, window):
@@ -278,37 +279,37 @@ class Strategy:
         lower_band = min(self.lows[-period:])
         return upper_band, lower_band
         
-    def compute_atr(self, period=14):
-        highs = np.array(self.highs)
-        lows = np.array(self.lows)
-        closes = np.array(self.prices)
+    def compute_atr(self, highs, lows, closes, period=14):
+        highs = np.array(highs)
+        lows = np.array(lows)
+        closes = np.array(closes)
 
-        if len(highs) < 2:
-            return 0.0
+        if len(closes) < 2:
+            return 2.5
 
-        tr1 = highs[1:] - lows[1:]
-        tr2 = np.abs(highs[1:] - closes[:-1])
-        tr3 = np.abs(lows[1:] - closes[:-1])
-        tr = np.maximum.reduce([tr1, tr2, tr3])
-
-        atr = tr[:period].mean()
+        tr = np.maximum.reduce([
+            highs[1:] - lows[1:],
+            np.abs(highs[1:] - closes[:-1]),
+            np.abs(lows[1:]  - closes[:-1])
+        ])
+        
+        atr = np.mean(tr[:period])
         for t in tr[period:]:
             atr = (atr * (period - 1) + t) / period 
 
         return atr
     
-    def compute_adx(self, period=14):
-        highs  = np.array(self.highs)
-        lows   = np.array(self.lows)
-        closes = np.array(self.prices)
+    def compute_adx(self, highs, lows, closes, period=14):
+        highs = np.array(highs)
+        lows = np.array(lows)
+        closes = np.array(closes)
 
         n = len(highs)
-        if n < 3:
+        if n < 2:
             return 20.0
 
-        up_move   = highs[1:] - highs[:-1]
+        up_move = highs[1:] - highs[:-1]
         down_move = lows[:-1] - lows[1:]
-
         plus_dm  = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
         minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
 
@@ -318,28 +319,30 @@ class Strategy:
             np.abs(lows[1:]  - closes[:-1])
         ])
 
-        tr14       = tr[:period].sum()
-        plus_dm14  = plus_dm[:period].sum()
-        minus_dm14 = minus_dm[:period].sum()
+        actual_period = min(period, len(tr))
+        tr_sum = tr[:actual_period].sum()
+        plus_dm_sum = plus_dm[:actual_period].sum()
+        minus_dm_sum = minus_dm[:actual_period].sum()
 
         dx_vals = []
-        for i in range(period, n-1):
-            tr14       = tr14 - tr14/period + tr[i]
-            plus_dm14  = plus_dm14 - plus_dm14/period + plus_dm[i]
-            minus_dm14 = minus_dm14 - minus_dm14/period + minus_dm[i]
+        pdi = (plus_dm_sum / tr_sum * 100) if tr_sum > 0 else 0
+        mdi = (minus_dm_sum / tr_sum * 100) if tr_sum > 0 else 0
+        dx_vals.append(abs(pdi - mdi) / (pdi + mdi + 1e-9) * 100)
 
-            pdi = plus_dm14 / tr14
-            mdi = minus_dm14 / tr14
-            dx_vals.append(abs(pdi - mdi) / (pdi + mdi + 1e-9))
+        for i in range(actual_period, len(tr)):
+            tr_sum = tr_sum - tr_sum / period + tr[i]
+            plus_dm_sum = plus_dm_sum - plus_dm_sum / period + plus_dm[i]
+            minus_dm_sum = minus_dm_sum - minus_dm_sum / period + minus_dm[i]
 
-        if len(dx_vals) == 0:
-            return 20.0
+            pdi = plus_dm_sum / tr_sum * 100
+            mdi = minus_dm_sum / tr_sum * 100
+            dx_vals.append(abs(pdi - mdi) / (pdi + mdi + 1e-9) * 100)
 
-        adx = sum(dx_vals[:period]) / period
-        for d in dx_vals[period:]:
-            adx = (adx*(period-1) + d) / period
+        adx = np.mean(dx_vals[:actual_period])
+        for d in dx_vals[actual_period:]:
+            adx = (adx * (period - 1) + d) / period
 
-        return adx * 100
+        return adx
     
     def compute_swing(self, mode="high", lookback=10): # fix swing
         arr = self.highs[-lookback:] if mode == "high" else self.lows[-lookback:]

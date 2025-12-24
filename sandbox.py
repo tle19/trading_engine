@@ -1,5 +1,6 @@
 import time
 from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
 
 from core import *
 from strategies import *
@@ -117,7 +118,35 @@ symbols = [
 
 mdl = XGBModel(strategy="StochasticIndicator", live=False)
 mdl.initialize()
-X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=18)
+X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=12)
 mdl.train(X_train, y_train)
 mdl.evaluate_classification(X_train, y_train, X_test, y_test)
 mdl.save_model(file="xgb_model.pkl")
+
+# window = 50
+# df = open_data(
+#     "TSLA", start_date="2025-11-18", end_date="2025-11-18", start_time="10:30", end_time="16:00")
+# df["ema"] = df["close"].ewm(span=window, adjust=False).mean()
+# df["close_minus_ema_pct"] = (df["close"] - df["ema"]) / df["ema"]
+# print(df)
+
+# x = df["close_minus_ema_pct"].dropna()
+# lo, hi = x.quantile([0.001, 0.999])
+# x_clip = x.clip(lo, hi)
+# mu = x.mean()
+# sigma = x.std()
+# plt.figure(figsize=(10, 6))
+# plt.hist(x_clip, bins=100, color="lightgray", edgecolor="black")
+# plt.axvspan(mu - sigma,   mu + sigma,   color="green",  alpha=0.25, label="68% (±1σ)")
+# plt.axvspan(mu - 2*sigma, mu + 2*sigma, color="yellow", alpha=0.20, label="95% (±2σ)")
+# plt.axvspan(mu - 3*sigma, mu + 3*sigma, color="red",    alpha=0.15, label="99.7% (±3σ)")
+# plt.axvline(mu, color="black", linewidth=2, label="Mean")
+# plt.axvline(0, color="blue", linestyle="--", label="Zero")
+# plt.title("Close Relative to EMA (1–99% clipped)")
+# plt.xlabel("(Close - EMA) / EMA")
+# plt.ylabel("Frequency")
+# plt.legend()
+# plt.show()
+
+# P (price will pull back towards mean | slope is steady)
+# P (price will pull back towards mean | slope is trending)

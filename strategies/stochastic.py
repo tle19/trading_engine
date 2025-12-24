@@ -1,4 +1,5 @@
 from collections import deque
+import pandas as pd
 
 from models import XGBModel
 from strategies import Strategy
@@ -7,7 +8,7 @@ from utils import *
 class StochasticIndicator(Strategy):
     def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=50,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
-                 vol_fast_window=14, vol_slow_window=28, vol_threshold=0.025, atr_window=14, adx_window=14,
+                 vol_fast_window=14, vol_slow_window=28, vol_threshold=0.0, atr_window=14, adx_window=14,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False,
                  pnl_target=0.001, pnl_loss=-0.001, trade_max=5):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid,
@@ -36,6 +37,11 @@ class StochasticIndicator(Strategy):
 
         self.rolling_rsi = deque(maxlen=10)
         self.rolling_vol = deque(maxlen=10)
+
+        df = open_data(self.symbol, start_date="2023-11-01", end_date="2025-11-01")
+        self.history = resample_data(df)
+        self.rolling_adx = deque(maxlen=10)
+        self.rolling_atr = deque(maxlen=10)
         
         # self.model = XGBModel(live=True)
         # self.model.initialize()
@@ -74,18 +80,16 @@ class StochasticIndicator(Strategy):
         return signal
 
     def compute_indicators(self):
-        k, d = self.compute_stochastic(self.highs, self.lows, self.closes, self.k_period, self.k_smooth, self.d_period)
-        rsi = self.compute_rsi(self.prices, self.rsi_period)
-        hist, _, _ = self.compute_macd(self.fast_window, self.slow_window, self.signal_window)
+        self.k, self.d = self.compute_stochastic(self.highs, self.lows, self.closes, self.k_period, self.k_smooth, self.d_period)
+        self.rsi = self.compute_rsi(self.prices, self.rsi_period)
+        self.hist, _, _ = self.compute_macd(self.fast_window, self.slow_window, self.signal_window)
         vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
         # self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
-        # atr = self.compute_atr(self.atr_window)
-        # adx = self.compute_adx(self.adx_window)
-        # clamp sl (0.005, 0.015) and tp (0.005, 0.015) in predetermined range
-        self.rolling_rsi.append(rsi)
+
+        self.rolling_rsi.append(self.rsi)
         self.rolling_vol.append(vol)
 
-        return k, d, rsi, hist, vol
+        return self.k, self.d, self.rsi, self.hist, vol
 
     def reset_indicators(self):
         if self.trade_window((9, 30), (9, 30)):
@@ -96,6 +100,20 @@ class StochasticIndicator(Strategy):
             self.stoch_signal = None
             self.rolling_rsi = deque(maxlen=10)
             self.rolling_vol = deque(maxlen=10)
+            
+            history = self.history.loc[self.history.index < self.ts].tail(20)
+            highs = history["high"].values
+            lows = history["low"].values
+            closes = history["close"].values
+            atr = self.compute_atr(highs, lows, closes, self.atr_window)
+            adx = self.compute_adx(highs, lows, closes, self.adx_window)
+            self.rolling_atr.append(atr)
+            self.rolling_adx.append(adx)
+
+            # if abs(adx - self.compute_ma(self.rolling_adx, window=3)) > 1:
+            #     self.enabled = True
+            # if adx > 20:
+            #     self.enabled = True
       
     def minimum_computations(self):
         if not self.activated:
@@ -157,5 +175,14 @@ class StochasticIndicator(Strategy):
             "session_open": self.opens[0],
             "session_low": min(self.lows),
             "session_high": max(self.highs),
-            "volumes": self.volumes[-10:]
+            "adx": self.rolling_adx[-1],
+            "adx_ma_3": self.compute_ma(self.rolling_adx, window=3),
+            "adx_ma_5": self.compute_ma(self.rolling_adx, window=5),
+            "atr": self.rolling_atr[-1],
+            "atr_ma_3": self.compute_ma(self.rolling_atr, window=3),
+            "atr_ma_5": self.compute_ma(self.rolling_atr, window=5),
+            "k": self.k,
+            "d": self.d,
+            "rsi": self.rsi,
+            "hist": self.hist
         }

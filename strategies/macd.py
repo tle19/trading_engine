@@ -57,7 +57,7 @@ class MACDIndicator(Strategy):
         hist_med, _, self.fast_ema_med, self.slow_ema_med, self.signal_ema_med = self.compute_macd(self.fast_ema_med, self.slow_ema_med, self.signal_ema_med, self.fast_window_med, self.slow_window_med, self.signal_window_med)
         hist_high, _, self.fast_ema_high, self.slow_ema_high, self.signal_ema_high = self.compute_macd(self.fast_ema_high, self.slow_ema_high, self.signal_ema_high, self.fast_window_high, self.slow_window_high, self.signal_window_high)
         self.ema = self.compute_ema(self.ema, self.price, self.htf_window)
-        adx = self.compute_adx()
+        adx = self.compute_adx(self.highs, self.lows, self.prices)
 
         self.rolling_adx.append(adx)
         self.rolling_ema.append(self.ema)

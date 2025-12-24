@@ -37,6 +37,27 @@ def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_tim
     df = df.set_index('timestamp').between_time(start_time, end_time).reset_index()
     return df
 
+def resample_data(df, type="1D"):
+    df = df.set_index("timestamp")
+    df = (
+        df
+        .resample(
+            type,
+            offset="9h30min",
+            label="left",
+            closed="left"
+        )
+        .agg({
+            "open": "first",
+            "high": "max",
+            "low": "min",
+            "close": "last",
+            "volume": "sum"
+        })
+        .dropna()
+    )
+    return df
+
 def train_test_split(df, n_months=18, datetime_column="entry_time", target_column="target"):
     df = df.sort_values(datetime_column)
     df[datetime_column] = pd.to_datetime(df[datetime_column])
