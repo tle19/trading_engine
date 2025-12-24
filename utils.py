@@ -39,22 +39,18 @@ def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_tim
 
 def resample_data(df, type="1D"):
     df = df.set_index("timestamp")
-    df = (
-        df
-        .resample(
+    df = (df.resample(
             type,
             offset="9h30min",
             label="left",
             closed="left"
-        )
-        .agg({
+        ).agg({
             "open": "first",
             "high": "max",
             "low": "min",
             "close": "last",
             "volume": "sum"
-        })
-        .dropna()
+        }).dropna()
     )
     return df
 
@@ -62,10 +58,12 @@ def train_test_split(df, n_months=18, datetime_column="entry_time", target_colum
     df = df.sort_values(datetime_column)
     df[datetime_column] = pd.to_datetime(df[datetime_column])
 
-    split_date = df[datetime_column].max() - pd.DateOffset(months=n_months)
+    train_start = df[datetime_column].min()
+    train_end = train_start + pd.DateOffset(months=n_months)
+    print(f"Train Start: {train_start.date()} Train End: {train_end.date()}")
 
-    train_df = df[df[datetime_column] < split_date].drop(columns=[datetime_column])
-    test_df  = df[df[datetime_column] >= split_date].drop(columns=[datetime_column])
+    train_df = df[(df[datetime_column] < train_end)].drop(columns=[datetime_column])
+    test_df = df[(df[datetime_column] >= train_end)].drop(columns=[datetime_column])
 
     X_train = train_df.drop(columns=[target_column])
     y_train = train_df[target_column]

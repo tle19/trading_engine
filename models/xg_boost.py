@@ -41,13 +41,18 @@ class XGBModel(BaseModel):
             df[f"{col}_pct_from_entry"] = df["direction"] * (df["entry_price"] - df[col]) / df["entry_price"]
             feature_cols.append(f"{col}_pct_from_entry")
 
+        # overnight gap
+        df[f"overnight_gap"] = df["session_open"] - df["prev_day_close"]
+        feature_cols.append("overnight_gap")
+        
         # # time from market open
         # market_open = df["entry_time"].dt.normalize() + pd.Timedelta(hours=9, minutes=30)
         # df["minutes_from_open"] = (df["entry_time"] - market_open).dt.total_seconds() / 60
         # feature_cols.append("minutes_from_open")
 
-        feature_cols.extend(["adx", "adx_ma_3", "adx_ma_5", "atr", "atr_ma_3", "atr_ma_5"])
-        feature_cols.extend(["k", "d", "rsi", "hist"])
+        feature_cols.extend(["adx", "adx_ma_3"])
+        # feature_cols.extend(["atr", "atr_ma_3"])
+        # feature_cols.extend(["k", "d", "rsi", "hist"])
         self.df = df[feature_cols]
         # print(f"Features: {feature_cols}")
         

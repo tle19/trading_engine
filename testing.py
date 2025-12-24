@@ -6,6 +6,7 @@ import pandas as pd
 
 from core import *
 from strategies import *
+from models import *
 from utils import *
 
 def run_one_backtest(symbol, strategy_class, start_date, end_date, plot=True, save_plot=False, **strategy_kwargs):
@@ -281,7 +282,7 @@ strategy_kwargs = { # Stochastic
 run_one_backtest( # Stochastic
     "MSFT",
     StochasticIndicator,
-    start_date="2023-11-01",
+    start_date="2025-9-09",
     end_date="2025-11-01",
     plot=True,
     **strategy_kwargs
@@ -299,4 +300,14 @@ run_one_backtest( # Stochastic
 # grid_search("NVDA", StochasticIndicator, start_date="2023-11-01", end_date="2025-11-01")
 # walk_forward_optimize("QCOM", StochasticIndicator)
 
+
+def walk_forward_backtest(rebalance="weekly"):
+    # stats = run_one_backtest(symbol, strategy_class, start_date, end_date, plot=plot, **strategy_kwargs)
+    raise NotImplementedError
+# mdl = XGBModel(strategy="StochasticIndicator", live=False)
+# mdl.initialize()
+# X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=22)
+# mdl.train(X_train, y_train)
+# mdl.evaluate_classification(X_train, y_train, X_test, y_test)
+# mdl.save_model(file="xgb_model.pkl")
 

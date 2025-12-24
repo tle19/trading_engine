@@ -101,7 +101,7 @@ class StochasticIndicator(Strategy):
             self.rolling_rsi = deque(maxlen=10)
             self.rolling_vol = deque(maxlen=10)
             
-            history = self.history.loc[self.history.index < self.ts].tail(20)
+            history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
             highs = history["high"].values
             lows = history["low"].values
             closes = history["close"].values
@@ -143,7 +143,7 @@ class StochasticIndicator(Strategy):
             elif self.stoch_signal == -1 and (k < lower or d < lower):
                 self.stoch_signal = None
     
-    def predict_trade(self, threshold=0.4):
+    def predict_trade(self, threshold=0.5):
         df = pd.DataFrame({k: [v] for k, v in self.features.items()})
         self.model.prepare_features(df)
         proba = self.model.get_proba(self.model.df)
@@ -166,6 +166,7 @@ class StochasticIndicator(Strategy):
         return signal, leg
 
     def add_features(self, direction, stop_price, target_price):
+        history = self.history.loc[self.history.index < self.ts.normalize()].tail(1)
         self.features = {
             "direction": direction,
             "entry_time": self.ts.isoformat(),
@@ -175,12 +176,11 @@ class StochasticIndicator(Strategy):
             "session_open": self.opens[0],
             "session_low": min(self.lows),
             "session_high": max(self.highs),
+            "prev_day_close": history["close"].values[0],
             "adx": self.rolling_adx[-1],
             "adx_ma_3": self.compute_ma(self.rolling_adx, window=3),
-            "adx_ma_5": self.compute_ma(self.rolling_adx, window=5),
             "atr": self.rolling_atr[-1],
             "atr_ma_3": self.compute_ma(self.rolling_atr, window=3),
-            "atr_ma_5": self.compute_ma(self.rolling_atr, window=5),
             "k": self.k,
             "d": self.d,
             "rsi": self.rsi,
