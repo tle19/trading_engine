@@ -24,7 +24,7 @@ class Backtest:
         self.stats = Stats(symbol)
         self.plotting = Plotting(symbol)
 
-    def run(self, start_date="2023-11-01", end_date="2025-11-01", plot=False, save_plot=False):
+    def run(self, start_date="2023-11-10", end_date="2025-11-01", plot=False, save_plot=False):
         start_time = time.perf_counter()
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 

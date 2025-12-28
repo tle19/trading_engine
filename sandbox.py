@@ -7,39 +7,6 @@ from strategies import *
 from models import *
 from utils import *
 
-def fetch_multiple_symbols(symbols):
-    dh = DataHandler()
-    for symbol in symbols:
-        start_time = time.perf_counter()
-
-        dh.historical_data(symbol)
-
-        end_time = time.perf_counter()
-        elapsed_time = end_time - start_time
-        print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
-
-def fetch_schwab_data(symbol, current_date):
-    dh = DataHandler()
-    dh.schwab_data(symbol, end_date=(datetime.fromisoformat(current_date) - timedelta(days=1)).date().isoformat())
-
-def test_order(symbol):
-    eq = Equities(symbol, StochasticIndicator)
-    symbol = symbol[0].split(":")[0]
-
-    entry_id = eq.buy_market(symbol, 1, "BUY")
-    exit_id = eq.long_bracket(symbol, 1, 333.0, 333.5)
-    time.sleep(20)
-    fill_price = eq.get_fill_price(exit_id, timeout=0.1)
-    print(fill_price)
-
-def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
-    for symbol in symbols:
-        data = open_data(symbol, start_date=start_date, end_date=end_date)
-        data["spread"] = data["high"] - data["low"]
-        data["normalized_spread"] = data["spread"] / data["close"]
-        avg_spread = data["normalized_spread"].mean()
-        print(symbol, avg_spread)
-
 symbols = [
     # ===== INDEX / MACRO =====
     "SPY",   # S&P 500 ETF
@@ -111,10 +78,27 @@ symbols = [
     "AMGN"  # Amgen
 ]
 
-# fetch_multiple_symbols(symbols)
-# fetch_schwab_data("2025-10-15") 
-# get_average_spread(symbols, start_date="2025-8-01", end_date="2025-11-01")
-# test_order(["ADBE:1.0"])
+def fetch_multiple_symbols(symbols):
+    dh = DataHandler()
+    for symbol in symbols:
+        start_time = time.perf_counter()
+
+        dh.historical_data(symbol)
+
+        end_time = time.perf_counter()
+        elapsed_time = end_time - start_time
+        print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
+
+def test_order(symbol="[AAPL]"):
+    eq = Equities(symbol, StochasticIndicator)
+    symbol = symbol[0]
+
+    entry_id = eq.buy_market(symbol, 1, "BUY")
+    exit_id = eq.long_bracket(symbol, 1, 333.0, 333.5)
+    time.sleep(20)
+    fill_price = eq.get_fill_price(exit_id, timeout=0.1)
+    print(fill_price)
+
 
 symbol = "META"
 mdl = XGBModel(symbol=symbol, strategy="StochasticIndicator", live=False)
