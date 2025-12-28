@@ -10,7 +10,8 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 timezone = ZoneInfo("America/New_York")
 
 class BaseModel:
-    def __init__(self, strategy=None, live=False):
+    def __init__(self, symbol=None, strategy=None, live=False):
+        self.symbol = symbol
         self.strategy = strategy
         self.live = live
         self.model = None
@@ -29,14 +30,18 @@ class BaseModel:
         print(f"Saved model to {file}")
                 
     def load_model(self, file="ml_model.pkl"):
-        with open(file, "rb") as f:
-            self.model = pickle.load(f)
-        print(f"Loaded model from {file}")
+        try:
+            with open(file, "rb") as f:
+                self.model = pickle.load(f)
+            print(f"Loaded model from {file}")
+            return True
+        except (FileNotFoundError):
+            return False
 
     def open_trade_hist(self, log_file="trade_logs.json"):
         with open(log_file, "r") as f:
             data = json.load(f)
-        
+
         rows = []
         for trade in data.get("trade_history", []):
             if self.strategy and trade.get("strategy") != self.strategy:

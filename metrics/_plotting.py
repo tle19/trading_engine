@@ -17,8 +17,8 @@ class Plotting:
 
     def update_dates(self):
         dates = list(self.intraday_equity)
-        self.start_date = dates[0]
-        self.end_date = dates[-1]
+        self.start_date = dates[0].tz_convert("America/New_York")
+        self.end_date = dates[-1].tz_convert("America/New_York")
 
     def plot_equity(self, save_plot=False, overlay=False):
         intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
@@ -27,7 +27,7 @@ class Plotting:
             return
 
         equity = np.array(intraday_equity)
-        dates = pd.date_range(self.start_date, self.end_date, periods=len(equity))
+        dates = pd.date_range(self.start_date, self.end_date, periods=len(equity), tz=self.start_date.tz)
 
         max_points = 20000
         if len(equity) > max_points:
@@ -40,12 +40,6 @@ class Plotting:
 
         if overlay:
             self.plot_overlay(dates, equity)
-
-        months = pd.date_range(self.start_date, self.end_date, freq="MS")
-        if len(months) > 12:
-            step = int(np.ceil(len(months) / 12))
-            months = months[::step]
-        plt.xticks(months, [m.strftime("%b %Y") for m in months], rotation=45)
 
         plt.xlabel("Date")
         plt.ylabel("Portfolio Value")

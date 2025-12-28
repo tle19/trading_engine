@@ -9,12 +9,12 @@ from strategies import *
 from models import *
 from utils import *
 
-def run_one_backtest(symbol, strategy_class, start_date, end_date, plot=True, save_plot=False, **strategy_kwargs):
+def run_one_backtest(symbol, strategy_class, start_date, end_date, cash=25_000, plot=True, save_plot=False, **strategy_kwargs):
     strat = strategy_class(symbol, **strategy_kwargs)   
     bt = Backtest(
         symbol, 
         strat, 
-        cash=25_000, 
+        cash=cash, 
         margin=1.0, 
         commission=0.0, 
         slippage=0.1)
@@ -263,7 +263,6 @@ strategy_kwargs = { # Stochastic
     "fast_window": 12,
     "slow_window": 26,
     "signal_window": 9,
-    "htf_window": 50, 
     "rsi_period": 14,
     "k_period": 14,
     "k_smooth": 3,
@@ -279,14 +278,14 @@ strategy_kwargs = { # Stochastic
     "take_profit": 0.01,
     "trailing_ratio": 0.05
 }
-run_one_backtest( # Stochastic
-    "MSFT",
-    StochasticIndicator,
-    start_date="2025-9-09",
-    end_date="2025-11-01",
-    plot=True,
-    **strategy_kwargs
-)
+# run_one_backtest( # Stochastic
+#     "MSFT",
+#     StochasticIndicator,
+#     start_date="2023-11-09",
+#     end_date="2025-11-01",
+#     plot=True,
+#     **strategy_kwargs
+# )
 
 # multiple_symbol_performance(
 #     symbols, 
@@ -301,13 +300,40 @@ run_one_backtest( # Stochastic
 # walk_forward_optimize("QCOM", StochasticIndicator)
 
 
-def walk_forward_backtest(rebalance="weekly"):
-    # stats = run_one_backtest(symbol, strategy_class, start_date, end_date, plot=plot, **strategy_kwargs)
-    raise NotImplementedError
-# mdl = XGBModel(strategy="StochasticIndicator", live=False)
-# mdl.initialize()
-# X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=22)
-# mdl.train(X_train, y_train)
-# mdl.evaluate_classification(X_train, y_train, X_test, y_test)
-# mdl.save_model(file="xgb_model.pkl")
+def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000, day_rebalance=7):
+    def run_backtest(start_date, end_date, cash):
+        perf = run_one_backtest(symbol, strategy, start_date, end_date, cash, plot=True, save_plot=True, **strategy_kwargs)
+        perf_dict = perf.get_data_dict()
+        return perf_dict["Equity Final"]
 
+    start = pd.Timestamp(start_date)
+    end = pd.Timestamp(end_date)
+    current_start = start
+    curr_cash = cash
+
+    while True:
+        fold_start = current_start
+        fold_end = fold_start + pd.DateOffset(days=day_rebalance)
+
+        print(f"Backtesting: {fold_start.date()} → {fold_end.date()}")
+
+        if fold_start > end:
+            break
+
+        curr_cash = run_backtest(fold_start.strftime("%Y-%m-%d"), fold_end.strftime("%Y-%m-%d"), curr_cash)
+
+        mdl = XGBModel(symbol=symbol, strategy=strategy.__name__, live=False)
+        mdl.initialize()
+        X_train, _, y_train, _ = train_test_split(mdl.df, n_months=2)
+        mdl.train(X_train, y_train)
+        mdl.save_model(file=f"{symbol}_xgb_model.pkl")
+
+        current_start += pd.DateOffset(days=day_rebalance)
+
+    return curr_cash
+
+perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2024-11-09", plot=True, **strategy_kwargs)
+cash = perf.get_data_dict()["Equity Final"]
+ml_walk_forward_backtest("MSFT", StochasticIndicator, start_date="2024-11-09", end_date="2025-11-01", cash=cash, day_rebalance=7)
+
+# ml_walk_forward_backtest("AAPL", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01", day_rebalance=7)

@@ -6,17 +6,16 @@ from strategies import Strategy
 from utils import *
 
 class StochasticIndicator(Strategy):
-    def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9, htf_window=50,
+    def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
                  vol_fast_window=14, vol_slow_window=28, vol_threshold=0.0, atr_window=14, adx_window=14,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False,
-                 pnl_target=0.001, pnl_loss=-0.001, trade_max=5):
+                 pnl_target=0.01, pnl_loss=-0.01, trade_max=2):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid,
                          pnl_target, pnl_loss, trade_max)
         self.fast_window = fast_window
         self.slow_window = slow_window
         self.signal_window = signal_window
-        self.htf_window = htf_window
         self.rsi_period = rsi_period
         self.k_period = k_period
         self.k_smooth = k_smooth
@@ -43,8 +42,9 @@ class StochasticIndicator(Strategy):
         self.rolling_adx = deque(maxlen=10)
         self.rolling_atr = deque(maxlen=10)
         
-        # self.model = XGBModel(live=True)
-        # self.model.initialize()
+        self.model = XGBModel(live=True)
+        if not self.model.initialize():
+            self.model = None
 
     def generate_signal(self, row):
         self.update(row)
@@ -75,8 +75,10 @@ class StochasticIndicator(Strategy):
         
         if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > self.vol_threshold:
             signal, _ = self.buy()
+            # signal, _ = self.sell()
         if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > self.vol_threshold:
             signal, _ = self.sell()
+            # signal, _ = self.buy()
         return signal
 
     def compute_indicators(self):
@@ -84,7 +86,6 @@ class StochasticIndicator(Strategy):
         self.rsi = self.compute_rsi(self.prices, self.rsi_period)
         self.hist, _, _ = self.compute_macd(self.fast_window, self.slow_window, self.signal_window)
         vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
-        # self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
 
         self.rolling_rsi.append(self.rsi)
         self.rolling_vol.append(vol)
@@ -109,11 +110,6 @@ class StochasticIndicator(Strategy):
             adx = self.compute_adx(highs, lows, closes, self.adx_window)
             self.rolling_atr.append(atr)
             self.rolling_adx.append(adx)
-
-            # if abs(adx - self.compute_ma(self.rolling_adx, window=3)) > 1:
-            #     self.enabled = True
-            # if adx > 20:
-            #     self.enabled = True
       
     def minimum_computations(self):
         if not self.activated:
@@ -181,8 +177,5 @@ class StochasticIndicator(Strategy):
             "adx_ma_3": self.compute_ma(self.rolling_adx, window=3),
             "atr": self.rolling_atr[-1],
             "atr_ma_3": self.compute_ma(self.rolling_atr, window=3),
-            "k": self.k,
-            "d": self.d,
-            "rsi": self.rsi,
-            "hist": self.hist
+            "open_volume": sum(self.volumes[0:5])
         }

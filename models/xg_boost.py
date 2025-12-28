@@ -4,8 +4,8 @@ from xgboost import XGBClassifier, XGBRegressor
 from models import BaseModel
 
 class XGBModel(BaseModel):
-    def __init__(self, strategy=None, live=False):
-        super().__init__(strategy, live)
+    def __init__(self, symbol=None, strategy=None, live=False):
+        super().__init__(symbol, strategy, live)
         
     def initialize(self):
         if not self.live:
@@ -23,8 +23,9 @@ class XGBModel(BaseModel):
             self.open_trade_hist()
             if hasattr(self, "df") and not self.df.empty:
                 self.prepare_features(self.df)
+            return True
         else:
-            self.load_model(file="xgb_model.pkl")
+            return self.load_model(file=f"{self.symbol}_xgb_model.pkl")
     
     def prepare_features(self, df):
         df = df.copy()
@@ -38,13 +39,14 @@ class XGBModel(BaseModel):
 
         # session-relative prices
         for col in ["session_open", "session_low", "session_high"]:
+            # df[f"{col}_pct_from_entry"] = df["direction"]* (1 - (df["entry_price"] / df[col]))
             df[f"{col}_pct_from_entry"] = df["direction"] * (df["entry_price"] - df[col]) / df["entry_price"]
             feature_cols.append(f"{col}_pct_from_entry")
-
+        
         # overnight gap
         df[f"overnight_gap"] = df["session_open"] - df["prev_day_close"]
         feature_cols.append("overnight_gap")
-        
+
         # # time from market open
         # market_open = df["entry_time"].dt.normalize() + pd.Timedelta(hours=9, minutes=30)
         # df["minutes_from_open"] = (df["entry_time"] - market_open).dt.total_seconds() / 60
@@ -52,7 +54,8 @@ class XGBModel(BaseModel):
 
         feature_cols.extend(["adx", "adx_ma_3"])
         # feature_cols.extend(["atr", "atr_ma_3"])
-        # feature_cols.extend(["k", "d", "rsi", "hist"])
+        feature_cols.append("open_volume")
+        # feature_cols.append("direction")
         self.df = df[feature_cols]
         # print(f"Features: {feature_cols}")
         
