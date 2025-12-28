@@ -26,7 +26,7 @@ def main():
         eq.run()
     elif args.backtest:
         strat = strategy_class(args.symbol)
-        bt = Backtest(args.symbol, strat)
+        bt = Backtest(args.symbol, strat, margin=args.margin)
         bt.run(plot=True, save_plot=False)
     elif args.fetch:
         dh = DataHandler()

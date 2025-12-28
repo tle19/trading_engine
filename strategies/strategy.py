@@ -108,10 +108,10 @@ class Strategy:
             pos_leg = PositionLeg(
                 direction=1,
                 timestamp=self.ts,
-                position_size=self.position_size,
                 entry_price=entry_price,
                 stop_price=stop_price,
                 target_price=target_price,
+                position_size=self.position_size,
                 cash=self.risk_manager.start_cash
             )
 
@@ -135,10 +135,10 @@ class Strategy:
             pos_leg = PositionLeg(
                 direction=-1,
                 timestamp=self.ts,
-                position_size=self.position_size,
                 entry_price=entry_price,
                 stop_price=stop_price,
                 target_price=target_price,
+                position_size=self.position_size,
                 cash=self.risk_manager.start_cash
             )
 
@@ -367,15 +367,15 @@ class Strategy:
         return max(arr) if mode == "high" else min(arr)
 
 class PositionLeg:
-    __slots__ = ("entry_time", "direction", "position_size", "_entry_price", "stop_price", "target_price", "shares")
+    __slots__ = ("entry_time", "direction", "_entry_price", "stop_price", "target_price", "position_size", "shares")
     
-    def __init__(self, timestamp, direction, position_size, entry_price, stop_price, target_price, cash):
+    def __init__(self, timestamp, direction, entry_price, stop_price, target_price, position_size, cash):
         self.entry_time = timestamp
         self.direction = direction
-        self.position_size = position_size
         self._entry_price = entry_price
         self.stop_price = stop_price
         self.target_price = target_price
+        self.position_size = position_size
         self.shares = (cash * position_size) // entry_price
 
         if direction not in (1, -1):

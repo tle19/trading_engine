@@ -60,11 +60,11 @@ class Backtest:
         if direction:
             name = self.strategy.__class__.__name__
             leg = self.position_manager.legs[-1]
-            position_size = leg.position_size
-            shares = leg.shares
             entry_price = leg.entry_price
             stop_price = leg.stop_price
             target_price = leg.target_price
+            position_size = leg.position_size
+            shares = leg.shares
 
         # --- Enter Long ---
         if signal == 1:

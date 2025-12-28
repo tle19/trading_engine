@@ -70,28 +70,26 @@ class Equities:
         direction = position_manager.direction()
         if direction:
             name = strategy.__class__.__name__
-            leg = self.position_manager.legs[-1]
-            position_size = leg.position_size
-            shares = leg.shares
+            leg = position_manager.legs[-1]
             entry_price = leg.entry_price
             stop_price = leg.stop_price
             target_price = leg.target_price
+            position_size = leg.position_size
+            shares = leg.shares
 
         shares = 1 # for testing
         
         # --- Enter Long ---
         if signal == 1:
-            self.entry_ids[leg] = self.buy_market(symbol, shares, "BUY")
+            self.entry_ids[leg], fill_price = self.buy_market(symbol, shares, "BUY")
             self.exit_ids[leg] = self.long_bracket(symbol, shares, stop_price, target_price)
-            fill_price = self.get_fill_price(self.entry_ids[leg], shares)
             leg.entry_price = fill_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
 
         # --- Enter Short ---
         elif signal == -1:
-            self.entry_ids[leg] = self.sell_market(symbol, shares, "SELL_SHORT")
+            self.entry_ids[leg], fill_price = self.sell_market(symbol, shares, "SELL_SHORT")
             self.exit_ids[leg] = self.short_bracket(symbol, shares, stop_price, target_price)
-            fill_price = self.get_fill_price(self.entry_ids[leg], shares)
             leg.entry_price = fill_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
 
@@ -99,14 +97,14 @@ class Equities:
         elif signal is None:
             if False: # placeholder
                 if direction == 1:
-                    self.exit_ids[leg] = self.replace_order(symbol, position, shares, stop_price, target_price, self.exit_ids[leg])
+                    self.exit_ids[leg] = self.replace_order(symbol, direction, shares, stop_price, target_price, self.exit_ids[leg])
                 elif direction == -1:
-                    self.exit_ids[leg] = self.replace_order(symbol, position, shares, stop_price, target_price, self.exit_ids[leg])
+                    self.exit_ids[leg] = self.replace_order(symbol, direction, shares, stop_price, target_price, self.exit_ids[leg])
                 
         # --- Exit Position --- 
         elif signal == 0:
             for leg in position_manager.legs.copy():
-                if leg.check_exit(self.ts, self.low, self.high) == 0:
+                if leg.check_exit(strategy.ts, strategy.low, strategy.high) == 0:
                     entry_price = leg.entry_price
                     stop_price = leg.stop_price
                     target_price = leg.target_price
@@ -118,18 +116,16 @@ class Equities:
                 if fill_price is None:
                     self.cancel_order(self.exit_ids[leg])
                     if direction == 1:
-                        exit_id = self.sell_market(symbol, shares, "SELL")
+                        exit_id, fill_price = self.sell_market(symbol, shares, "SELL")
                     elif direction == -1:
-                        exit_id = self.buy_market(symbol, shares, "BUY_TO_COVER")
-                    fill_price = self.get_fill_price(exit_id, shares)
+                        exit_id, fill_price = self.buy_market(symbol, shares, "BUY_TO_COVER")
                     exit_price = strategy.price
                 else:
                     if direction == 1:
                         print(f"SOLD -{shares} {symbol} @ {fill_price}")
                     elif direction == -1:
                         print(f"BOT +{shares} {symbol} @ {fill_price}")
-                    stop_price_f, target_price_f = float(stop_price), float(target_price)
-                    exit_price = min([stop_price_f, target_price_f], key=lambda x: abs(fill_price - x))
+                    exit_price = min([stop_price, target_price], key=lambda x: abs(fill_price - x))
             
                 self.update_pnl(strategy, direction, entry_price, fill_price, shares)
                 self.trade_manager.update_exit(leg, strategy.ts, exit_price, fill_price)
@@ -137,8 +133,8 @@ class Equities:
                 self.exit_ids.pop(leg)
                 position_manager.remove_leg(leg)
 
-    def update_pnl(self, strategy, direction, entry_price, fill_price, shares):
-        pnl = direction * (fill_price - entry_price) * shares
+    def update_pnl(self, strategy, direction, entry_price, exit_price, shares):
+        pnl = direction * (exit_price - entry_price) * shares
         self.cash += pnl
         strategy.risk_manager.update_trade(pnl)
 
@@ -164,7 +160,7 @@ class Equities:
         order_id = self.get_order_id(response)
         fill_price = self.get_fill_price(order_id, quantity)
         print(f"BOT +{quantity} {symbol} @ {fill_price}")
-        return order_id
+        return order_id, fill_price
     
     def sell_market(self, symbol, quantity, type="SELL"):
         order_dict = {
@@ -188,7 +184,7 @@ class Equities:
         order_id = self.get_order_id(response)
         fill_price = self.get_fill_price(order_id, quantity)
         print(f"SOLD -{quantity} {symbol} @ {fill_price}")
-        return order_id
+        return order_id, fill_price
     
     def long_bracket(self, symbol, quantity, stop_price, target_price):
         order_dict = self.get_sell_order_dict(symbol, quantity, stop_price, target_price)
