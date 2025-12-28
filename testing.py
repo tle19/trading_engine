@@ -103,11 +103,12 @@ def grid_search(symbol, strategy_class, start_date="2023-10-01", end_date="2024-
 def optimize_params(symbol, strategy_class, start, end):
     start_time = time.perf_counter()
 
-    param_grid = { # ORB
-        "orb_window": [5, 10, 15, 30, 45, 60],
-        "stop_loss": [0.25, 0.50, 0.75, 1.00, 1.25, 1.5, 1.75, 2.00],
-        "take_profit": [0.25, 0.50, 0.75, 1.00, 1.25, 1.5, 1.75, 2.00],
-        "trailing_ratio": [0.1]
+    param_grid = { # MACD
+        "fast_window": [3, 4, 5, 6],
+        "slow_window": [7, 8, 9, 10, 11, 12],
+        "signal_window": [4, 5, 6, 7, 8, 9],
+        "stop_loss": [0.001],
+        "take_profit": [0.005]
     }
 
     param_grid = { # Volume
@@ -121,12 +122,11 @@ def optimize_params(symbol, strategy_class, start, end):
         "take_profit": [0.03] # 0.01, 0.015, 0.02, 0.03
         }
     
-    param_grid = { # MACD
-        "fast_window": [3, 4, 5, 6],
-        "slow_window": [7, 8, 9, 10, 11, 12],
-        "signal_window": [4, 5, 6, 7, 8, 9],
-        "stop_loss": [0.001],
-        "take_profit": [0.005]
+    param_grid = { # ORB
+        "orb_window": [5, 10, 15, 30, 45, 60],
+        "stop_loss": [0.25, 0.50, 0.75, 1.00, 1.25, 1.5, 1.75, 2.00],
+        "take_profit": [0.25, 0.50, 0.75, 1.00, 1.25, 1.5, 1.75, 2.00],
+        "trailing_ratio": [0.1]
     }
 
     param_grid = { # Stochastic
@@ -170,6 +170,38 @@ def optimize_params(symbol, strategy_class, start, end):
     
     return best_params
 
+def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000, day_rebalance=7):
+    start_time = time.perf_counter()
+        
+    start = pd.Timestamp(start_date)
+    end = pd.Timestamp(end_date)
+    current_start = start
+    curr_cash = cash
+
+    while True:
+        fold_start = current_start
+        fold_end = fold_start + pd.DateOffset(days=day_rebalance)
+
+        if fold_start > end:
+            break
+        else:
+            print(f"Backtesting: {fold_start.date()} → {fold_end.date()}")
+        
+        plot = fold_end >= end
+        perf = run_one_backtest(symbol, strategy, fold_start.strftime("%Y-%m-%d"), fold_end.strftime("%Y-%m-%d"), curr_cash, plot=plot, save_plot=True, **strategy_kwargs)
+        curr_cash = perf.get_data_dict()["Equity Final"]
+
+        mdl = XGBModel(symbol=symbol, strategy=strategy.__name__, live=False)
+        mdl.initialize()
+        X_train, _, y_train, _ = train_test_split(mdl.df, n_months=24)
+        mdl.train(X_train, y_train)
+        mdl.save_model(file=f"{symbol}_xgb_model.pkl")
+
+        current_start += pd.DateOffset(days=day_rebalance)
+
+    elapsed_time = time.perf_counter() - start_time
+    print(f"Elapsed Full Backtest Time: {elapsed_time:.6f} seconds")
+
 symbols = [
     "SPY", "QQQ", "IWM", "TLT", "BRK.B", 
     "AAPL", "MSFT", "NVDA", "AMD", "GOOG",
@@ -185,6 +217,30 @@ symbols = [
 ]
 
 symbols = ["QQQ", "AAPL", "MSFT", "CRM", "ADBE", "GOOG"]
+
+# strategy_kwargs = { # MACD
+#     "fast_window_low": 5, 
+#     "slow_window_low": 8, 
+#     "signal_window_low": 9,
+#     "fast_window_med": 13, 
+#     "slow_window_med": 21, 
+#     "signal_window_med": 9,
+#     "fast_window_high": 34, 
+#     "slow_window_high": 144, 
+#     "signal_window_high": 9,
+#     "htf_window": 50,
+#     "ma_threshold": 0.001,
+#     "stop_loss": 0.005, 
+#     "take_profit": 0.01
+# }
+# run_one_backtest( # MACD
+#     "TSLA",
+#     MACDIndicator,
+#     start_date="2023-11-01",
+#     end_date="2025-11-01",
+#     plot=True,
+#     **strategy_kwargs
+# )
 
 # strategy_kwargs = { # Volume
 #     "fast_window": 14,
@@ -235,30 +291,6 @@ symbols = ["QQQ", "AAPL", "MSFT", "CRM", "ADBE", "GOOG"]
 #     **strategy_kwargs
 # )
 
-# strategy_kwargs = { # MACD
-#     "fast_window_low": 5, 
-#     "slow_window_low": 8, 
-#     "signal_window_low": 9,
-#     "fast_window_med": 13, 
-#     "slow_window_med": 21, 
-#     "signal_window_med": 9,
-#     "fast_window_high": 34, 
-#     "slow_window_high": 144, 
-#     "signal_window_high": 9,
-#     "htf_window": 50,
-#     "ma_threshold": 0.001,
-#     "stop_loss": 0.005, 
-#     "take_profit": 0.01
-# }
-# run_one_backtest( # MACD
-#     "TSLA",
-#     MACDIndicator,
-#     start_date="2023-11-01",
-#     end_date="2025-11-01",
-#     plot=True,
-#     **strategy_kwargs
-# )
-
 strategy_kwargs = { # Stochastic
     "fast_window": 12,
     "slow_window": 26,
@@ -271,9 +303,6 @@ strategy_kwargs = { # Stochastic
     "stoch_upper": 80,
     "vol_fast_window": 14,
     "vol_slow_window": 28,
-    "vol_threshold": 0.0,
-    "atr_window": 14, 
-    "adx_window": 14,
     "stop_loss": 0.01,
     "take_profit": 0.01,
     "trailing_ratio": 0.05
@@ -296,45 +325,10 @@ strategy_kwargs = { # Stochastic
 #     save_plot=True, 
 #     **strategy_kwargs
 #     )
-# grid_search("NVDA", StochasticIndicator, start_date="2023-11-01", end_date="2025-11-01")
-# walk_forward_optimize("QCOM", StochasticIndicator)
+# grid_search("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01")
+# walk_forward_optimize("MSFT", StochasticIndicator)
 
-
-def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000, day_rebalance=7):
-    start_time = time.perf_counter()
-    def run_backtest(start_date, end_date, cash):
-        perf = run_one_backtest(symbol, strategy, start_date, end_date, cash, plot=True, save_plot=True, **strategy_kwargs)
-        perf_dict = perf.get_data_dict()
-        return perf_dict["Equity Final"]
-
-    start = pd.Timestamp(start_date)
-    end = pd.Timestamp(end_date)
-    current_start = start
-    curr_cash = cash
-
-    while True:
-        fold_start = current_start
-        fold_end = fold_start + pd.DateOffset(days=day_rebalance)
-
-        print(f"Backtesting: {fold_start.date()} → {fold_end.date()}")
-
-        if fold_start > end:
-            break
-
-        curr_cash = run_backtest(fold_start.strftime("%Y-%m-%d"), fold_end.strftime("%Y-%m-%d"), curr_cash)
-
-        mdl = XGBModel(symbol=symbol, strategy=strategy.__name__, live=False)
-        mdl.initialize()
-        X_train, _, y_train, _ = train_test_split(mdl.df, n_months=24)
-        mdl.train(X_train, y_train)
-        mdl.save_model(file=f"{symbol}_xgb_model.pkl")
-
-        current_start += pd.DateOffset(days=day_rebalance)
-
-    elapsed_time = time.perf_counter() - start_time
-    print(f"Elapsed Walk Forward Time: {elapsed_time:.6f} seconds")
-
-# perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2024-4-01", plot=True, **strategy_kwargs)
+# perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2023-12-01", plot=True, **strategy_kwargs)
 # cash = perf.get_data_dict()["Equity Final"]
 # ml_walk_forward_backtest("MSFT", StochasticIndicator, start_date="2024-4-01", end_date="2024-5-01", cash=cash, day_rebalance=1)
 

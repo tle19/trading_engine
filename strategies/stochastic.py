@@ -8,7 +8,7 @@ from utils import *
 class StochasticIndicator(Strategy):
     def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
-                 vol_fast_window=14, vol_slow_window=28, vol_threshold=0.0, atr_window=14, adx_window=14,
+                 vol_fast_window=14, vol_slow_window=28,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=2):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid,
@@ -24,9 +24,6 @@ class StochasticIndicator(Strategy):
         self.stoch_upper = stoch_upper
         self.vol_fast_window = vol_fast_window
         self.vol_slow_window = vol_slow_window
-        self.vol_threshold = vol_threshold
-        self.atr_window = atr_window
-        self.adx_window = adx_window
 
         self.ema = None
         self.fast_ema = None
@@ -71,14 +68,14 @@ class StochasticIndicator(Strategy):
     def enter_trade(self, rsi, hist, vol):
         signal = None
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
-        vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
+        # vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
         
-        if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > self.vol_threshold:
+        if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > 0:
             if self.symbol in ("META", "AMD", "INTC", "AMZN"):
                 signal, _ = self.sell()
             else:
                 signal, _ = self.buy()
-        if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > self.vol_threshold:
+        if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > 0:
             if self.symbol in ("META", "AMD", "INTC", "AMZN"):
                 signal, _ = self.buy()
             else:
@@ -110,8 +107,8 @@ class StochasticIndicator(Strategy):
             highs = history["high"].values
             lows = history["low"].values
             closes = history["close"].values
-            atr = self.compute_atr(highs, lows, closes, self.atr_window)
-            adx = self.compute_adx(highs, lows, closes, self.adx_window)
+            atr = self.compute_atr(highs, lows, closes)
+            adx = self.compute_adx(highs, lows, closes)
             self.rolling_atr.append(atr)
             self.rolling_adx.append(adx)
       
