@@ -281,8 +281,8 @@ strategy_kwargs = { # Stochastic
 # run_one_backtest( # Stochastic
 #     "MSFT",
 #     StochasticIndicator,
-#     start_date="2023-11-09",
-#     end_date="2025-11-01",
+#     start_date="2024-4-01",
+#     end_date="2024-5-01",
 #     plot=True,
 #     **strategy_kwargs
 # )
@@ -301,6 +301,7 @@ strategy_kwargs = { # Stochastic
 
 
 def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000, day_rebalance=7):
+    start_time = time.perf_counter()
     def run_backtest(start_date, end_date, cash):
         perf = run_one_backtest(symbol, strategy, start_date, end_date, cash, plot=True, save_plot=True, **strategy_kwargs)
         perf_dict = perf.get_data_dict()
@@ -324,16 +325,17 @@ def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000
 
         mdl = XGBModel(symbol=symbol, strategy=strategy.__name__, live=False)
         mdl.initialize()
-        X_train, _, y_train, _ = train_test_split(mdl.df, n_months=2)
+        X_train, _, y_train, _ = train_test_split(mdl.df, n_months=24)
         mdl.train(X_train, y_train)
         mdl.save_model(file=f"{symbol}_xgb_model.pkl")
 
         current_start += pd.DateOffset(days=day_rebalance)
 
-    return curr_cash
+    elapsed_time = time.perf_counter() - start_time
+    print(f"Elapsed Walk Forward Time: {elapsed_time:.6f} seconds")
 
-perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2024-11-09", plot=True, **strategy_kwargs)
-cash = perf.get_data_dict()["Equity Final"]
-ml_walk_forward_backtest("MSFT", StochasticIndicator, start_date="2024-11-09", end_date="2025-11-01", cash=cash, day_rebalance=7)
+# perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2024-4-01", plot=True, **strategy_kwargs)
+# cash = perf.get_data_dict()["Equity Final"]
+# ml_walk_forward_backtest("MSFT", StochasticIndicator, start_date="2024-4-01", end_date="2024-5-01", cash=cash, day_rebalance=1)
 
-# ml_walk_forward_backtest("AAPL", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01", day_rebalance=7)
+ml_walk_forward_backtest("AAPL", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01", day_rebalance=7)

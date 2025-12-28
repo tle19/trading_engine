@@ -1,23 +1,21 @@
 import pandas as pd
-from xgboost import XGBClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 from models import BaseModel
 
-class XGBModel(BaseModel):
+class RFModel(BaseModel):
     def __init__(self, symbol=None, strategy=None, live=False):
         super().__init__(symbol, strategy, live)
         
     def initialize(self):
         if not self.live:
-            self.model = XGBClassifier(
+            self.model = RandomForestClassifier(
                 n_estimators=50,
                 max_depth=2,
-                learning_rate=0.15,
-                subsample=0.5,
-                colsample_bytree=1.0,
-                reg_alpha=1.0,
-                reg_lambda=1.0,
-                eval_metric='logloss',
+                # max_features='auto', 
+                min_samples_split=2,
+                min_samples_leaf=1,
+                bootstrap=True,
                 random_state=42
             )
             self.open_trade_hist()
@@ -25,7 +23,7 @@ class XGBModel(BaseModel):
                 self.prepare_features(self.df)
             return True
         else:
-            return self.load_model(file=f"{self.symbol}_xgb_model.pkl")
+            return self.load_model(file=f"{self.symbol}_rf_model.pkl")
     
     def prepare_features(self, df):
         df = df.copy()
@@ -39,7 +37,8 @@ class XGBModel(BaseModel):
 
         # session-relative prices
         for col in ["session_open", "session_low", "session_high"]:
-            df[f"{col}_pct_from_entry"] = df["direction"] * (1 - (df["entry_price"] / df[col]))
+            # df[f"{col}_pct_from_entry"] = df["direction"]* (1 - (df["entry_price"] / df[col]))
+            df[f"{col}_pct_from_entry"] = df["direction"] * (df["entry_price"] - df[col]) / df["entry_price"]
             feature_cols.append(f"{col}_pct_from_entry")
         
         # overnight gap

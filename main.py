@@ -9,10 +9,9 @@ def main():
     parser.add_argument("--backtest", action="store_true")
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--stream", action="store_true")
-    parser.add_argument("--allocate", action="store_true")
     parser.add_argument("--strategy", type=str, default="stochastic")
     parser.add_argument("--symbol", type=str, default=None, help="AAPL")
-    parser.add_argument("--symbols", nargs="+", type=str, default=None, help="AAPL:1.0 MSFT:0.75 TSLA:0.5")
+    parser.add_argument("--symbols", nargs="+", type=str, default=None, help="AAPL MSFT TSLA")
     parser.add_argument("--margin", type=float, default=1.0)
     args = parser.parse_args()
 
@@ -20,8 +19,7 @@ def main():
     if strategy_class is None:
         raise ValueError(f"Unknown Strategy: {args.strategy}")
     if args.symbol:
-        args.symbol = args.symbol.upper()
-        args.symbols = [args.symbol + ":1.0"] 
+        args.symbols = [args.symbol]
 
     if args.live:
         eq = Equities(args.symbols, strategy_class, margin=args.margin)
@@ -37,10 +35,6 @@ def main():
     elif args.stream:
         dh = DataHandler()
         dh.stream_data(args.symbol)
-    elif args.allocate:
-        symbols = [s.split(":")[0] for s in symbols]
-        prices = fetch_latest_prices(symbols)
-        allocate_positions(args.symbols, prices)
     
 if __name__ == "__main__":
     main()
