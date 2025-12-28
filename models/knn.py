@@ -1,22 +1,20 @@
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
 
 from models import BaseModel
 
-class RFModel(BaseModel):
+class KNNModel(BaseModel):
     def __init__(self, symbol=None, strategy=None, live=False):
         super().__init__(symbol, strategy, live)
         
     def initialize(self):
         if not self.live:
-            self.model = RandomForestClassifier(
-                n_estimators=50,
-                max_depth=15,
-                max_features='sqrt', 
-                min_samples_split=3,
-                min_samples_leaf=3,
-                bootstrap=True,
-                random_state=42
+            self.model = KNeighborsClassifier(
+                n_neighbors=5,
+                weights='uniform',
+                metric='minkowski',
+                p=2
             )
             self.open_trade_hist()
             if hasattr(self, "df") and not self.df.empty:
@@ -32,12 +30,10 @@ class RFModel(BaseModel):
         # classification target
         if not self.live and "pnl_pct" in self.df.columns:
             df["target"] = (df["pnl_pct"] > -0.001).astype(int)
-            feature_cols.append("entry_time")
-            feature_cols.append("target")
 
         # session-relative prices
         for col in ["session_open", "session_low", "session_high"]:
-            df[f"{col}_pct_from_entry"] = df["direction"] * (df["entry_price"] - df[col]) / df["entry_price"]
+            df[f"{col}_pct_from_entry"] = df["direction"] * (df[col] - df["entry_price"]) / df["entry_price"]
             feature_cols.append(f"{col}_pct_from_entry")
         
         # overnight gap
@@ -53,9 +49,15 @@ class RFModel(BaseModel):
         feature_cols.extend(["adx", "adx_ma_3"])
         # feature_cols.extend(["atr", "atr_ma_3"])
         feature_cols.append("open_volume")
-        
-        self.df = df[feature_cols]
+
+        # scale features
+        X = df[feature_cols].copy()
+        X_scaled = StandardScaler().fit_transform(X)
+        self.df = pd.DataFrame(X_scaled, columns=feature_cols, index=df.index)
+        self.df["entry_time"] = df["entry_time"]
+        self.df["target"] = df["target"]
+
         # print(f"Features: {feature_cols}")
 
     def save_model(self):
-        super().save_model(file=f"{self.symbol}_rf_model.pkl")
+        super().save_model(file=f"{self.symbol}_knn_model.pkl")

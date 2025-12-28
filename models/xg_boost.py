@@ -39,7 +39,7 @@ class XGBModel(BaseModel):
 
         # session-relative prices
         for col in ["session_open", "session_low", "session_high"]:
-            df[f"{col}_pct_from_entry"] = df["direction"] * (1 - (df["entry_price"] / df[col]))
+            df[f"{col}_pct_from_entry"] = df["direction"] * (df[col] - df["entry_price"]) / df["entry_price"]
             feature_cols.append(f"{col}_pct_from_entry")
         
         # overnight gap
@@ -51,12 +51,13 @@ class XGBModel(BaseModel):
         # df["minutes_from_open"] = (df["entry_time"] - market_open).dt.total_seconds() / 60
         # feature_cols.append("minutes_from_open")
 
+        # other features
         feature_cols.extend(["adx", "adx_ma_3"])
         # feature_cols.extend(["atr", "atr_ma_3"])
         feature_cols.append("open_volume")
-        # feature_cols.append("direction")
+        
         self.df = df[feature_cols]
         # print(f"Features: {feature_cols}")
-        
-    def train(self, X, y):
-        self.model.fit(X, y)
+
+    def save_model(self):
+        super().save_model(file=f"{self.symbol}_xgb_model.pkl")
