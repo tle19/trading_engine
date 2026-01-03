@@ -59,5 +59,5 @@ class KNNModel(BaseModel):
 
         # print(f"Features: {feature_cols}")
 
-    def save_model(self):
+    def save_model(self, file):
         super().save_model(file=f"{self.symbol}_knn_model.pkl")

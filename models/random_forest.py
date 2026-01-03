@@ -57,5 +57,5 @@ class RFModel(BaseModel):
         self.df = df[feature_cols]
         # print(f"Features: {feature_cols}")
 
-    def save_model(self):
+    def save_model(self, file):
         super().save_model(file=f"{self.symbol}_rf_model.pkl")

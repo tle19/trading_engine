@@ -102,8 +102,8 @@ def test_order(symbol="[AAPL]"):
 
 symbol = "META"
 mdl = XGBModel(symbol=symbol, strategy="StochasticIndicator", live=False)
-mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
-mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+# mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+# mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
 mdl.initialize()
 X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=18)
 mdl.train(X_train, y_train)

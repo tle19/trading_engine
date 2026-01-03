@@ -1,7 +1,7 @@
 from collections import deque
 import pandas as pd
 
-from models import XGBModel
+from models import *
 from strategies import Strategy
 from utils import *
 
@@ -42,6 +42,12 @@ class StochasticIndicator(Strategy):
         self.model = XGBModel(live=True)
         if not self.model.initialize():
             self.model = None
+        # self.model2 = RFModel(live=True)
+        # if not self.model.initialize():
+        #     self.model2 = None
+        # self.model3 = KNNModel(live=True)
+        # if not self.model.initialize():
+        #     self.model3 = None
 
     def generate_signal(self, row):
         self.update(row)

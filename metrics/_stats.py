@@ -71,7 +71,7 @@ class Stats:
         print(f"Equity Final:               ${self.equity_final:.2f}")
         print(f"Net Profit:                 ${self.net_profit:.2f} ({self.net_profit_pct:.2%})")
         print(f"Gross Profit:               ${self.gross_profit:.2f}")
-        print(f"Gross Loss:                 ${-self.gross_loss:.2f}")
+        print(f"Gross Loss:                 ${self.gross_loss:.2f}")
         print("-" * 50)
 
         # --- Trade Performance ---
@@ -110,14 +110,10 @@ class Stats:
         self.duration = self.end_date - self.start_date
 
     def _calculate_pnls(self, intraday_equity):
-        changes = np.diff(intraday_equity)
-        wins = changes[changes > 0]
-        losses = changes[changes < 0]
-
         self.equity_initial = intraday_equity[0]
         self.equity_final = intraday_equity[-1]
-        self.gross_profit = wins.sum()
-        self.gross_loss = abs(losses.sum())
+        self.gross_profit = sum(trade["pnl"] for trade in self.trade_history if trade["pnl"] > 0)
+        self.gross_loss   = sum(-trade["pnl"] for trade in self.trade_history if trade["pnl"] < 0)
         self.net_profit = self.gross_profit - self.gross_loss
         self.net_profit_pct = (self.net_profit / self.equity_initial)
         self.profit_factor = abs(self.gross_profit / self.gross_loss) if self.gross_loss != 0 else np.inf
@@ -131,24 +127,24 @@ class Stats:
         self.daily_win_rate = np.mean(win_mask)
 
     def _calculate_streaks(self, intraday_equity):
-        changes = np.diff(intraday_equity)
-
         cur_wins = cur_losses = 0
-        cur_gain = cur_loss = 0.0
+        cur_gain = cur_loss = 0
 
-        for ch in changes:
-            if ch > 0:
+        for trade in self.trade_history:
+            pnl = trade["pnl"]
+
+            if pnl > 0:
                 cur_wins += 1
-                cur_gain += ch
+                cur_gain += pnl
                 cur_losses = cur_loss = 0
-            elif ch < 0:
+            elif pnl < 0:
                 cur_losses += 1
-                cur_loss += ch
+                cur_loss += pnl
                 cur_wins = cur_gain = 0
             else:
                 cur_wins = cur_losses = 0
                 cur_gain = cur_loss = 0
-
+            
             self.win_streak = max(self.win_streak, cur_wins)
             self.loss_streak = max(self.loss_streak, cur_losses)
             self.max_gain_streak = max(self.max_gain_streak, cur_gain)

@@ -195,7 +195,7 @@ def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000
         mdl.initialize()
         X_train, _, y_train, _ = train_test_split(mdl.df, n_months=24)
         mdl.train(X_train, y_train)
-        mdl.save_model(file=f"{symbol}_xgb_model.pkl")
+        mdl.save_model()
 
         current_start += pd.DateOffset(days=day_rebalance)
 
@@ -308,10 +308,10 @@ strategy_kwargs = { # Stochastic
     "trailing_ratio": 0.05
 }
 # run_one_backtest( # Stochastic
-#     "MSFT",
+#     "META",
 #     StochasticIndicator,
-#     start_date="2024-4-01",
-#     end_date="2024-5-01",
+#     start_date="2023-11-09",
+#     end_date="2025-11-01",
 #     plot=True,
 #     **strategy_kwargs
 # )
@@ -328,8 +328,8 @@ strategy_kwargs = { # Stochastic
 # grid_search("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 
-# perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2023-12-01", plot=True, **strategy_kwargs)
-# cash = perf.get_data_dict()["Equity Final"]
-# ml_walk_forward_backtest("MSFT", StochasticIndicator, start_date="2024-4-01", end_date="2024-5-01", cash=cash, day_rebalance=1)
+perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2025-8-01", plot=True, **strategy_kwargs)
+cash = perf.get_data_dict()["Equity Final"]
+ml_walk_forward_backtest("MSFT", StochasticIndicator, start_date="2025-8-01", end_date="2025-11-01", cash=cash, day_rebalance=100)
 
-ml_walk_forward_backtest("META", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01", day_rebalance=7)
+# ml_walk_forward_backtest("META", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01", day_rebalance=7)
