@@ -182,7 +182,7 @@ def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000
         fold_start = current_start
         fold_end = fold_start + pd.DateOffset(days=day_rebalance)
 
-        if fold_start > end:
+        if fold_start >= end:
             break
         else:
             print(f"Backtesting: {fold_start.date()} → {fold_end.date()}")
@@ -308,10 +308,10 @@ strategy_kwargs = { # Stochastic
     "trailing_ratio": 0.05
 }
 # run_one_backtest( # Stochastic
-#     "META",
+#     "MSFT",
 #     StochasticIndicator,
-#     start_date="2023-11-09",
-#     end_date="2025-11-01",
+#     start_date="2025-9-09",
+#     end_date="2025-10-02",
 #     plot=True,
 #     **strategy_kwargs
 # )
@@ -328,8 +328,8 @@ strategy_kwargs = { # Stochastic
 # grid_search("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 
-perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2025-8-01", plot=True, **strategy_kwargs)
+perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2025-9-09", end_date="2025-10-01", plot=False, **strategy_kwargs)
 cash = perf.get_data_dict()["Equity Final"]
-ml_walk_forward_backtest("MSFT", StochasticIndicator, start_date="2025-8-01", end_date="2025-11-01", cash=cash, day_rebalance=100)
+ml_walk_forward_backtest("MSFT", StochasticIndicator, start_date="2025-10-02", end_date="2025-10-02", cash=cash, day_rebalance=1)
 
 # ml_walk_forward_backtest("META", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01", day_rebalance=7)

@@ -100,12 +100,12 @@ def test_order(symbol="[AAPL]"):
     print(fill_price)
 
 
-symbol = "META"
+symbol = "MSFT"
 mdl = XGBModel(symbol=symbol, strategy="StochasticIndicator", live=False)
 # mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
 # mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
 mdl.initialize()
-X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=18)
+X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=22)
 mdl.train(X_train, y_train)
 mdl.evaluate_classification(X_train, y_train, X_test, y_test)
 mdl.save_model()

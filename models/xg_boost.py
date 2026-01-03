@@ -60,12 +60,12 @@ class XGBModel(BaseModel):
         self.df = df[feature_cols]
         # print(f"Features: {feature_cols}")
 
-    # def train(self, X, y, decay=0.001):
+    # def train(self, X, y, decay=0.005):
     #     n = len(X)
     #     sample_weight = np.exp(decay * np.arange(n))
     #     sample_weight /= sample_weight.mean()
 
     #     self.model.fit(X, y, sample_weight=sample_weight)
 
-    def save_model(self, file):
+    def save_model(self):
         super().save_model(file=f"{self.symbol}_xgb_model.pkl")

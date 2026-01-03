@@ -39,13 +39,13 @@ class StochasticIndicator(Strategy):
         self.rolling_adx = deque(maxlen=10)
         self.rolling_atr = deque(maxlen=10)
         
-        self.model = XGBModel(live=True)
+        self.model = XGBModel(symbol=symbol, live=True)
         if not self.model.initialize():
             self.model = None
-        # self.model2 = RFModel(live=True)
+        # self.model2 = RFModel(symbol=symbol, live=True)
         # if not self.model.initialize():
         #     self.model2 = None
-        # self.model3 = KNNModel(live=True)
+        # self.model3 = KNNModel(symbol=symbol, live=True)
         # if not self.model.initialize():
         #     self.model3 = None
 
@@ -146,10 +146,11 @@ class StochasticIndicator(Strategy):
             elif self.stoch_signal == -1 and (k < lower or d < lower):
                 self.stoch_signal = None
     
-    def predict_trade(self, threshold=0.4):
+    def predict_trade(self, threshold=0.5):
         df = pd.DataFrame({k: [v] for k, v in self.features.items()})
         self.model.prepare_features(df)
         proba = self.model.get_proba(self.model.df)
+
         if self.stoch_signal == 1:
             if proba > threshold:
                 signal, leg = self.buy() 
