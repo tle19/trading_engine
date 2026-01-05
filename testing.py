@@ -25,6 +25,7 @@ def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, p
     ticker_pnls = []
     for symbol in symbols:
         stats = run_one_backtest(symbol, strategy_class, start_date, end_date, plot=plot, **strategy_kwargs)
+        train_model(strategy_class, symbol) # if training model
         ticker_pnls.append(stats.daily_pnls)
     
     min_len = min(len(p) for p in ticker_pnls)
@@ -182,7 +183,7 @@ def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000
         fold_start = current_start
         fold_end = fold_start + pd.DateOffset(days=day_rebalance)
 
-        if fold_start >= end:
+        if fold_start > end:
             break
         else:
             print(f"Backtesting: {fold_start.date()} → {fold_end.date()}")
@@ -191,16 +192,19 @@ def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000
         perf = run_one_backtest(symbol, strategy, fold_start.strftime("%Y-%m-%d"), fold_end.strftime("%Y-%m-%d"), curr_cash, plot=plot, save_plot=True, **strategy_kwargs)
         curr_cash = perf.get_data_dict()["Equity Final"]
 
-        mdl = XGBModel(symbol=symbol, strategy=strategy.__name__, live=False)
-        mdl.initialize()
-        X_train, _, y_train, _ = train_test_split(mdl.df, n_months=24)
-        mdl.train(X_train, y_train)
-        mdl.save_model()
+        train_model(strategy, symbol)
 
-        current_start += pd.DateOffset(days=day_rebalance)
+        current_start += pd.DateOffset(days=day_rebalance + 1)
 
     elapsed_time = time.perf_counter() - start_time
     print(f"Elapsed Full Backtest Time: {elapsed_time:.6f} seconds")
+
+def train_model(strategy, symbol):
+    mdl = XGBModel(symbol=symbol, strategy=strategy.__name__, live=False)
+    mdl.initialize()
+    X_train, _, y_train, _ = train_test_split(mdl.df, n_months=24)
+    mdl.train(X_train, y_train)
+    mdl.save_model()
 
 symbols = [
     "SPY", "QQQ", "IWM", "TLT", "BRK.B", 
@@ -209,14 +213,14 @@ symbols = [
     "NFLX", "TSLA", "AMZN", "HD", "MCD", "NKE",
     "SBUX", "COST", "WMT", "PG", "KO", "PEP",
     "V", "MA", "JPM", "GS", "BAC", "MS", 
-    "C", "AXP", "SCHW", "WFC", "COP", 
+    "C", "AXP", "SCHW", "WFC", "COF", 
     "XOM", "CVX", "SLB", "CAT", "DE", 
     "GE", "BA", "LMT", "RTX", "HON", "UPS", 
     "UNH", "LLY", "ABBV", "JNJ", 
     "MRK", "PFE", "TMO", "AMGN" 
 ]
 
-symbols = ["QQQ", "AAPL", "MSFT", "CRM", "ADBE", "GOOG"]
+symbols = ["QQQ", "AAPL", "MSFT", "NVDA", "AMD", "GOOG", "META", "ADBE", "CRM", "INTC", "AVGO", "NFLX", "TSLA", "AMZN"]
 
 # strategy_kwargs = { # MACD
 #     "fast_window_low": 5, 
@@ -308,28 +312,28 @@ strategy_kwargs = { # Stochastic
     "trailing_ratio": 0.05
 }
 # run_one_backtest( # Stochastic
-#     "MSFT",
+#     "META",
 #     StochasticIndicator,
-#     start_date="2025-9-09",
-#     end_date="2025-10-02",
+#     start_date="2023-11-10",
+#     end_date="2025-11-01",
 #     plot=True,
 #     **strategy_kwargs
 # )
 
-# multiple_symbol_performance(
-#     symbols, 
-#     StochasticIndicator, 
-#     "2023-11-01", 
-#     "2025-11-01", 
-#     plot=False, 
-#     save_plot=True, 
-#     **strategy_kwargs
-#     )
+multiple_symbol_performance(
+    symbols, 
+    StochasticIndicator, 
+    "2023-11-01", 
+    "2025-11-01", 
+    plot=False, 
+    save_plot=True, 
+    **strategy_kwargs
+    )
 # grid_search("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 
-perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2025-9-09", end_date="2025-10-01", plot=False, **strategy_kwargs)
+perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2025-9-15", plot=False, **strategy_kwargs)
 cash = perf.get_data_dict()["Equity Final"]
-ml_walk_forward_backtest("MSFT", StochasticIndicator, start_date="2025-10-02", end_date="2025-10-02", cash=cash, day_rebalance=1)
+ml_walk_forward_backtest("MSFT", StochasticIndicator, start_date="2025-9-16", end_date="2025-11-01", cash=cash, day_rebalance=2)
 
 # ml_walk_forward_backtest("META", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01", day_rebalance=7)

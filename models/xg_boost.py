@@ -31,10 +31,23 @@ class XGBModel(BaseModel):
     def prepare_features(self, df):
         df = df.copy()
         feature_cols = []
+        
+        df["entry_time"] = pd.to_datetime(df["entry_time"])
+        df = df.sort_values("entry_time")
+        cutoff = df["entry_time"].max() - pd.DateOffset(months=1)
+        df = df[df["entry_time"] >= cutoff]
 
+        # inverted copy
+        # inv = df.copy()
+        # inv["direction"] = -inv["direction"]
+        # inv["pnl_pct"] = -inv["pnl_pct"]
+        # df = pd.concat([df, inv], ignore_index=True)
+        
+        # df = df[df["pnl_pct"].abs() > 0.00025]
+        
         # classification target
         if not self.live and "pnl_pct" in self.df.columns:
-            df["target"] = (df["pnl_pct"] > -0.001).astype(int)
+            df["target"] = (df["pnl_pct"] > 0.000).astype(int)
             feature_cols.append("entry_time")
             feature_cols.append("target")
 
@@ -54,7 +67,7 @@ class XGBModel(BaseModel):
 
         # other features
         feature_cols.extend(["adx", "adx_ma_3"])
-        # feature_cols.extend(["atr", "atr_ma_3"])
+        feature_cols.extend(["atr", "atr_ma_3"])
         feature_cols.append("open_volume")
         
         self.df = df[feature_cols]

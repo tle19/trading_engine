@@ -185,5 +185,6 @@ class StochasticIndicator(Strategy):
             "adx_ma_3": self.compute_ma(self.rolling_adx, window=3),
             "atr": self.rolling_atr[-1],
             "atr_ma_3": self.compute_ma(self.rolling_atr, window=3),
-            "open_volume": sum(self.volumes[0:5])
+            "open_volume": sum(self.volumes[0:5]),
+            "ema": self.compute_ma(history["close"], window=50)
         }

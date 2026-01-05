@@ -52,7 +52,7 @@ symbols = [
     "AXP",   # American Express
     "SCHW",  # Charles Schwab
     "WFC",   # Wells Fargo
-    "COP",   # Capital One
+    "COF",   # Capital One
 
     # ===== INDUSTRIALS / ENERGY =====
     "XOM",   # ExxonMobil
@@ -99,13 +99,15 @@ def test_order(symbol="[AAPL]"):
     fill_price = eq.get_fill_price(exit_id, timeout=0.1)
     print(fill_price)
 
+symbols = ["QQQ", "AAPL", "MSFT", "NVDA", "AMD", "GOOG", "META", "ADBE", "CRM", "INTC", "AVGO", "NFLX", "TSLA", "AMZN"]
+fetch_multiple_symbols(symbols)
 
 symbol = "MSFT"
 mdl = XGBModel(symbol=symbol, strategy="StochasticIndicator", live=False)
 # mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
 # mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
 mdl.initialize()
-X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=22)
+X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=20)
 mdl.train(X_train, y_train)
 mdl.evaluate_classification(X_train, y_train, X_test, y_test)
 mdl.save_model()

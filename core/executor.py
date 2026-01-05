@@ -352,5 +352,5 @@ class Equities:
         for symbol in symbols:
             strat = strategy_class(symbol)
             cash_allocation = self.cash / len(symbols)
-            strat.risk_manager.set_start_cash(cash_allocation)
+            strat.risk_manager.start_cash = cash_allocation
             self.strategies[symbol] = strat
