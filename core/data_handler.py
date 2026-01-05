@@ -3,6 +3,7 @@ import json
 import time
 import pandas as pd
 from collections import namedtuple
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import schwabdev
@@ -54,7 +55,13 @@ class DataHandler:
             if not rows:
                 break
 
+            last_ts = pd.to_datetime(rows[-1].timestamp, unit='ms', utc=True)
+            last_date = last_ts.date()
+
             for agg in rows:
+                ts_date = pd.to_datetime(agg.timestamp, unit='ms', utc=True).date()
+                if ts_date == last_date:
+                    break
                 data_list.append({
                     'timestamp': agg.timestamp,
                     'open': agg.open,
@@ -65,8 +72,7 @@ class DataHandler:
                 })
 
             # Advance current_from beyond last fetched bar
-            last_ts = pd.to_datetime(rows[-1].timestamp, unit='ms', utc=True)
-            current_from = (last_ts + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+            current_from = last_ts.strftime("%Y-%m-%d")
             if current_from > pd.to_datetime(to_date).strftime("%Y-%m-%d"):
                 break
             

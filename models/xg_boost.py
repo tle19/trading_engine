@@ -32,10 +32,10 @@ class XGBModel(BaseModel):
         df = df.copy()
         feature_cols = []
         
-        df["entry_time"] = pd.to_datetime(df["entry_time"])
-        df = df.sort_values("entry_time")
-        cutoff = df["entry_time"].max() - pd.DateOffset(months=1)
-        df = df[df["entry_time"] >= cutoff]
+        # df["entry_time"] = pd.to_datetime(df["entry_time"])
+        # df = df.sort_values("entry_time")
+        # cutoff = df["entry_time"].max() - pd.DateOffset(months=1)
+        # df = df[df["entry_time"] >= cutoff]
 
         # inverted copy
         # inv = df.copy()

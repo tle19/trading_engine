@@ -83,7 +83,7 @@ def fetch_multiple_symbols(symbols):
     for symbol in symbols:
         start_time = time.perf_counter()
 
-        dh.historical_data(symbol)
+        dh.historical_data(symbol=symbol, from_date='2024-01-01', to_date='2026-01-05')
 
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
@@ -99,18 +99,18 @@ def test_order(symbol="[AAPL]"):
     fill_price = eq.get_fill_price(exit_id, timeout=0.1)
     print(fill_price)
 
-symbols = ["QQQ", "AAPL", "MSFT", "NVDA", "AMD", "GOOG", "META", "ADBE", "CRM", "INTC", "AVGO", "NFLX", "TSLA", "AMZN"]
+symbols = ["QQQ", "AAPL", "MSFT", "GOOG", "META", "ADBE", "CRM", "AMZN"]
 fetch_multiple_symbols(symbols)
 
-symbol = "MSFT"
-mdl = XGBModel(symbol=symbol, strategy="StochasticIndicator", live=False)
-# mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
-# mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
-mdl.initialize()
-X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=20)
-mdl.train(X_train, y_train)
-mdl.evaluate_classification(X_train, y_train, X_test, y_test)
-mdl.save_model()
+# symbol = "MSFT"
+# mdl = XGBModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+# # mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+# # mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+# mdl.initialize()
+# X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=20)
+# mdl.train(X_train, y_train)
+# mdl.evaluate_classification(X_train, y_train, X_test, y_test)
+# mdl.save_model()
 
 # window = 50
 # df = open_data(
