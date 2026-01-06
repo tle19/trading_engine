@@ -66,6 +66,9 @@ class BaseModel:
         df = df.copy()
         feature_cols = []
 
+        # filter out chop
+        df = df[df["pnl_pct"].abs() > 0.001]
+
         # classification target
         if not self.live and "pnl" in self.df.columns:
             df["target"] = (df["pnl_pct"] > 0).astype(int)
@@ -100,9 +103,11 @@ class BaseModel:
     def train(self, X, y):
         self.model.fit(X, y)
     
-    def evaluate_classification(self, X_train, y_train, X_test, y_test):
-        y_train_pred = self.model.predict(X_train)
-        y_test_pred = self.model.predict(X_test)
+    def evaluate_classification(self, X_train, y_train, X_test, y_test, threshold=0.4):
+        y_train_proba = self.model.predict_proba(X_train)[:, 1]
+        y_test_proba = self.model.predict_proba(X_test)[:, 1]
+        y_train_pred = (y_train_proba >= threshold).astype(int)
+        y_test_pred = (y_test_proba >= threshold).astype(int)
 
         train_acc = accuracy_score(y_train, y_train_pred)
         test_acc = accuracy_score(y_test, y_test_pred)
@@ -112,6 +117,7 @@ class BaseModel:
         precision = precision_score(y_test, y_test_pred)
         recall = recall_score(y_test, y_test_pred)
         f1 = f1_score(y_test, y_test_pred)
+        npv = tn / (tn + fn) if (tn + fn) > 0 else 0.0
 
         print("=== Classification Metrics ===")
         print(f"Train Accuracy: {train_acc:.4f}")
@@ -119,6 +125,7 @@ class BaseModel:
         print(f"TP: {tp/total:.4f}, FP: {fp/total:.4f}, TN: {tn/total:.4f}, FN: {fn/total:.4f}")
         print(f"Test Precision: {precision:.4f}")
         print(f"Test Recall:    {recall:.4f}")
+        print(f"Test NPV:       {npv:.4f}")
         print(f"Test F1 Score:  {f1:.4f}")
 
     def evaluate_regression(self, X_train, y_train, X_test, y_test):
