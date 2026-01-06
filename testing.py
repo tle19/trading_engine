@@ -25,7 +25,7 @@ def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, p
     ticker_pnls = []
     for symbol in symbols:
         stats = run_one_backtest(symbol, strategy_class, start_date, end_date, plot=plot, **strategy_kwargs)
-        # train_model(strategy_class, symbol) # if training model
+        # train_model(XGBModel, strategy_class, symbol) # if training model
         ticker_pnls.append(stats.daily_pnls)
     
     min_len = min(len(p) for p in ticker_pnls)
@@ -134,7 +134,6 @@ def optimize_params(symbol, strategy_class, start, end):
         "fast_window": [12],
         "slow_window": [26],
         "signal_window": [9],
-        "htf_window": [20], 
         "rsi_period": [14],
         "k_period": [14],
         "k_smooth": [3],
@@ -162,6 +161,7 @@ def optimize_params(symbol, strategy_class, start, end):
             best_params = params
         print(params)
         results.append({"params": params, "perf": perf_dict})
+        os.remove("trade_logs.json")
 
     with open("gs_results.json", "w") as f:
         json.dump(results, f, indent=4)
@@ -194,26 +194,17 @@ def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000
         stats = run_one_backtest(symbol, strategy, fold_start.strftime("%Y-%m-%d"), fold_end.strftime("%Y-%m-%d"), cash=curr_cash, plot=plot, save_plot=True, **strategy_kwargs)
         curr_cash = stats.get_data_dict()["Equity Final"]
 
-        train_model(strategy, symbol)
+        train_model(XGBModel, strategy, symbol)
 
         current_start += pd.DateOffset(days=days + 1)
 
-        # dd = calc_current_drawdown(stats.intraday_equity)
-        # if dd > 0.05:
-        #     days = 3
-        # else:
-        #     days = day_rebalance
+        # dd = current_drawdown(stats.intraday_equity)
+        # slope = equity_slope(stats.intraday_equity)
+        # days = drawdown_rebalance(dd, slope, day_rebalance)
 
     elapsed_time = time.perf_counter() - start_time
     print(f"Elapsed Full Backtest Time: {elapsed_time:.6f} seconds")
     return stats
-
-def train_model(strategy, symbol):
-    mdl = XGBModel(symbol=symbol, strategy=strategy.__name__, live=False)
-    mdl.initialize()
-    X_train, _, y_train, _ = train_test_split(mdl.df, n_months=24)
-    mdl.train(X_train, y_train)
-    mdl.save_model()
 
 def ml_multiple_symbol_performance(symbols, strategy_class, train_start, train_end, start_date, end_date, **strategy_kwargs):
     ticker_pnls = []
@@ -346,7 +337,7 @@ run_one_backtest( # Stochastic
     "META",
     StochasticIndicator,
     start_date="2024-01-10",
-    end_date="2026-01-01",
+    end_date="2026-01-02",
     plot=True,
     **strategy_kwargs
 )
@@ -360,12 +351,12 @@ run_one_backtest( # Stochastic
 #     save_plot=True, 
 #     **strategy_kwargs
 #     )
-# grid_search("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01")
+# grid_search("META", StochasticIndicator, start_date="2024-01-10", end_date="2026-01-02")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 
-perf = run_one_backtest("META", StochasticIndicator, start_date="2024-01-10", end_date="2024-04-01", plot=False, **strategy_kwargs)
+perf = run_one_backtest("AAPL", StochasticIndicator, start_date="2024-01-10", end_date="2025-01-01", plot=False, **strategy_kwargs)
 cash = perf.get_data_dict()["Equity Final"]
-ml_walk_forward_backtest("META", StochasticIndicator, start_date="2024-04-02", end_date="2026-01-02", cash=cash, day_rebalance=3, **strategy_kwargs)
+ml_walk_forward_backtest("AAPL", StochasticIndicator, start_date="2025-01-02", end_date="2026-01-02", cash=cash, day_rebalance=5, **strategy_kwargs)
 
 # ml_multiple_symbol_performance(
 #     symbols, 

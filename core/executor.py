@@ -27,6 +27,9 @@ class Equities:
 
         self.trade_manager = TradeManager(log_file="trade_logs_live.json", live=True)
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
+        
+        # new trade manager with backtest files and put into here
+        self.strategy.trade_manager = self.trade_manager
 
     def run(self):
         def response_handler(response):
@@ -337,7 +340,7 @@ class Equities:
     def await_stream_start(self):
         print("Awaiting Market Open...")
         while not self.streamer.active:
-            time.sleep(5)
+            time.sleep(0.1)
 
     def stream_duration(self):
         now = datetime.datetime.now(self.timezone)

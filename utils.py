@@ -2,6 +2,7 @@ import os
 import json
 import time
 import pandas as pd
+import numpy as np
 from zoneinfo import ZoneInfo
 
 import schwabdev
@@ -106,11 +107,34 @@ def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
         avg_spread = data["normalized_spread"].mean()
         print(symbol, avg_spread)
 
-def calc_current_drawdown(intraday_equity):
+def train_model(model, strategy, symbol):
+    mdl = model(symbol=symbol, strategy=strategy.__name__, live=False)
+    mdl.initialize()
+    X_train, _, y_train, _ = train_test_split(mdl.df, n_months=24)
+    mdl.train(X_train, y_train)
+    mdl.save_model()
+
+def current_drawdown(intraday_equity):
     curr_max = max(intraday_equity)
     current = intraday_equity[-1]
     drawdown = (curr_max - current) / curr_max
     return drawdown
 
+def equity_slope(intraday_equity, lookback=10):
+    df = pd.DataFrame(list(intraday_equity.items()), columns=['timestamp', 'equity'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df = df.sort_values('timestamp')
+    start_time = df['timestamp'].iloc[-1] - pd.Timedelta(days=lookback)
+    df = df[df['timestamp'] >= start_time]
+    x = (df['timestamp'] - df['timestamp'].iloc[0]).dt.total_seconds()
+    y = df['equity'].values
+    return np.polyfit(x, y, 1)[0]
+    
+def drawdown_rebalance(drawdown, slope, day_rebalance=7):
+    if drawdown > 0.05:
+        days = 3
+    else:
+        days = day_rebalance
+    return days
 
         

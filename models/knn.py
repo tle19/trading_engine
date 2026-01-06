@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from sklearn.neighbors import KNeighborsClassifier
 
 from models import BaseModel
@@ -26,13 +27,9 @@ class KNNModel(BaseModel):
     def prepare_features(self, df):
         feature_cols = []
         df = df.copy()
+        df['entry_time'] = pd.to_datetime(df['entry_time'], utc=True)
         df = df.sort_values('entry_time')
-
-        # extract date
         df['date'] = df['entry_time'].dt.date
-        
-        # filter out chop
-        df = df[df["pnl_pct"].abs() > 0.0005]
         
         # classification target
         if not self.live and "pnl_pct" in self.df.columns:

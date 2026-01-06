@@ -35,6 +35,7 @@ class StochasticIndicator(Strategy):
 
         df = open_data(self.symbol, start_date="2023-11-01", end_date="2025-11-01")
         self.history = resample_data(df)
+        self.trade_manager = None
         
         self.model = XGBModel(symbol=symbol, live=True)
         if not self.model.initialize():
@@ -175,12 +176,13 @@ class StochasticIndicator(Strategy):
         highs = history["high"].values
         lows = history["low"].values
         closes = history["close"].values
-
+        
         yesterday_pnl = 0.0
-        if self.trade_manager.trade_history:
+        if self.trade_manager and self.trade_manager.trade_history:
             df = pd.DataFrame(self.trade_manager.trade_history)
             df['entry_time'] = pd.to_datetime(df['entry_time'], utc=True)
             df = df[df["entry_time"] < self.ts.normalize()]
+            # filter symbol
             if not df.empty:
                 df["date"] = df["entry_time"].dt.date
                 daily_pnl = df.groupby("date")["pnl_pct"].sum().sort_index()
