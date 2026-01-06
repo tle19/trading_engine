@@ -73,7 +73,7 @@ class XGBModel(BaseModel):
         self.df = df[feature_cols]
         # print(f"Features: {feature_cols}")
 
-    # def train(self, X, y, decay=0.005):
+    # def train(self, X, y, decay=0.001):
     #     n = len(X)
     #     sample_weight = np.exp(decay * np.arange(n))
     #     sample_weight /= sample_weight.mean()

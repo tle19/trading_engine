@@ -77,12 +77,12 @@ class StochasticIndicator(Strategy):
         # vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
         
         if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > 0:
-            if self.symbol in ("META", "AMD", "INTC", "AMZN"):
+            if self.symbol in ("META", "AMZN"):
                 signal, _ = self.sell()
             else:
                 signal, _ = self.buy()
         if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > 0:
-            if self.symbol in ("META", "AMD", "INTC", "AMZN"):
+            if self.symbol in ("META", "AMZN"):
                 signal, _ = self.buy()
             else:
                 signal, _ = self.sell()
@@ -146,7 +146,7 @@ class StochasticIndicator(Strategy):
             elif self.stoch_signal == -1 and (k < lower or d < lower):
                 self.stoch_signal = None
     
-    def predict_trade(self, threshold=0.5):
+    def predict_trade(self, threshold=0.4):
         df = pd.DataFrame({k: [v] for k, v in self.features.items()})
         self.model.prepare_features(df)
         proba = self.model.get_proba(self.model.df)

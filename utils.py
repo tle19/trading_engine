@@ -106,4 +106,11 @@ def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
         avg_spread = data["normalized_spread"].mean()
         print(symbol, avg_spread)
 
+def calc_current_drawdown(intraday_equity):
+    curr_max = max(intraday_equity)
+    current = intraday_equity[-1]
+    drawdown = (curr_max - current) / curr_max
+    return drawdown
+
+
         
