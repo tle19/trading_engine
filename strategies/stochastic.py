@@ -30,14 +30,11 @@ class StochasticIndicator(Strategy):
         self.slow_ema = None
         self.signal_ema = None
         self.stoch_signal = None
-
         self.rolling_rsi = deque(maxlen=10)
         self.rolling_vol = deque(maxlen=10)
 
         df = open_data(self.symbol, start_date="2023-11-01", end_date="2025-11-01")
         self.history = resample_data(df)
-        self.rolling_adx = deque(maxlen=10)
-        self.rolling_atr = deque(maxlen=10)
         
         self.model = XGBModel(symbol=symbol, live=True)
         if not self.model.initialize():
@@ -108,16 +105,7 @@ class StochasticIndicator(Strategy):
             self.stoch_signal = None
             self.rolling_rsi = deque(maxlen=10)
             self.rolling_vol = deque(maxlen=10)
-            
-            history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
-            highs = history["high"].values
-            lows = history["low"].values
-            closes = history["close"].values
-            atr = self.compute_atr(highs, lows, closes)
-            adx = self.compute_adx(highs, lows, closes)
-            self.rolling_atr.append(atr)
-            self.rolling_adx.append(adx)
-      
+        
     def minimum_computations(self):
         if not self.activated:
             required_data = max(
@@ -151,6 +139,19 @@ class StochasticIndicator(Strategy):
         self.model.prepare_features(df)
         proba = self.model.get_proba(self.model.df)
 
+        # if self.stoch_signal == 1:
+        #     if proba > threshold:
+        #         self.take_profit = 0.01
+        #     else:
+        #         self.take_profit = 0.005
+        #     signal, leg = self.buy() 
+        # elif self.stoch_signal == -1:
+        #     if proba > threshold:
+        #         self.take_profit = 0.01
+        #     else:
+        #         self.take_profit = 0.005
+        #     signal, leg = self.sell() 
+
         if self.stoch_signal == 1:
             if proba > threshold:
                 signal, leg = self.buy() 
@@ -170,7 +171,21 @@ class StochasticIndicator(Strategy):
         return signal, leg
 
     def add_features(self, direction, stop_price, target_price):
-        history = self.history.loc[self.history.index < self.ts.normalize()].tail(1)
+        history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
+        highs = history["high"].values
+        lows = history["low"].values
+        closes = history["close"].values
+
+        yesterday_pnl = 0.0
+        if self.trade_manager.trade_history:
+            df = pd.DataFrame(self.trade_manager.trade_history)
+            df['entry_time'] = pd.to_datetime(df['entry_time'], utc=True)
+            df = df[df["entry_time"] < self.ts.normalize()]
+            if not df.empty:
+                df["date"] = df["entry_time"].dt.date
+                daily_pnl = df.groupby("date")["pnl_pct"].sum().sort_index()
+                yesterday_pnl = daily_pnl.iloc[-1]
+
         self.features = {
             "direction": direction,
             "entry_time": self.ts.isoformat(),
@@ -181,10 +196,15 @@ class StochasticIndicator(Strategy):
             "session_low": min(self.lows),
             "session_high": max(self.highs),
             "prev_day_close": history["close"].values[0],
-            "adx": self.rolling_adx[-1],
-            "adx_ma_3": self.compute_ma(self.rolling_adx, window=3),
-            "atr": self.rolling_atr[-1],
-            "atr_ma_3": self.compute_ma(self.rolling_atr, window=3),
+            "yday_pnl": yesterday_pnl,
+            "adx": self.compute_atr(highs, lows, closes),
+            "atr": self.compute_adx(highs, lows, closes),
             "open_volume": sum(self.volumes[0:5]),
-            "ema": self.compute_ma(history["close"], window=50)
+            "ema": self.compute_ma(history["close"], window=50),
+            "original_dir": self.stoch_signal,
+            "proba": None
         }
+
+        if self.model and not self.model.df.empty:
+            proba = self.model.get_proba(self.model.df)
+            self.features["proba"] = float(proba)

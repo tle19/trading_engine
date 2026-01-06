@@ -84,12 +84,19 @@ class BaseModel:
             )
             feature_cols.extend(cols)
 
-        # body = close - open
-        # range_ = high - low
-        # upper_wick = high - max(open, close)
-        # lower_wick = min(open, close) - low
-        # body_pct = body / range_
-        
+        # session-relative prices
+        for col in ["session_open", "session_low", "session_high"]:
+            df[f"{col}_pct_from_entry"] = df["direction"] * (df[col] - df["entry_price"]) / df["entry_price"]
+            feature_cols.append(f"{col}_pct_from_entry")
+
+        # time from market open
+        market_open = df["entry_time"].dt.normalize() + pd.Timedelta(hours=9, minutes=30)
+        df["minutes_from_open"] = (df["entry_time"] - market_open).dt.total_seconds() / 60
+        feature_cols.append("minutes_from_open")
+
+        # market open volume
+        feature_cols.append("open_volume")
+                
     def train(self, X, y):
         self.model.fit(X, y)
     

@@ -220,7 +220,6 @@ def ml_multiple_symbol_performance(symbols, strategy_class, train_start, train_e
     for symbol in symbols:
         stats = run_one_backtest(symbol, strategy_class, train_start, train_end, cash=12500, plot=False, **strategy_kwargs)
         cash = stats.get_data_dict()["Equity Final"]
-
         stats = ml_walk_forward_backtest(symbol, strategy_class, start_date, end_date, cash, day_rebalance=5, **strategy_kwargs)
         ticker_pnls.append(stats.daily_pnls)
         os.remove("trade_logs.json")
@@ -252,7 +251,7 @@ symbols = [
     "MRK", "PFE", "TMO", "AMGN" 
 ]
 
-symbols = ["QQQ", "AAPL", "MSFT", "GOOG", "META", "ADBE", "CRM", "AMZN"]
+symbols = ["QQQ", "AAPL", "MSFT", "GOOG", "META", "ADBE", "CRM"]
 
 # strategy_kwargs = { # MACD
 #     "fast_window_low": 5, 
@@ -343,20 +342,20 @@ strategy_kwargs = { # Stochastic
     "take_profit": 0.01,
     "trailing_ratio": 0.05
 }
-# run_one_backtest( # Stochastic
-#     "META",
-#     StochasticIndicator,
-#     start_date="2024-01-10",
-#     end_date="2026-01-01",
-#     plot=True,
-#     **strategy_kwargs
-# )
+run_one_backtest( # Stochastic
+    "META",
+    StochasticIndicator,
+    start_date="2024-01-10",
+    end_date="2026-01-01",
+    plot=True,
+    **strategy_kwargs
+)
 
 # multiple_symbol_performance(
 #     symbols, 
 #     StochasticIndicator, 
 #     "2024-01-10", 
-#     "2026-01-01", 
+#     "2026-01-02", 
 #     plot=True, 
 #     save_plot=True, 
 #     **strategy_kwargs
@@ -364,16 +363,16 @@ strategy_kwargs = { # Stochastic
 # grid_search("MSFT", StochasticIndicator, start_date="2023-11-09", end_date="2025-11-01")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 
-# perf = run_one_backtest("MSFT", StochasticIndicator, start_date="2024-01-10", end_date="2025-12-01", plot=False, **strategy_kwargs)
-# cash = perf.get_data_dict()["Equity Final"]
-# ml_walk_forward_backtest("MSFT", StochasticIndicator, start_date="2025-12-02", end_date="2026-01-02", cash=cash, day_rebalance=2, **strategy_kwargs)
+perf = run_one_backtest("META", StochasticIndicator, start_date="2024-01-10", end_date="2024-04-01", plot=False, **strategy_kwargs)
+cash = perf.get_data_dict()["Equity Final"]
+ml_walk_forward_backtest("META", StochasticIndicator, start_date="2024-04-02", end_date="2026-01-02", cash=cash, day_rebalance=3, **strategy_kwargs)
 
-ml_multiple_symbol_performance(
-    symbols, 
-    StochasticIndicator, 
-    "2024-01-10", 
-    "2025-01-01", 
-    "2025-01-02", 
-    "2026-01-02", 
-    **strategy_kwargs
-    )
+# ml_multiple_symbol_performance(
+#     symbols, 
+#     StochasticIndicator, 
+#     "2024-01-10", 
+#     "2025-01-01", 
+#     "2025-01-02", 
+#     "2026-01-02", 
+#     **strategy_kwargs
+#     )

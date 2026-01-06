@@ -40,6 +40,7 @@ class Plotting:
 
         if overlay:
             self.plot_overlay(dates, equity)
+            self.drawdown_overlay(dates, equity)
 
         plt.xlabel("Date")
         plt.ylabel("Portfolio Value")
@@ -77,3 +78,24 @@ class Plotting:
 
         plt.plot(dates, stock_scaled, label=f"{self.symbol} (Normalized Price)",
                 color="orange", linestyle="--", alpha=0.7)
+        
+    def drawdown_overlay(self, dates, equity):
+        peak = equity[0]
+        peak_idx = 0
+        drawdown_segments = []
+
+        for i in range(1, len(equity)):
+            if equity[i] > peak:
+                if peak_idx != i - 1:
+                    drawdown_segments.append((peak_idx, i - 1, peak))
+                peak = equity[i]
+                peak_idx = i
+
+        if peak_idx < len(equity) - 1:
+            drawdown_segments.append((peak_idx, len(equity) - 1, peak))
+
+        for start, end, peak_val in drawdown_segments:
+            plt.hlines(y=peak_val, xmin=dates[start], xmax=dates[end], color="red", linewidth=1, alpha=0.5)
+            plt.fill_between(dates[start:end + 1], equity[start:end + 1], peak_val, 
+                            color="red", alpha=0.1)
+
