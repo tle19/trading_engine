@@ -29,7 +29,7 @@ class Equities:
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
         
         # new trade manager with backtest files and put into here
-        self.strategy.trade_manager = self.trade_manager
+        # self.strategy.trade_manager = self.trade_manager
 
     def run(self):
         def response_handler(response):
@@ -115,7 +115,7 @@ class Equities:
 
                 fill_price = self.get_fill_price(self.exit_ids[leg], shares, type="oco", timeout=0.25)
                 exit_price = None
-                
+                print(fill_price) # testing errors
                 if fill_price is None:
                     self.cancel_order(self.exit_ids[leg])
                     if direction == 1:
@@ -123,11 +123,13 @@ class Equities:
                     elif direction == -1:
                         exit_id, fill_price = self.buy_market(symbol, shares, "BUY_TO_COVER")
                     exit_price = strategy.price
+                    print("A", fill_price) # testing errors
                 else:
                     if direction == 1:
                         print(f"SOLD -{shares} {symbol} @ {fill_price}")
                     elif direction == -1:
                         print(f"BOT +{shares} {symbol} @ {fill_price}")
+                    print("B", fill_price) # testing errors
                     exit_price = min([stop_price, target_price], key=lambda x: abs(fill_price - x))
             
                 self.update_pnl(strategy, direction, entry_price, fill_price, shares)

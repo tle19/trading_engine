@@ -33,7 +33,8 @@ class StochasticIndicator(Strategy):
         self.rolling_rsi = deque(maxlen=10)
         self.rolling_vol = deque(maxlen=10)
 
-        df = open_data(self.symbol, start_date="2023-11-01", end_date="2025-11-01")
+        # implement back fill new history
+        df = open_data(self.symbol, start_date="2024-01-01", end_date="2026-01-01")
         self.history = resample_data(df)
         self.trade_manager = None
         
@@ -74,13 +75,13 @@ class StochasticIndicator(Strategy):
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
         # vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
         
-        if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > 0:
-            if self.symbol in ("META", "AMZN"):
+        if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > 0.025:
+            if self.symbol in ("META", "ADBE"):
                 signal, _ = self.sell()
             else:
                 signal, _ = self.buy()
-        if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > 0:
-            if self.symbol in ("META", "AMZN"):
+        if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > 0.025:
+            if self.symbol in ("META", "ADBE"):
                 signal, _ = self.buy()
             else:
                 signal, _ = self.sell()
@@ -140,33 +141,33 @@ class StochasticIndicator(Strategy):
         self.model.prepare_features(df)
         proba = self.model.get_proba(self.model.df)
 
-        # if self.stoch_signal == 1:
-        #     if proba > threshold:
-        #         self.take_profit = 0.01
-        #     else:
-        #         self.take_profit = 0.005
-        #     signal, leg = self.buy() 
-        # elif self.stoch_signal == -1:
-        #     if proba > threshold:
-        #         self.take_profit = 0.01
-        #     else:
-        #         self.take_profit = 0.005
-        #     signal, leg = self.sell() 
-
         if self.stoch_signal == 1:
             if proba > threshold:
-                signal, leg = self.buy() 
-                confidence = proba
+                self.position_size = 1.0
             else:
-                signal, leg = self.sell() 
-                confidence = 1 - proba
+                self.position_size = 0.5
+            signal, leg = self.buy() 
         elif self.stoch_signal == -1:
             if proba > threshold:
-                signal, leg = self.sell()
-                confidence = proba
+                self.position_size = 1.0
             else:
-                signal, leg = self.buy() 
-                confidence = 1 - proba
+                self.position_size = 0.5
+            signal, leg = self.sell() 
+
+        # if self.stoch_signal == 1:
+        #     if proba > threshold:
+        #         signal, leg = self.buy() 
+        #         confidence = proba
+        #     else:
+        #         signal, leg = self.sell() 
+        #         confidence = 1 - proba
+        # elif self.stoch_signal == -1:
+        #     if proba > threshold:
+        #         signal, leg = self.sell()
+        #         confidence = proba
+        #     else:
+        #         signal, leg = self.buy() 
+        #         confidence = 1 - proba
 
         # self.position_size = 0.25 + 0.75 * confidence       
         return signal, leg

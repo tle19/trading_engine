@@ -27,6 +27,7 @@ def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, p
         stats = run_one_backtest(symbol, strategy_class, start_date, end_date, plot=plot, **strategy_kwargs)
         # train_model(XGBModel, strategy_class, symbol) # if training model
         ticker_pnls.append(stats.daily_pnls)
+        os.remove("trade_logs.json")
     
     min_len = min(len(p) for p in ticker_pnls)
     ticker_truncated = [p[:min_len] for p in ticker_pnls]
@@ -45,9 +46,9 @@ def walk_forward_optimize(symbol, strategy_class):
     start = pd.Timestamp("2023-11-01")
     end = pd.Timestamp("2025-11-01")
 
-    train_months = 6
-    test_months = 3
-    step_months = 3
+    train_months = 2
+    test_months = 1
+    step_months = 1
 
     results = []
     current_start = start
@@ -142,8 +143,8 @@ def optimize_params(symbol, strategy_class, start, end):
         "stoch_upper": [80],
         "vol_fast_window": [14],
         "vol_slow_window": [28],
-        "stop_loss": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015],
-        "take_profit": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02],
+        "stop_loss": [0.005, 0.0075, 0.01, 0.0125, 0.015],
+        "take_profit": [0.005, 0.0075, 0.01, 0.0125, 0.015],
         "trailing_ratio": [0.05]
     }
 
@@ -242,7 +243,7 @@ symbols = [
     "MRK", "PFE", "TMO", "AMGN" 
 ]
 
-symbols = ["QQQ", "AAPL", "MSFT", "GOOG", "META", "ADBE", "CRM"]
+# symbols = ["QQQ", "AAPL", "MSFT", "META", "CRM"]
 
 # strategy_kwargs = { # MACD
 #     "fast_window_low": 5, 
@@ -333,30 +334,30 @@ strategy_kwargs = { # Stochastic
     "take_profit": 0.01,
     "trailing_ratio": 0.05
 }
-run_one_backtest( # Stochastic
-    "META",
-    StochasticIndicator,
-    start_date="2024-01-10",
-    end_date="2026-01-02",
-    plot=True,
-    **strategy_kwargs
-)
-
-# multiple_symbol_performance(
-#     symbols, 
-#     StochasticIndicator, 
-#     "2024-01-10", 
-#     "2026-01-02", 
-#     plot=True, 
-#     save_plot=True, 
+# run_one_backtest( # Stochastic
+#     "AAPL",
+#     StochasticIndicator,
+#     start_date="2024-01-10",
+#     end_date="2026-01-02",
+#     plot=True,
 #     **strategy_kwargs
-#     )
-# grid_search("META", StochasticIndicator, start_date="2024-01-10", end_date="2026-01-02")
+# )
+
+multiple_symbol_performance(
+    symbols, 
+    StochasticIndicator, 
+    "2024-01-10", 
+    "2026-01-02", 
+    plot=True, 
+    save_plot=True, 
+    **strategy_kwargs
+    )
+# grid_search("MSFT", StochasticIndicator, start_date="2024-01-10", end_date="2026-01-02")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 
-perf = run_one_backtest("AAPL", StochasticIndicator, start_date="2024-01-10", end_date="2025-01-01", plot=False, **strategy_kwargs)
-cash = perf.get_data_dict()["Equity Final"]
-ml_walk_forward_backtest("AAPL", StochasticIndicator, start_date="2025-01-02", end_date="2026-01-02", cash=cash, day_rebalance=5, **strategy_kwargs)
+# perf = run_one_backtest("AAPL", StochasticIndicator, start_date="2024-01-10", end_date="2025-01-01", plot=False, **strategy_kwargs)
+# cash = perf.get_data_dict()["Equity Final"]
+# ml_walk_forward_backtest("AAPL", StochasticIndicator, start_date="2025-01-02", end_date="2026-01-02", cash=cash, day_rebalance=7, **strategy_kwargs)
 
 # ml_multiple_symbol_performance(
 #     symbols, 

@@ -11,14 +11,14 @@ class XGBModel(BaseModel):
     def initialize(self):
         if not self.live:
             self.model = XGBClassifier(
-                n_estimators=100,
-                max_depth=3,
+                n_estimators=50,
+                max_depth=2,
                 learning_rate=0.1,
                 subsample=1.0,
                 colsample_bytree=1.0,
                 reg_alpha=1.0,
                 reg_lambda=1.0,
-                scale_pos_weight=1.5,
+                scale_pos_weight=1.0,
                 eval_metric='logloss',
                 random_state=42
             )
@@ -38,7 +38,14 @@ class XGBModel(BaseModel):
         
         # classification target
         if not self.live and "pnl_pct" in self.df.columns:
-            #df = df[df["pnl_pct"].abs() > 0.001]
+            # filter chop
+            # df = df[df["pnl_pct"].abs() > 0.001]
+
+            # original output labels
+            # mask = df["direction"] != df["original_dir"]
+            # df.loc[mask, "direction"] = df.loc[mask, "original_dir"]
+            # df.loc[mask, "pnl_pct"] = -df.loc[mask, "pnl_pct"]
+
             df["target"] = (df["pnl_pct"] > 0.000).astype(int)
             feature_cols.append("entry_time")
             feature_cols.append("target")
@@ -72,7 +79,7 @@ class XGBModel(BaseModel):
         daily_pnl_rolling_sum = daily_pnl.rolling(window=10, min_periods=1).sum()
         df['pnl_rolling_mean'] = df['date'].map(daily_pnl_rolling_mean)
         df['pnl_rolling_sum'] = df['date'].map(daily_pnl_rolling_sum)
-        feature_cols.extend(["pnl_rolling_mean", "pnl_rolling_sum"])
+        # feature_cols.extend(["pnl_rolling_mean", "pnl_rolling_sum"])
 
         # drawdown performance
         daily_equity = (1 + daily_pnl).cumprod()
@@ -82,7 +89,7 @@ class XGBModel(BaseModel):
         drawdown_2 = (rolling_max_2 - daily_equity) / rolling_max_2
         df['drawdown_1'] = df['date'].map(drawdown_1)
         df['drawdown_2'] = df['date'].map(drawdown_2)
-        feature_cols.extend(['drawdown_1', 'drawdown_2'])
+        # feature_cols.extend(['drawdown_1', 'drawdown_2'])
 
         # print(f"Features: {feature_cols}")
         self.df = df[feature_cols]

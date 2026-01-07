@@ -99,18 +99,16 @@ def test_order(symbol="[AAPL]"):
     fill_price = eq.get_fill_price(exit_id, timeout=0.1)
     print(fill_price)
 
-# symbols = ["QQQ", "AAPL", "MSFT", "GOOG", "META", "ADBE", "CRM"]
-# fetch_multiple_symbols(symbols)
 
-symbol = "META"
-mdl = XGBModel(symbol=symbol, strategy="StochasticIndicator", live=False)
-# mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
-# mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
-mdl.initialize()
-X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=18)
-mdl.train(X_train, y_train)
-mdl.evaluate_classification(X_train, y_train, X_test, y_test)
-# mdl.save_model()
+# symbol = "META"
+# mdl = XGBModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+# # mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+# # mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+# mdl.initialize()
+# X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=18)
+# mdl.train(X_train, y_train)
+# mdl.evaluate_classification(X_train, y_train, X_test, y_test)
+# # mdl.save_model()
 
 
 # with open("trade_logs.json", "r") as f:
