@@ -21,25 +21,20 @@ def run_one_backtest(symbol, strategy_class, start_date, end_date, cash=25_000, 
     bt.run(start_date=start_date, end_date=end_date, plot=plot, save_plot=save_plot)
     return bt.stats
 
-def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, plot, **strategy_kwargs):
-    ticker_pnls = []
+def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, cash=25_000, **strategy_kwargs):
+    daily_pnls = []
     for symbol in symbols:
-        stats = run_one_backtest(symbol, strategy_class, start_date, end_date, plot=plot, **strategy_kwargs)
+        stats = run_one_backtest(symbol, strategy_class, start_date, end_date, cash=cash, plot=True, save_plot=True, **strategy_kwargs)
         # train_model(XGBModel, strategy_class, symbol) # if training model
-        ticker_pnls.append(stats.daily_pnls)
+        daily_pnls.extend(stats.daily_pnls)
         os.remove("trade_logs.json")
     
-    min_len = min(len(p) for p in ticker_pnls)
-    ticker_truncated = [p[:min_len] for p in ticker_pnls]
-
-    ticker_sums = np.sum(np.array(ticker_truncated), axis=0)
-    
-    num_wins = np.sum(ticker_sums > 0)
-    total_days = len(ticker_sums)
+    num_wins = sum(p > 0 for p in daily_pnls)
+    total_days = len(daily_pnls)
     win_rate = num_wins / total_days * 100
 
-    print(f"Length after truncation: {len(ticker_truncated[0])}")
-    print(f"Total Pnl: {np.sum(ticker_sums)}")
+    print(f"Total Trades: {total_days}")
+    print(f"Total Pnl: {sum(daily_pnls)}")
     print(f"Daily Win rate: {win_rate:.2f}%")
 
 def walk_forward_optimize(symbol, strategy_class):
@@ -207,10 +202,10 @@ def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000
     print(f"Elapsed Full Backtest Time: {elapsed_time:.6f} seconds")
     return stats
 
-def ml_multiple_symbol_performance(symbols, strategy_class, train_start, train_end, start_date, end_date, **strategy_kwargs):
+def ml_multiple_symbol_performance(symbols, strategy_class, train_start, train_end, start_date, end_date, cash=25_000, **strategy_kwargs):
     ticker_pnls = []
     for symbol in symbols:
-        stats = run_one_backtest(symbol, strategy_class, train_start, train_end, cash=12500, plot=False, **strategy_kwargs)
+        stats = run_one_backtest(symbol, strategy_class, train_start, train_end, cash=cash, plot=False, **strategy_kwargs)
         cash = stats.get_data_dict()["Equity Final"]
         stats = ml_walk_forward_backtest(symbol, strategy_class, start_date, end_date, cash, day_rebalance=5, **strategy_kwargs)
         ticker_pnls.append(stats.daily_pnls)
@@ -243,7 +238,7 @@ symbols = [
     "MRK", "PFE", "TMO", "AMGN" 
 ]
 
-# symbols = ["QQQ", "AAPL", "MSFT", "META", "CRM"]
+symbols = ["QQQ", "AAPL", "MSFT", "META", "CRM", "ABBV", "CVX", "MRK", "UPS", "AXP", "CAT"]
 
 # strategy_kwargs = { # MACD
 #     "fast_window_low": 5, 
@@ -335,7 +330,7 @@ strategy_kwargs = { # Stochastic
     "trailing_ratio": 0.05
 }
 # run_one_backtest( # Stochastic
-#     "AAPL",
+#     "QQQ",
 #     StochasticIndicator,
 #     start_date="2024-01-10",
 #     end_date="2026-01-02",
@@ -348,8 +343,7 @@ multiple_symbol_performance(
     StochasticIndicator, 
     "2024-01-10", 
     "2026-01-02", 
-    plot=True, 
-    save_plot=True, 
+    cash=9000, 
     **strategy_kwargs
     )
 # grid_search("MSFT", StochasticIndicator, start_date="2024-01-10", end_date="2026-01-02")

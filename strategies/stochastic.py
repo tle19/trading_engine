@@ -37,7 +37,10 @@ class StochasticIndicator(Strategy):
         df = open_data(self.symbol, start_date="2024-01-01", end_date="2026-01-01")
         self.history = resample_data(df)
         self.trade_manager = None
+        self.adx = deque(maxlen=10)
+        # self.atr = deque(maxlen=10)
         
+        # meta labeling models
         self.model = XGBModel(symbol=symbol, live=True)
         if not self.model.initialize():
             self.model = None
@@ -76,12 +79,12 @@ class StochasticIndicator(Strategy):
         # vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
         
         if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > 0.025:
-            if self.symbol in ("META", "ADBE"):
+            if self.symbol in ("META", "ABBV", "AXP", "MRK", "CAT"):
                 signal, _ = self.sell()
             else:
                 signal, _ = self.buy()
         if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > 0.025:
-            if self.symbol in ("META", "ADBE"):
+            if self.symbol in ("META", "ABBV", "AXP", "MRK", "CAT"):
                 signal, _ = self.buy()
             else:
                 signal, _ = self.sell()
@@ -107,6 +110,13 @@ class StochasticIndicator(Strategy):
             self.stoch_signal = None
             self.rolling_rsi = deque(maxlen=10)
             self.rolling_vol = deque(maxlen=10)
+            
+            history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
+            highs = history["high"].values
+            lows = history["low"].values
+            closes = history["close"].values
+            self.adx.append(self.compute_adx(highs, lows, closes))
+            # self.atr.append(self.compute_atr(highs, lows, closes))
         
     def minimum_computations(self):
         if not self.activated:
@@ -200,8 +210,8 @@ class StochasticIndicator(Strategy):
             "session_high": max(self.highs),
             "prev_day_close": history["close"].values[0],
             "yday_pnl": yesterday_pnl,
-            "adx": self.compute_atr(highs, lows, closes),
-            "atr": self.compute_adx(highs, lows, closes),
+            "adx": self.compute_adx(highs, lows, closes),
+            "atr": self.compute_atr(highs, lows, closes),
             "open_volume": sum(self.volumes[0:5]),
             "ema": self.compute_ma(history["close"], window=50),
             "original_dir": self.stoch_signal,

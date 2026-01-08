@@ -195,11 +195,11 @@ class Strategy:
         elif stop_distance > min_distance and target_distance > min_distance:
             return True
 
-    def compute_ma(self, data, window):
+    def compute_ma(self, data, window=10):
         data = np.array(data)
         return np.mean(data[-window:])
     
-    def compute_ema(self, prev_ema, new_value, window):
+    def compute_ema(self, prev_ema, new_value, window=10):
         if prev_ema is None:
             return new_value
         alpha = 2.0 / (window + 1.0)
