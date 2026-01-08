@@ -20,8 +20,6 @@ class Equities:
 
         self.cash = self.get_liquidation_value() * margin
         self.timezone = ZoneInfo("America/New_York")
-        self.prices = []
-
         self.symbols = symbols
         self.initialize(symbols, strategy_class)
 
@@ -69,10 +67,10 @@ class Equities:
         self.trade_manager.save_logs()
 
     def interpret_signal(self, signal, strategy, symbol):
+        name = strategy.__class__.__name__
         position_manager = strategy.position_manager
         direction = position_manager.direction()
         if direction:
-            name = strategy.__class__.__name__
             leg = position_manager.legs[-1]
             entry_price = leg.entry_price
             stop_price = leg.stop_price
@@ -95,13 +93,13 @@ class Equities:
             leg.entry_price = fill_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
 
-        # --- Holding ---
-        elif signal is None:
-            if False: # placeholder
-                if direction == 1:
-                    self.exit_ids[leg] = self.replace_order(symbol, direction, shares, stop_price, target_price, self.exit_ids[leg])
-                elif direction == -1:
-                    self.exit_ids[leg] = self.replace_order(symbol, direction, shares, stop_price, target_price, self.exit_ids[leg])
+        # --- Adjust Stops / Targets ---
+        elif signal == 9:
+            raise NotImplementedError
+            if direction == 1:
+                self.exit_ids[leg] = self.replace_order(symbol, direction, shares, stop_price, target_price, self.exit_ids[leg])
+            elif direction == -1:
+                self.exit_ids[leg] = self.replace_order(symbol, direction, shares, stop_price, target_price, self.exit_ids[leg])
                 
         # --- Exit Position --- 
         elif signal == 0:
@@ -112,9 +110,11 @@ class Equities:
                     target_price = leg.target_price
                     shares = leg.shares
                     shares = 1 # for testing
-
-                fill_price = self.get_fill_price(self.exit_ids[leg], shares, type="oco", timeout=0.25)
+                
                 exit_price = None
+                fill_price = self.get_fill_price(self.exit_ids[leg], shares, type="oco", timeout=0.25)
+                # implement partial fill check
+                
                 print(fill_price) # testing errors
                 if fill_price is None:
                     self.cancel_order(self.exit_ids[leg])
@@ -126,9 +126,9 @@ class Equities:
                     print("A", fill_price) # testing errors
                 else:
                     if direction == 1:
-                        print(f"SOLD -{shares} {symbol} @ {fill_price}")
+                        print(f"[SOLD] -{shares} {symbol} @ {fill_price}")
                     elif direction == -1:
-                        print(f"BOT +{shares} {symbol} @ {fill_price}")
+                        print(f"[BOT] +{shares} {symbol} @ {fill_price}")
                     print("B", fill_price) # testing errors
                     exit_price = min([stop_price, target_price], key=lambda x: abs(fill_price - x))
             
@@ -164,7 +164,7 @@ class Equities:
         response = self.client.order_place(self.hash, order_dict)
         order_id = self.get_order_id(response)
         fill_price = self.get_fill_price(order_id, quantity)
-        print(f"BOT +{quantity} {symbol} @ {fill_price}")
+        print(f"[BOT] +{quantity} {symbol} @ {fill_price}")
         return order_id, fill_price
     
     def sell_market(self, symbol, quantity, type="SELL"):
@@ -188,21 +188,21 @@ class Equities:
         response = self.client.order_place(self.hash, order_dict)
         order_id = self.get_order_id(response)
         fill_price = self.get_fill_price(order_id, quantity)
-        print(f"SOLD -{quantity} {symbol} @ {fill_price}")
+        print(f"[SOLD] -{quantity} {symbol} @ {fill_price}")
         return order_id, fill_price
     
     def long_bracket(self, symbol, quantity, stop_price, target_price):
         order_dict = self.get_sell_order_dict(symbol, quantity, stop_price, target_price)
         response = self.client.order_place(self.hash, order_dict)
         order_id = self.get_order_id(response)
-        print(f"STP @ {stop_price} | LMT @ {target_price}")
+        print(f"       STP={stop_price} | LMT={target_price}")
         return order_id
 
     def short_bracket(self, symbol, quantity, stop_price, target_price):
         order_dict = self.get_buy_order_dict(symbol, quantity, stop_price, target_price)
         response = self.client.order_place(self.hash, order_dict)
         order_id = self.get_order_id(response)
-        print(f"STP @ {stop_price} | LMT @ {target_price}")
+        print(f"       STP={stop_price} | LMT={target_price}")
         return order_id
     
     def get_buy_order_dict(self, symbol, quantity, stop_price, target_price):
@@ -328,6 +328,7 @@ class Equities:
                 if total_qty == quantity:
                     fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / total_qty
                     return round(fill_price, 2)
+                # implement partial fill check
             
             if time.time() - start > timeout:
                 return None
@@ -340,7 +341,7 @@ class Equities:
         return liquidationValue
     
     def await_stream_start(self):
-        print("Awaiting Market Open...")
+        print("[WAIT][STREAM] Stream inactive | market open pending")
         while not self.streamer.active:
             time.sleep(0.1)
 
@@ -359,3 +360,7 @@ class Equities:
             cash_allocation = self.cash / len(symbols)
             strat.risk_manager.start_cash = cash_allocation
             self.strategies[symbol] = strat
+            print(
+                f"[INIT] {strat.__class__.__name__} | "
+                f"symbol={symbol} | cash={cash_allocation:.2f}"
+            )

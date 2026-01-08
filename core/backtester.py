@@ -24,6 +24,7 @@ class Backtest:
         self.stats = Stats(symbol)
         self.plotting = Plotting(symbol)
 
+        # history backfill
         self.strategy.trade_manager = self.trade_manager
 
     def run(self, start_date="2023-11-10", end_date="2025-11-01", plot=False, save_plot=False, stats=True):
@@ -58,9 +59,9 @@ class Backtest:
             self.plotting.plot_equity(save_plot, overlay=True)
         
     def interpret_signal(self, signal):
+        name = self.strategy.__class__.__name__
         direction = self.position_manager.direction()
         if direction:
-            name = self.strategy.__class__.__name__
             leg = self.position_manager.legs[-1]
             entry_price = leg.entry_price
             stop_price = leg.stop_price
@@ -82,6 +83,10 @@ class Backtest:
             self.trade_manager.log_entry(name, leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, self.strategy.features)
             # print(f"{self.ts} | ENTRY (S): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
 
+        # --- Adjust Stops / Targets ---
+        elif signal == 9:
+            raise NotImplementedError
+        
         # --- Exit Position ---
         elif signal == 0:
             for leg in self.position_manager.legs.copy():

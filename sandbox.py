@@ -93,7 +93,7 @@ def test_order(symbol="[AAPL]"):
     eq = Equities(symbol, StochasticIndicator)
     symbol = symbol[0]
 
-    entry_id = eq.buy_market(symbol, 1, "BUY")
+    entry_id, _ = eq.buy_market(symbol, 1, "BUY")
     exit_id = eq.long_bracket(symbol, 1, 333.0, 333.5)
     time.sleep(20)
     fill_price = eq.get_fill_price(exit_id, timeout=0.1)
@@ -109,11 +109,6 @@ def test_order(symbol="[AAPL]"):
 # mdl.train(X_train, y_train)
 # mdl.evaluate_classification(X_train, y_train, X_test, y_test)
 # # mdl.save_model()
-
-
-# with open("trade_logs.json", "r") as f:
-#     data = json.load(f)
-# hist = data.get("trade_history", [])
 
 
 # window = 50

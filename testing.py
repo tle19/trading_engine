@@ -29,6 +29,7 @@ def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, c
         daily_pnls.extend(stats.daily_pnls)
         os.remove("trade_logs.json")
     
+    # fix (no truncating)
     num_wins = sum(p > 0 for p in daily_pnls)
     total_days = len(daily_pnls)
     win_rate = num_wins / total_days * 100

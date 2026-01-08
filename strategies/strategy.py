@@ -5,6 +5,7 @@ from utils import *
 
 LONG = 1
 SHORT = -1
+ADJUST = 9
 EXIT = 0
 HOLD = None
 

@@ -10,7 +10,7 @@ class StochasticIndicator(Strategy):
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
                  vol_fast_window=14, vol_slow_window=28,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False,
-                 pnl_target=0.01, pnl_loss=-0.01, trade_max=2):
+                 pnl_target=0.01, pnl_loss=-0.02, trade_max=10):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid,
                          pnl_target, pnl_loss, trade_max)
         self.fast_window = fast_window
@@ -33,22 +33,19 @@ class StochasticIndicator(Strategy):
         self.rolling_rsi = deque(maxlen=10)
         self.rolling_vol = deque(maxlen=10)
 
-        # implement back fill new history
         df = open_data(self.symbol, start_date="2024-01-01", end_date="2026-01-01")
         self.history = resample_data(df)
         self.trade_manager = None
-        self.adx = deque(maxlen=10)
-        # self.atr = deque(maxlen=10)
         
         # meta labeling models
         self.model = XGBModel(symbol=symbol, live=True)
         if not self.model.initialize():
             self.model = None
         # self.model2 = RFModel(symbol=symbol, live=True)
-        # if not self.model.initialize():
+        # if not self.model2.initialize():
         #     self.model2 = None
         # self.model3 = KNNModel(symbol=symbol, live=True)
-        # if not self.model.initialize():
+        # if not self.model3.initialize():
         #     self.model3 = None
 
     def generate_signal(self, row):
@@ -59,8 +56,9 @@ class StochasticIndicator(Strategy):
 
         k, d, rsi, hist, vol = self.compute_indicators()
         
-        # if self.risk_manager._day_pause: 
-        #     return None
+        if self.risk_manager._day_pause: 
+            return None
+        
         if not self.trade_window((9, 30), (15, 30)) and not self.position_manager.in_trade():
             return None
         
@@ -70,13 +68,11 @@ class StochasticIndicator(Strategy):
             signal = self.exit_trade()
             if signal is None:
                 signal = self.enter_trade(rsi, hist, vol)
-        self.prev_hist = hist
         return signal
     
     def enter_trade(self, rsi, hist, vol):
         signal = None
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
-        # vol_ma = sum(self.rolling_vol) / len(self.rolling_vol)
         
         if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > 0.025:
             if self.symbol in ("META", "ABBV", "AXP", "MRK", "CAT"):
@@ -110,13 +106,6 @@ class StochasticIndicator(Strategy):
             self.stoch_signal = None
             self.rolling_rsi = deque(maxlen=10)
             self.rolling_vol = deque(maxlen=10)
-            
-            history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
-            highs = history["high"].values
-            lows = history["low"].values
-            closes = history["close"].values
-            self.adx.append(self.compute_adx(highs, lows, closes))
-            # self.atr.append(self.compute_atr(highs, lows, closes))
         
     def minimum_computations(self):
         if not self.activated:
@@ -193,11 +182,16 @@ class StochasticIndicator(Strategy):
             df = pd.DataFrame(self.trade_manager.trade_history)
             df['entry_time'] = pd.to_datetime(df['entry_time'], utc=True)
             df = df[df["entry_time"] < self.ts.normalize()]
-            # filter symbol
+            # filter symbol here ____
             if not df.empty:
                 df["date"] = df["entry_time"].dt.date
                 daily_pnl = df.groupby("date")["pnl_pct"].sum().sort_index()
                 yesterday_pnl = daily_pnl.iloc[-1]
+        
+        proba = 0.0
+        if self.model and not self.model.df.empty:
+            proba = self.model.get_proba(self.model.df)
+            proba = float(proba)
 
         self.features = {
             "direction": direction,
@@ -208,16 +202,13 @@ class StochasticIndicator(Strategy):
             "session_open": self.opens[0],
             "session_low": min(self.lows),
             "session_high": max(self.highs),
+            "open_volume": sum(self.volumes[0:5]),
             "prev_day_close": history["close"].values[0],
-            "yday_pnl": yesterday_pnl,
+            "ema": self.compute_ma(history["close"], window=50),
             "adx": self.compute_adx(highs, lows, closes),
             "atr": self.compute_atr(highs, lows, closes),
-            "open_volume": sum(self.volumes[0:5]),
-            "ema": self.compute_ma(history["close"], window=50),
+            "yday_pnl": yesterday_pnl,
             "original_dir": self.stoch_signal,
-            "proba": None
+            "proba": proba
         }
 
-        if self.model and not self.model.df.empty:
-            proba = self.model.get_proba(self.model.df)
-            self.features["proba"] = float(proba)

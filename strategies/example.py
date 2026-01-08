@@ -1,5 +1,8 @@
+from collections import deque
+import pandas as pd
 import numpy as np
 
+from models import *
 from strategies import Strategy
 from utils import *
 
@@ -14,6 +17,15 @@ class SMACrossover(Strategy):
         self.htf_window = htf_window
 
         self.ema = None
+
+        # open historical data (implement live backfill)
+        df = open_data(self.symbol, start_date="2024-01-01", end_date="2026-01-01")
+        self.history = resample_data(df)
+
+        # meta labeling models
+        self.model = XGBModel(symbol=symbol, live=True)
+        if not self.model.initialize():
+            self.model = None
     
     def generate_signal(self, row):
         self.update(row)  # store OHLCV
@@ -76,14 +88,23 @@ class SMACrossover(Strategy):
             self.activated = len(self.prices) > required_data
 
     def add_features(self, direction, stop_price, target_price):
+        history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
+        highs = history["high"].values
+        lows = history["low"].values
+        closes = history["close"].values
+
         self.features = {
             "direction": direction,
-            "entry_time": self.ts,
+            "entry_time": self.ts.isoformat(),
             "entry_price": self.price,
             "stop_price": stop_price,
             "target_price": target_price,
             "session_open": self.opens[0],
             "session_low": min(self.lows),
             "session_high": max(self.highs),
-            "volumes": self.volumes[-10:]
+            "open_volume": sum(self.volumes[0:5]),
+            "prev_day_close": history["close"].values[0],
+            "ema": self.compute_ma(history["close"], window=50),
+            "adx": self.compute_adx(highs, lows, closes),
+            "atr": self.compute_atr(highs, lows, closes),
         }
