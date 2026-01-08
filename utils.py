@@ -76,7 +76,7 @@ def train_test_split(df, n_months=18, datetime_column="entry_time", target_colum
 def fetch_latest_prices(symbols):
     config = load_config()
     client = schwabdev.Client(config["app_key"], config["app_secret"])
-    streamer = client.stream
+    stream = schwabdev.Stream(client)
 
     prices = {}
     def response_handler(message):
@@ -90,10 +90,10 @@ def fetch_latest_prices(symbols):
         for item in content:
             prices[item["key"]] = float(item.get("3"))
 
-    streamer.start(response_handler)
-    streamer.send(streamer.level_one_equities(symbols, "0,3", command="SUBS"))
+    stream.start(response_handler)
+    stream.send(stream.level_one_equities(symbols, "0,3", command="SUBS"))
     time.sleep(3)
-    streamer.stop()
+    stream.stop()
     time.sleep(1)
 
     print("Current Prices:", prices)

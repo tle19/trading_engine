@@ -35,6 +35,10 @@ class StochasticIndicator(Strategy):
 
         df = open_data(self.symbol, start_date="2024-01-01", end_date="2026-01-01")
         self.history = resample_data(df)
+        self.prev_day_close = None
+        self.regime_ema = None
+        self.adx = None
+        self.atr = None
         self.trade_manager = None
         
         # meta labeling models

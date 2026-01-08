@@ -18,7 +18,7 @@ class DataHandler:
 
         self.polygon_client = RESTClient(config['api_key'])
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])
-        self.streamer = self.client.stream
+        self.stream = schwabdev.Stream(self.client)
 
         self.timezone = ZoneInfo("America/New_York")
         self.Equity_Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
@@ -151,12 +151,12 @@ class DataHandler:
                 print(f"{symbol}: {row}")
                 
         if "/" in symbol:
-            self.streamer.start(forex_handler)
-            self.streamer.send(self.streamer.level_one_forex(symbol, "0,1,2,3,4,5,6,7,8", command="SUBS"))  
+            self.stream.start(forex_handler)
+            self.stream.send(self.stream.level_one_forex(symbol, "0,1,2,3,4,5,6,7,8", command="SUBS"))  
             time.sleep(duration)
-            self.streamer.stop()
+            self.stream.stop()
         else:
-            self.streamer.start(equity_handler)
-            self.streamer.send(self.streamer.chart_equity(symbol, "0,1,2,3,4,5,6,7,8", command="SUBS"))
+            self.stream.start(equity_handler)
+            self.stream.send(self.stream.chart_equity(symbol, "0,1,2,3,4,5,6,7,8", command="SUBS"))
             time.sleep(duration)
-            self.streamer.stop()
+            self.stream.stop()

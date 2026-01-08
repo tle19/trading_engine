@@ -67,19 +67,19 @@ class Strategy:
     
     def update(self, row=None): 
         if row is not None:
+            self.ts = row.timestamp
             self.open = row.open
-            self.close = row.close
             self.high = row.high
             self.low = row.low
+            self.close = row.close
             self.volume = row.volume
-            self.ts = row.timestamp
 
         self.price = self.close  # (self.close + self.open + self.high) / 3
         self.prices.append(self.price)
         self.opens.append(self.open)
-        self.closes.append(self.close)
         self.highs.append(self.high)
         self.lows.append(self.low)
+        self.closes.append(self.close)
         self.volumes.append(self.volume)
         self.features = {}
                    

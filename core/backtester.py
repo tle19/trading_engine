@@ -32,12 +32,12 @@ class Backtest:
         df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 
         for row in df.itertuples(index=False):
+            self.ts = row.timestamp
             self.open = row.open
-            self.close = row.close
             self.high = row.high
             self.low = row.low
-            self.ts = row.timestamp
-
+            self.close = row.close
+            
             if (self.ts.hour, self.ts.minute) == (9, 30):
                 self.risk_manager.start_cash = self.cash
 
