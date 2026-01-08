@@ -106,6 +106,16 @@ class StochasticIndicator(Strategy):
             self.stoch_signal = None
             self.rolling_rsi = deque(maxlen=10)
             self.rolling_vol = deque(maxlen=10)
+
+            history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
+            highs = history["high"].values
+            lows = history["low"].values
+            closes = history["close"].values
+
+            self.prev_day_close = closes[-1]
+            self.regime_ema = self.compute_ma(closes, window=50)
+            self.adx = self.compute_adx(highs, lows, closes)
+            self.atr = self.compute_atr(highs, lows, closes)
         
     def minimum_computations(self):
         if not self.activated:
@@ -172,11 +182,6 @@ class StochasticIndicator(Strategy):
         return signal, leg
 
     def add_features(self, direction, stop_price, target_price):
-        history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
-        highs = history["high"].values
-        lows = history["low"].values
-        closes = history["close"].values
-        
         yesterday_pnl = 0.0
         if self.trade_manager and self.trade_manager.trade_history:
             df = pd.DataFrame(self.trade_manager.trade_history)
@@ -203,10 +208,10 @@ class StochasticIndicator(Strategy):
             "session_low": min(self.lows),
             "session_high": max(self.highs),
             "open_volume": sum(self.volumes[0:5]),
-            "prev_day_close": history["close"].values[0],
-            "ema": self.compute_ma(history["close"], window=50),
-            "adx": self.compute_adx(highs, lows, closes),
-            "atr": self.compute_atr(highs, lows, closes),
+            "prev_day_close": self.prev_day_close,
+            "ema": self.regime_ema,
+            "adx": self.adx,
+            "atr": self.atr,
             "yday_pnl": yesterday_pnl,
             "original_dir": self.stoch_signal,
             "proba": proba

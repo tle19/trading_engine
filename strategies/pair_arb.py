@@ -6,10 +6,10 @@ from models import *
 from strategies import Strategy
 from utils import *
 
-class SMACrossover(Strategy):
+class PairArb(Strategy):
     def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=50, 
-                 stop_loss=0.01, take_profit=0.02, position_size=1.0, trailing_ratio=0.15, pyramid=False, 
-                 pnl_target=0.01, pnl_loss=-0.01, trade_max=3):
+                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, 
+                 pnl_target=0.02, pnl_loss=-0.02, trade_max=10):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid,
                          pnl_target, pnl_loss, trade_max)
         self.fast_window = fast_window
@@ -18,33 +18,23 @@ class SMACrossover(Strategy):
 
         self.ema = None
 
-        # open historical data (implement live backfill)
         df = open_data(self.symbol, start_date="2024-01-01", end_date="2026-01-01")
         self.history = resample_data(df)
-
-        # meta labeling models
-        self.model = XGBModel(symbol=symbol, live=True)
-        if not self.model.initialize():
-            self.model = None
     
     def generate_signal(self, row):
-        self.update(row)  # store OHLCV
-        self.reset_data() # intraday data reset
+        self.update(row)
+        self.reset_data()
         self.reset_indicators()
-        self.minimum_computations() # ensure enough data for indicators
+        self.minimum_computations()
         
-        # compute indicators
         slow_ma, htf_ma = self.compute_indicators()
 
-        # end day after pnl target/loss
         if self.risk_manager._day_pause: 
             return None
 
-        # set trading window
         if not self.trade_window((9, 30), (16, 00)) and not self.position_manager.in_trade():
             return None
         
-        # enter/exit positions
         signal = None
         if self.activated:
             signal = self.exit_trade(slow_ma)
@@ -76,7 +66,7 @@ class SMACrossover(Strategy):
     def reset_indicators(self):
         if self.trade_window((9, 30), (9, 30)):
             self.ema = None
-            
+
             history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
             highs = history["high"].values
             lows = history["low"].values
