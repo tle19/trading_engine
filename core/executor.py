@@ -50,7 +50,7 @@ class Equities:
                 volume = item.get("6")
 
                 row = self.Row(timestamp, open, high, low, close, volume)
-                print(f"{symbol}: {row}")
+                print(f"[{symbol}] {row}")
 
                 signal = strategy.generate_signal(row)
                 self.interpret_signal(signal, strategy, symbol)
@@ -344,6 +344,7 @@ class Equities:
         print("[WAIT][STREAM] Stream inactive | market open pending")
         while not self.streamer.active:
             time.sleep(0.1)
+        print("[STREAM] Stream active | market is open")
 
     def stream_duration(self):
         now = datetime.datetime.now(self.timezone)
