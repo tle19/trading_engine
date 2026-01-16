@@ -186,28 +186,6 @@ def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000
     print(f"Elapsed Full Backtest Time: {elapsed_time:.6f} seconds")
     return stats
 
-def ml_multiple_symbol_performance(symbols, strategy_class, train_start, train_end, start_date, end_date, cash=25_000, **strategy_kwargs):
-    ticker_pnls = []
-    for symbol in symbols:
-        stats = run_one_backtest(symbol, strategy_class, train_start, train_end, cash=cash, plot=False, **strategy_kwargs)
-        cash = stats.get_data_dict()["Equity Final"]
-        stats = ml_walk_forward_backtest(symbol, strategy_class, start_date, end_date, cash, day_rebalance=5, **strategy_kwargs)
-        ticker_pnls.append(stats.daily_pnls)
-        os.remove("trade_logs.json")
-    
-    min_len = min(len(p) for p in ticker_pnls)
-    ticker_truncated = [p[:min_len] for p in ticker_pnls]
-
-    ticker_sums = np.sum(np.array(ticker_truncated), axis=0)
-    
-    num_wins = np.sum(ticker_sums > 0)
-    total_days = len(ticker_sums)
-    win_rate = num_wins / total_days * 100
-
-    print(f"Length after truncation: {len(ticker_truncated[0])}")
-    print(f"Total Pnl: {np.sum(ticker_sums)}")
-    print(f"Daily Win rate: {win_rate:.2f}%")
-
 symbols = [
     "SPY", "QQQ", "IWM", "TLT", "BRK.B", 
     "AAPL", "MSFT", "NVDA", "AMD", "GOOG",
@@ -314,7 +292,7 @@ strategy_kwargs = { # Stochastic
     "trailing_ratio": 0.05
 }
 # run_one_backtest( # Stochastic
-#     "QQQ",
+#     "[QQQ]",
 #     StochasticIndicator,
 #     start_date="2024-01-10",
 #     end_date="2026-01-02",
@@ -328,13 +306,3 @@ strategy_kwargs = { # Stochastic
 # perf = run_one_backtest("AAPL", StochasticIndicator, start_date="2024-01-10", end_date="2025-01-01", plot=False, **strategy_kwargs)
 # cash = perf.get_data_dict()["Equity Final"]
 # ml_walk_forward_backtest("AAPL", StochasticIndicator, start_date="2025-01-02", end_date="2026-01-02", cash=cash, day_rebalance=7, **strategy_kwargs)
-
-# ml_multiple_symbol_performance(
-#     symbols, 
-#     StochasticIndicator, 
-#     "2024-01-10", 
-#     "2025-01-01", 
-#     "2025-01-02", 
-#     "2026-01-02", 
-#     **strategy_kwargs
-#     )

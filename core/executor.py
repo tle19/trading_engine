@@ -20,7 +20,7 @@ class Equities:
 
         self.cash = self.get_liquidation_value() * margin
         self.timezone = ZoneInfo("America/New_York")
-        self.symbols = symbols
+        self.symbols = symbols if isinstance(symbols, list) else [symbols]
         self.initialize(symbols, strategy_class)
 
         self.trade_manager = TradeManager(log_file="trade_logs_live.json", live=True)

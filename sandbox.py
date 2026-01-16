@@ -78,17 +78,6 @@ symbols = [
     "AMGN"  # Amgen
 ]
 
-def fetch_multiple_symbols(symbols):
-    dh = DataHandler()
-    for symbol in symbols:
-        start_time = time.perf_counter()
-
-        dh.historical_data(symbol=symbol, from_date='2024-01-01', to_date='2026-01-05')
-
-        end_time = time.perf_counter()
-        elapsed_time = end_time - start_time
-        print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
-
 def test_order(symbol="[AAPL]"):
     eq = Equities(symbol, StochasticIndicator)
     symbol = symbol[0]

@@ -8,8 +8,9 @@ from utils import *
 class Backtest:
     def __init__(self, symbols, strategy_class, cash=25_000, 
                  margin=1.0, commission=0.0, slippage=0.1):
-        self.cash = cash * margin
-        self.symbols = symbols
+        self.cash = cash
+        self.margin = margin
+        self.symbols = symbols if isinstance(symbols, list) else [symbols]
         self.strategy_class = strategy_class
 
         self.commission = commission
@@ -75,7 +76,7 @@ class Backtest:
             stop_price = leg.stop_price
             target_price = leg.target_price
             position_size = leg.position_size
-            shares = leg.shares
+            shares = leg.shares * self.margin
 
         # --- Enter Long ---
         if signal == 1:
@@ -102,7 +103,7 @@ class Backtest:
                     entry_price = leg.entry_price
                     stop_price = leg.stop_price
                     target_price = leg.target_price
-                    shares = leg.shares
+                    shares = leg.shares * self.margin
 
                     if direction == 1:
                         if self.low <= stop_price:
@@ -155,9 +156,9 @@ class Backtest:
         
         for leg in self.position_manager.legs:
             if leg.direction == 1:
-                current_equity += (self.close - leg.entry_price) * leg.shares
+                current_equity += (self.close - leg.entry_price) * leg.shares * self.margin
             elif leg.direction == -1:
-                current_equity += (leg.entry_price - self.close) * leg.shares
+                current_equity += (leg.entry_price - self.close) * leg.shares * self.margin
 
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
 
@@ -172,10 +173,17 @@ class Backtest:
         self.trade_manager = TradeManager(live=False)
         self.stats = Stats(symbol)
         self.plotting = Plotting(symbol)
-
+    
     def combine_equity_dicts(self, dicts):
-        combined = {}
+        all_ts = sorted({ts for d in dicts for ts in d})
+        combined = {ts: 0 for ts in all_ts}
         for d in dicts:
-            for ts, eq in d.items():
-                combined[ts] = combined.get(ts, 0) + eq
+            last_eq = self.cash_allocation
+            for ts in all_ts:
+                eq = d.get(ts, 0)
+                if eq == 0:
+                    eq = last_eq
+                else:
+                    last_eq = eq
+                combined[ts] += eq
         return combined

@@ -24,66 +24,69 @@ class DataHandler:
         self.Equity_Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
         self.Forex_Row = namedtuple("Row", ["timestamp", "bid", "ask", "last", "bid_size", "ask_size", "volume"])
 
-    def historical_data(self, symbol='SPY', from_date='2023-11-01', to_date='2025-11-01',
+    def historical_data(self, symbols=['SPY'], from_date='2024-01-01', to_date='2026-01-01',
                                 timespan='minute', multiplier=1, max_iter=10):
-
+        start_time = time.perf_counter()
         data_list = []
         current_from = from_date
 
-        if "/" in symbol:
-            base, quote = symbol.split("/")
-            polygon_symbol = f"C:{base}{quote}"
-        elif symbol.upper().endswith("USD") and not symbol.startswith(("C:", "X:")):
-            polygon_symbol = f"X:{symbol.upper()}"
-        else:
-            polygon_symbol = symbol  # equity or already formatted
-
-        for _ in range(max_iter):
-            print(current_from)
-            print("     |")
-            print("     v")
-            aggs = self.polygon_client.get_aggs(
-                polygon_symbol,
-                multiplier,
-                timespan,
-                current_from,
-                to_date,
-                limit=50000
-            )
-
-            rows = list(aggs)
-            if not rows:
-                break
-
-            last_ts = pd.to_datetime(rows[-1].timestamp, unit='ms', utc=True)
-            last_date = last_ts.date()
-
-            for agg in rows:
-                ts_date = pd.to_datetime(agg.timestamp, unit='ms', utc=True).date()
-                if ts_date == last_date:
-                    break
-                data_list.append({
-                    'timestamp': agg.timestamp,
-                    'open': agg.open,
-                    'high': agg.high,
-                    'low': agg.low,
-                    'close': agg.close,
-                    'volume': getattr(agg, "volume", 0)
-                })
-
-            # Advance current_from beyond last fetched bar
-            current_from = last_ts.strftime("%Y-%m-%d")
-            if current_from > pd.to_datetime(to_date).strftime("%Y-%m-%d"):
-                break
+        for symbol in symbols:
+            if "/" in symbol:
+                base, quote = symbol.split("/")
+                polygon_symbol = f"C:{base}{quote}"
+            elif symbol.upper().endswith("USD") and not symbol.startswith(("C:", "X:")):
+                polygon_symbol = f"X:{symbol.upper()}"
+            else:
+                polygon_symbol = symbol  # equity or already formatted
             
-            time.sleep(13) # Polygon.io rate limit (5 calls/minute)
+            for _ in range(max_iter):
+                print(current_from)
+                print("     |")
+                print("     v")
+                aggs = self.polygon_client.get_aggs(
+                    polygon_symbol,
+                    multiplier,
+                    timespan,
+                    current_from,
+                    to_date,
+                    limit=50000
+                )
 
-        df = pd.DataFrame(data_list)
-        save_data(df, symbol)
+                rows = list(aggs)
+                if not rows:
+                    break
 
+                last_ts = pd.to_datetime(rows[-1].timestamp, unit='ms', utc=True)
+                last_date = last_ts.date()
 
-    def schwab_data(self, symbol='SPY', periodType="month", period=6, frequencyType="daily", frequency=1, 
+                for agg in rows:
+                    ts_date = pd.to_datetime(agg.timestamp, unit='ms', utc=True).date()
+                    if ts_date == last_date:
+                        break
+                    data_list.append({
+                        'timestamp': agg.timestamp,
+                        'open': agg.open,
+                        'high': agg.high,
+                        'low': agg.low,
+                        'close': agg.close,
+                        'volume': getattr(agg, "volume", 0)
+                    })
+
+                current_from = last_ts.strftime("%Y-%m-%d")
+                if current_from > pd.to_datetime(to_date).strftime("%Y-%m-%d"):
+                    break
+                
+                time.sleep(13) # Polygon.io rate limit (5 calls/minute)
+
+            df = pd.DataFrame(data_list)
+            save_data(df, symbol)
+
+        elapsed_time = time.perf_counter() - start_time
+        print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
+
+    def schwab_data(self, symbols=['SPY'], periodType="month", period=6, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
+        symbol = symbols[0]
 
         raw_data = self.client.price_history(
             symbol=symbol, 
@@ -106,7 +109,7 @@ class DataHandler:
 
         return df
 
-    def stream_data(self, symbol, duration=300):
+    def stream_data(self, symbols, duration=300):
         def equity_handler(response):
             data = json.loads(response).get("data", [])
             if not data:
@@ -126,7 +129,7 @@ class DataHandler:
                 volume = item.get("6")
 
                 row = self.Equity_Row(timestamp, open, high, low, close, volume)
-                print(f"{symbol}: {row}")
+                print(f"[{symbol}] {row}")
 
         def forex_handler(response):
             data = json.loads(response).get("data", [])
@@ -148,15 +151,15 @@ class DataHandler:
                 volume = item.get("6")
 
                 row = self.Forex_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
-                print(f"{symbol}: {row}")
+                print(f"[{symbol}] {row}")
                 
-        if "/" in symbol:
+        if "/" in symbols[0]:
             self.stream.start(forex_handler)
-            self.stream.send(self.stream.level_one_forex(symbol, "0,1,2,3,4,5,6,7,8", command="SUBS"))  
+            self.stream.send(self.stream.level_one_forex(symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))  
             time.sleep(duration)
             self.stream.stop()
         else:
             self.stream.start(equity_handler)
-            self.stream.send(self.stream.chart_equity(symbol, "0,1,2,3,4,5,6,7,8", command="SUBS"))
+            self.stream.send(self.stream.chart_equity(symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))
             time.sleep(duration)
             self.stream.stop()
