@@ -2,8 +2,8 @@ from collections import deque
 import pandas as pd
 import numpy as np
 
-from models import *
 from strategies import Strategy
+from models import *
 from utils import *
 
 class SMACrossover(Strategy):

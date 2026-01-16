@@ -1,8 +1,8 @@
 from collections import deque
 import pandas as pd
 
-from models import *
 from strategies import Strategy
+from models import *
 from utils import *
 
 class StochasticIndicator(Strategy):

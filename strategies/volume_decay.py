@@ -1,6 +1,6 @@
 from collections import deque
 
-from strategies import Strategy, RiskManager
+from strategies import Strategy
 from utils import *
 
 class VolumeDecay(Strategy):
@@ -22,8 +22,6 @@ class VolumeDecay(Strategy):
         self.rsi_anchor = None
         self.rolling_rsi = deque(maxlen=20)
         self.rolling_vol = deque(maxlen=2)
-
-        self.risk_manager = RiskManager(pnl_target=target, pnl_loss=loss)
 
     def generate_signal(self, row):
         self.update(row)

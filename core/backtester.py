@@ -15,7 +15,7 @@ class Backtest:
 
         self.commission = commission
         self.slippage = slippage  # execution time + bid/ask spread
-        self.spread_window = deque(maxlen=10)
+        self.spread_window = deque(maxlen=5)
         self.slip_up = 0
         self.slip_dn = 0
 
@@ -48,7 +48,6 @@ class Backtest:
             self.plotting.update_data(self.trade_manager.intraday_equity)
             self.plotting.plot_equity(display=False, save=save_plot)
         
-        # sort trade_history by "exit_time"
         intraday_equity = self.combine_equity_dicts(intraday_equity)
 
         if display_stats:

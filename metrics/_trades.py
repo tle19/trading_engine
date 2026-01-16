@@ -29,7 +29,7 @@ class TradeManager:
             "shares": shares,
             "entry_time": entry_time.isoformat(),
             "entry_price": entry_price,
-            "entry_fill": fill_price,
+            "entry_fill": round(fill_price, 2),
             "stop_price": stop_price,
             "target_price": target_price,
             "exit_time": None,
@@ -45,10 +45,10 @@ class TradeManager:
         trade = self.open_trades.pop(leg)
         trade["exit_time"] = exit_time.isoformat()
         trade["exit_price"] = exit_price
-        trade["exit_fill"] = fill_price
+        trade["exit_fill"] = round(fill_price, 2)
 
         trade["pnl"] = round(trade["direction"] * (fill_price - trade["entry_fill"]) * trade["shares"], 2)
-        trade["pnl_pct"] = round(trade["pnl"] / (trade["entry_fill"] * trade["shares"]), 5)
+        trade["pnl_pct"] = round(trade["pnl"] / (trade["entry_fill"] * trade["shares"]), 10)
 
         self.trade_history.append(trade)
 
