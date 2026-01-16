@@ -84,9 +84,8 @@ class DataHandler:
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
 
-    def schwab_data(self, symbols=['SPY'], periodType="month", period=6, frequencyType="daily", frequency=1, 
+    def schwab_data(self, symbol='SPY', periodType="month", period=6, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
-        symbol = symbols[0]
         current_date = datetime.now().date()
         endDate=(datetime.fromisoformat(current_date) - timedelta(days=1)).date().isoformat()
 
@@ -141,7 +140,7 @@ class DataHandler:
             content = data[0].get("content")
             if not content:
                 return
-            for item in data:
+            for item in content:
                 symbol = item["key"]
 
                 timestamp = pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone)

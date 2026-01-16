@@ -29,7 +29,7 @@ def main():
         dh = DataHandler()
         dh.historical_data(args.symbol, from_date='2024-01-01', to_date='2026-01-01')
         if args.schwab:
-            dh.schwab_data(args.symbol)
+            dh.schwab_data(args.symbol[0])
     elif args.stream:
         dh = DataHandler()
         dh.stream_data(args.symbol)
