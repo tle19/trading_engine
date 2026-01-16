@@ -15,12 +15,13 @@ class Plotting:
         self.start_date = None
         self.end_date = None
 
-    def update_dates(self):
-        dates = list(self.intraday_equity)
-        self.start_date = dates[0].tz_convert("America/New_York")
-        self.end_date = dates[-1].tz_convert("America/New_York")
+    def update_data(self, intraday_equity):
+        self.intraday_equity = intraday_equity
+        dates = sorted(intraday_equity)
+        self.start_date = dates[0]
+        self.end_date = dates[-1]
 
-    def plot_equity(self, save_plot=False, overlay=False):
+    def plot_equity(self, display=True, save=True, overlay=True, drawdown=True):
         intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
         if not intraday_equity:
             print("No equity data to plot.")
@@ -40,6 +41,8 @@ class Plotting:
 
         if overlay:
             self.plot_overlay(dates, equity)
+
+        if drawdown:
             self.drawdown_overlay(dates, equity)
 
         plt.xlabel("Date")
@@ -48,12 +51,12 @@ class Plotting:
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.6)
         plt.tight_layout()
-        if save_plot:
+        if save:
             os.makedirs(self.img_path, exist_ok=True)
             filename = f"{self.symbol}_{self.start_date.date()}_{self.end_date.date()}.png"
             file_path = os.path.join(self.img_path, filename)
             plt.savefig(file_path)
-        else:
+        if display:
             plt.show()
         plt.close()
 
@@ -98,4 +101,3 @@ class Plotting:
             plt.hlines(y=peak_val, xmin=dates[start], xmax=dates[end], color="red", linewidth=1, alpha=0.5)
             plt.fill_between(dates[start:end + 1], equity[start:end + 1], peak_val, 
                             color="red", alpha=0.1)
-

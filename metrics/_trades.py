@@ -7,12 +7,16 @@ class TradeManager:
         self.log_file = log_file
 
         self.open_trades = {}
-        self.intraday_equity = {}
         self.trade_history = []
+        self.intraday_equity = {}
         
         if live:
             self.load_logs()
     
+    def update_data(self, trade_history, intraday_equity):
+        self.trade_history = trade_history
+        self.intraday_equity = intraday_equity
+
     def update_intraday_equity(self, ts, equity):
         self.intraday_equity[ts] = equity
 

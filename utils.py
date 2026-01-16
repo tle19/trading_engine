@@ -24,7 +24,7 @@ def save_data(df, symbol):
     df.to_csv(file_path, index=False)
     print(f"Saved CSV to {file_path}")
 
-def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_time="16:00"):
+def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_time="15:59"):
     file_path = os.path.join(data_path, f"{symbol}_historical_data.csv")
     df = pd.read_csv(file_path)
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)

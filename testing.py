@@ -21,23 +21,6 @@ def run_one_backtest(symbol, strategy_class, start_date, end_date, cash=25_000, 
     bt.run(start_date=start_date, end_date=end_date, plot=plot, save_plot=save_plot)
     return bt.stats
 
-def multiple_symbol_performance(symbols, strategy_class, start_date, end_date, cash=25_000, **strategy_kwargs):
-    daily_pnls = []
-    for symbol in symbols:
-        stats = run_one_backtest(symbol, strategy_class, start_date, end_date, cash=cash, plot=True, save_plot=True, **strategy_kwargs)
-        # train_model(XGBModel, strategy_class, symbol) # if training model
-        daily_pnls.extend(stats.daily_pnls)
-        os.remove("trade_logs.json")
-    
-    # fix (no truncating)
-    num_wins = sum(p > 0 for p in daily_pnls)
-    total_days = len(daily_pnls)
-    win_rate = num_wins / total_days * 100
-
-    print(f"Total Trades: {total_days}")
-    print(f"Total Pnl: {sum(daily_pnls)}")
-    print(f"Daily Win rate: {win_rate:.2f}%")
-
 def walk_forward_optimize(symbol, strategy_class):
     start = pd.Timestamp("2023-11-01")
     end = pd.Timestamp("2025-11-01")
@@ -339,14 +322,6 @@ strategy_kwargs = { # Stochastic
 #     **strategy_kwargs
 # )
 
-multiple_symbol_performance(
-    symbols, 
-    StochasticIndicator, 
-    "2024-01-10", 
-    "2026-01-02", 
-    cash=9000, 
-    **strategy_kwargs
-    )
 # grid_search("MSFT", StochasticIndicator, start_date="2024-01-10", end_date="2026-01-02")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 

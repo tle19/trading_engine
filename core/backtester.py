@@ -1,3 +1,4 @@
+import os
 import time
 from collections import deque
 
@@ -5,60 +6,67 @@ from metrics import *
 from utils import *
 
 class Backtest:
-    def __init__(self, symbol, strategy_class, cash=25_000, 
+    def __init__(self, symbols, strategy_class, cash=25_000, 
                  margin=1.0, commission=0.0, slippage=0.1):
-        self.symbol = symbol
-        self.strategy = strategy_class
         self.cash = cash * margin
-        self.commission = commission
-        self.slippage = slippage  # execution time + spread
+        self.symbols = symbols
+        self.strategy_class = strategy_class
 
+        self.commission = commission
+        self.slippage = slippage  # execution time + bid/ask spread
         self.spread_window = deque(maxlen=10)
         self.slip_up = 0
         self.slip_dn = 0
 
-        self.position_manager = self.strategy.position_manager
-        self.risk_manager = self.strategy.risk_manager
-        
-        self.trade_manager = TradeManager(live=True)
-        self.stats = Stats(symbol)
-        self.plotting = Plotting(symbol)
-
-        # history backfill
-        self.strategy.trade_manager = self.trade_manager
-
-    def run(self, start_date="2023-11-10", end_date="2025-11-01", plot=False, save_plot=False, stats=True):
+    def run(self, start_date="2024-1-10", end_date="2026-1-10", display_plot=True, display_stats=True, save_plot=True):
         start_time = time.perf_counter()
-        df = open_data(self.symbol, start_date, end_date, start_time="9:30", end_time="16:00")
 
-        for row in df.itertuples(index=False):
-            self.ts = row.timestamp
-            self.open = row.open
-            self.high = row.high
-            self.low = row.low
-            self.close = row.close
-            
-            if (self.ts.hour, self.ts.minute) == (9, 30):
-                self.risk_manager.start_cash = self.cash
+        trade_history = []
+        intraday_equity = []
+        for symbol in self.symbols:
+            self.initialize(symbol, self.strategy_class)
+            df = open_data(symbol, start_date, end_date, start_time="9:30", end_time="15:59")
 
-            signal = self.strategy.generate_signal(row)
-            self.dynamic_slippage(signal)
-            self.interpret_signal(signal)
+            for row in df.itertuples(index=False):
+                self.ts = row.timestamp
+                self.open = row.open
+                self.high = row.high
+                self.low = row.low
+                self.close = row.close
 
-        self.stats.intraday_equity = self.trade_manager.intraday_equity
-        self.stats.trade_history = self.trade_manager.trade_history
-        self.stats.summary()
+                signal = self.strategy.generate_signal(row)
+                self.dynamic_slippage(signal)
+                self.interpret_signal(signal, symbol)
+
+            trade_history.extend(self.trade_manager.trade_history)
+            intraday_equity.append(self.trade_manager.intraday_equity)
+
+            self.stats.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
+            self.stats.summary()
+
+            self.plotting.update_data(self.trade_manager.intraday_equity)
+            self.plotting.plot_equity(display=False, save=save_plot)
+        
+        # sort trade_history by "exit_time"
+        intraday_equity = self.combine_equity_dicts(intraday_equity)
+
+        if display_stats:
+            stats = Stats("COMBINED")
+            stats.update_data(trade_history, intraday_equity)
+            stats.summary()
+
+        self.trade_manager.update_data(trade_history, intraday_equity)
+        self.trade_manager.save_logs()
 
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Backtest Time: {elapsed_time:.6f} seconds")
-        self.trade_manager.save_logs()
+
+        if display_plot:
+            plotting = Plotting("COMBINED")
+            plotting.update_data(intraday_equity)
+            plotting.plot_equity(display=display_plot, save=save_plot, overlay=False)
         
-        if plot:
-            self.plotting.intraday_equity = self.trade_manager.intraday_equity
-            self.plotting.update_dates()
-            self.plotting.plot_equity(save_plot, overlay=True)
-        
-    def interpret_signal(self, signal):
+    def interpret_signal(self, signal, symbol):
         name = self.strategy.__class__.__name__
         direction = self.position_manager.direction()
         if direction:
@@ -73,14 +81,14 @@ class Backtest:
         if signal == 1:
             fill_price = entry_price * self.slip_up
             leg.entry_price = fill_price
-            self.trade_manager.log_entry(name, leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, self.strategy.features)
+            self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, self.strategy.features)
             # print(f"{self.ts} | ENTRY (L): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Enter Short ---
         elif signal == -1:
             fill_price = entry_price * self.slip_dn
             leg.entry_price = fill_price
-            self.trade_manager.log_entry(name, leg, self.symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, self.strategy.features)
+            self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, self.strategy.features)
             # print(f"{self.ts} | ENTRY (S): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
 
         # --- Adjust Stops / Targets ---
@@ -126,7 +134,7 @@ class Backtest:
                             exit_price = self.close
                         pnl = (entry_price - fill_price) * shares
 
-                    self.cash += pnl
+                    self.cash_allocation += pnl
                     self.trade_manager.update_exit(leg, self.ts, exit_price, fill_price)
                     self.risk_manager.update_trade(pnl)
                     self.position_manager.remove_leg(leg)
@@ -143,7 +151,7 @@ class Backtest:
             self.slip_dn = 1 - slippage
 
     def update_equity(self):
-        current_equity = self.cash
+        current_equity = self.cash_allocation
         
         for leg in self.position_manager.legs:
             if leg.direction == 1:
@@ -152,3 +160,22 @@ class Backtest:
                 current_equity += (leg.entry_price - self.close) * leg.shares
 
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
+
+    def initialize(self, symbol, strategy_class):
+        self.strategy = strategy_class(symbol)
+        self.cash_allocation = round(self.cash / len(self.symbols), 2)
+        self.strategy.risk_manager.start_cash = self.cash_allocation
+        
+        self.risk_manager = self.strategy.risk_manager
+        self.position_manager = self.strategy.position_manager
+
+        self.trade_manager = TradeManager(live=False)
+        self.stats = Stats(symbol)
+        self.plotting = Plotting(symbol)
+
+    def combine_equity_dicts(self, dicts):
+        combined = {}
+        for d in dicts:
+            for ts, eq in d.items():
+                combined[ts] = combined.get(ts, 0) + eq
+        return combined

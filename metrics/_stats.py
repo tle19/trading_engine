@@ -6,8 +6,9 @@ class Stats:
     def __init__(self, symbol):
         self.symbol = symbol
 
-        self.intraday_equity = {}
         self.trade_history = []
+        self.intraday_equity = {}
+        
         self.daily_pnls = []
 
         self.start_date = None
@@ -46,13 +47,17 @@ class Stats:
         self.max_day_gain_streak = 0
         self.max_day_loss_streak = 0
 
+    def update_data(self, trade_history, intraday_equity):
+        self.trade_history = trade_history
+        self.intraday_equity = intraday_equity
+
     def summary(self):
         intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
         self._update_dates()
         self._calculate_pnls(intraday_equity)
         self._calculate_daily_pnls()
         self._calculate_win_rates()
-        self._calculate_streaks(intraday_equity) # fix, this is incorrect
+        self._calculate_streaks()
         self._calculate_drawdown(intraday_equity)
         self._calculate_sharpe_ratio()
         self._calculate_cagr()
@@ -126,7 +131,7 @@ class Stats:
         win_mask = (daily_pnls_array > 0).astype(int)
         self.daily_win_rate = np.mean(win_mask)
 
-    def _calculate_streaks(self, intraday_equity):
+    def _calculate_streaks(self):
         cur_wins = cur_losses = 0
         cur_gain = cur_loss = 0
 
