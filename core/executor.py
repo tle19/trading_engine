@@ -77,7 +77,6 @@ class Equities:
             target_price = leg.target_price
             position_size = leg.position_size
             shares = leg.shares
-            shares = 1 # for testing
         
         # --- Enter Long ---
         if signal == 1:
@@ -109,7 +108,6 @@ class Equities:
                     stop_price = leg.stop_price
                     target_price = leg.target_price
                     shares = leg.shares
-                    shares = 1 # for testing
 
                     fill_price = self.get_fill_price(self.exit_ids[leg], shares, type="oco", timeout=0.25)
                     # implement partial fill check
