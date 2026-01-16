@@ -1,4 +1,3 @@
-from collections import defaultdict
 import numpy as np
 import pandas as pd
 
@@ -49,19 +48,18 @@ class Stats:
 
     def update_data(self, trade_history, intraday_equity):
         self.trade_history = trade_history
-        self.intraday_equity = intraday_equity
+        self.intraday_equity = [v for k, v in sorted(intraday_equity.items())]
+        self._update_dates(intraday_equity)
 
     def summary(self):
-        intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
-        self._update_dates()
-        self._calculate_pnls(intraday_equity)
-        self._calculate_daily_pnls()
+        self._calculate_pnls()
         self._calculate_win_rates()
         self._calculate_streaks()
-        self._calculate_drawdown(intraday_equity)
+        self._calculate_daily_streaks()
+        self._calculate_drawdown()
         self._calculate_sharpe_ratio()
         self._calculate_cagr()
-        self._calculate_trade_metrics()
+        self._calculate_trade_behavior()
         
         print("=" * 50)
         print(f"{self.symbol} PERFORMANCE SUMMARY")
@@ -108,21 +106,27 @@ class Stats:
         print(f"Consecutive Daily Losses:   {self.day_loss_streak} (${self.max_day_loss_streak:.2f})")
         print("-" * 50)
 
-    def _update_dates(self):
-        dates = sorted(self.intraday_equity)
+    def _update_dates(self, intraday_equity):
+        dates = sorted(intraday_equity)
         self.start_date = dates[0]
         self.end_date = dates[-1]
         self.duration = self.end_date - self.start_date
 
-    def _calculate_pnls(self, intraday_equity):
-        self.equity_initial = intraday_equity[0]
-        self.equity_final = intraday_equity[-1]
+    def _calculate_pnls(self):
+        self.equity_initial = self.intraday_equity[0]
+        self.equity_final = self.intraday_equity[-1]
         self.gross_profit = sum(trade["pnl"] for trade in self.trade_history if trade["pnl"] > 0)
-        self.gross_loss   = sum(-trade["pnl"] for trade in self.trade_history if trade["pnl"] < 0)
+        self.gross_loss = sum(-trade["pnl"] for trade in self.trade_history if trade["pnl"] < 0)
         self.net_profit = self.gross_profit - self.gross_loss
         self.net_profit_pct = (self.net_profit / self.equity_initial)
         self.profit_factor = abs(self.gross_profit / self.gross_loss) if self.gross_loss != 0 else np.inf
-           
+
+        daily_dict = {}
+        for trade in self.trade_history:
+            date = trade["entry_time"].split("T")[0]
+            daily_dict[date] = daily_dict.get(date, 0.0) + trade["pnl"]
+        self.daily_pnls = list(daily_dict.values())
+         
     def _calculate_win_rates(self):
         wins = [1 if trade["pnl"] > 0 else 0 for trade in self.trade_history]
         self.win_rate = np.mean(wins)
@@ -155,56 +159,35 @@ class Stats:
             self.max_gain_streak = max(self.max_gain_streak, cur_gain)
             self.max_loss_streak = min(self.max_loss_streak, cur_loss)
 
-    def _calculate_daily_pnls(self):
-        daily_equity = defaultdict(list)
-        for ts, eq in self.intraday_equity.items():
-            daily_equity[ts.date()].append((ts, eq))
-
-        for day, values in daily_equity.items():
-            values.sort(key=lambda x: x[0])
-            first_eq = values[0][1]
-            last_eq = values[-1][1]
-            self.daily_pnls.append(last_eq - first_eq)
-
+    def _calculate_daily_streaks(self):
         self.best_day = max(self.daily_pnls)
         self.worst_day = min(self.daily_pnls)
         self.avg_day = np.mean(self.daily_pnls)
 
-        current_win = current_loss = 0
-        current_win_sum = current_loss_sum = 0
+        cur_wins = cur_losses = 0
+        cur_gain = cur_loss = 0
 
         for pnl in self.daily_pnls:
             if pnl > 0:
-                current_win += 1
-                current_win_sum += pnl
-                current_loss = 0
-                current_loss_sum = 0
-
-                if current_win > self.day_win_streak:
-                    self.day_win_streak = current_win
-                    self.max_day_gain_streak = current_win_sum
-                elif current_win == self.day_win_streak:
-                    self.max_day_gain_streak = max(self.max_day_gain_streak, current_win_sum)
-
+                cur_wins += 1
+                cur_gain += pnl
+                cur_losses = cur_loss = 0
             elif pnl < 0:
-                current_loss += 1
-                current_loss_sum += pnl
-                current_win = 0
-                current_win_sum = 0
-
-                if current_loss > self.day_loss_streak:
-                    self.day_loss_streak = current_loss
-                    self.max_day_loss_streak = current_loss_sum
-                elif current_loss == self.day_loss_streak:
-                    self.max_day_loss_streak = min(self.max_day_loss_streak, current_loss_sum)
-
+                cur_losses += 1
+                cur_loss += pnl
+                cur_wins = cur_gain = 0
             else:
-                current_win = current_loss = 0
-                current_win_sum = current_loss_sum = 0
+                cur_wins = cur_losses = 0
+                cur_gain = cur_loss = 0
+            
+            self.day_win_streak = max(self.day_win_streak, cur_wins)
+            self.day_loss_streak = max(self.day_loss_streak, cur_losses)
+            self.max_day_gain_streak = max(self.max_day_gain_streak, cur_gain)
+            self.max_day_loss_streak = min(self.max_day_loss_streak, cur_loss)
 
-    def _calculate_drawdown(self, intraday_equity):
-        cum_max = np.maximum.accumulate(intraday_equity)
-        drawdowns = (cum_max - intraday_equity) / cum_max
+    def _calculate_drawdown(self):
+        cum_max = np.maximum.accumulate(self.intraday_equity)
+        drawdowns = (cum_max - self.intraday_equity) / cum_max
         self.max_drawdown = np.max(drawdowns)
 
     def _calculate_sharpe_ratio(self, risk_free_rate=0.05):
@@ -223,7 +206,7 @@ class Stats:
             return 0.0
         self.cagr = (self.equity_final / self.equity_initial) ** (1 / years) - 1
     
-    def _calculate_trade_metrics(self):
+    def _calculate_trade_behavior(self):
         total_seconds = self.duration.total_seconds()
         total_duration = 0
         time_weighted_exposure = 0

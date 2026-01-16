@@ -3,7 +3,7 @@ import json
 import time
 import pandas as pd
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import schwabdev
@@ -87,6 +87,8 @@ class DataHandler:
     def schwab_data(self, symbols=['SPY'], periodType="month", period=6, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
         symbol = symbols[0]
+        current_date = datetime.now().date()
+        endDate=(datetime.fromisoformat(current_date) - timedelta(days=1)).date().isoformat()
 
         raw_data = self.client.price_history(
             symbol=symbol, 

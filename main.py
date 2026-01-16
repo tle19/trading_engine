@@ -1,5 +1,4 @@
 import argparse
-from datetime import datetime, timedelta
 from core import *
 from utils import *
 from strategies import strategy_map
@@ -30,11 +29,10 @@ def main():
         dh = DataHandler()
         dh.historical_data(args.symbol, from_date='2024-01-01', to_date='2026-01-01')
         if args.schwab:
-            current_date = datetime.now().date()
-            dh.schwab_data(args.symbol, end_date=(datetime.fromisoformat(current_date) - timedelta(days=1)).date().isoformat())
+            dh.schwab_data(args.symbol)
     elif args.stream:
         dh = DataHandler()
-        dh.stream_data(args.symbol[0])
+        dh.stream_data(args.symbol)
     
 if __name__ == "__main__":
     main()
