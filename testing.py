@@ -6,76 +6,12 @@ import pandas as pd
 
 from core import *
 from strategies import *
-from models import *
 from utils import *
 
-def run_one_backtest(symbol, strategy_class, start_date, end_date, cash=25_000, plot=True, save_plot=False, **strategy_kwargs):
-    strat = strategy_class(symbol, **strategy_kwargs)   
-    bt = Backtest(
-        symbol, 
-        strat, 
-        cash=cash, 
-        margin=1.0, 
-        commission=0.0, 
-        slippage=0.1)
-    bt.run(start_date=start_date, end_date=end_date, plot=plot, save_plot=save_plot)
+def run_one_backtest(symbol, strategy_class, start_date, end_date, cash=25_000, display_plot=True, display_stats=True, save_plot=True, **strategy_kwargs):
+    bt = Backtest(symbol, strategy_class, cash=cash, margin=1.0, commission=0.0, slippage=0.1)
+    bt.run(start_date=start_date, end_date=end_date, display_plot=display_plot, display_stats=display_stats, save_plot=save_plot, **strategy_kwargs)
     return bt.stats
-
-def walk_forward_optimize(symbol, strategy_class):
-    start = pd.Timestamp("2023-11-01")
-    end = pd.Timestamp("2025-11-01")
-
-    train_months = 2
-    test_months = 1
-    step_months = 1
-
-    results = []
-    current_start = start
-
-    while True:
-        train_start = current_start
-        train_end = train_start + pd.DateOffset(months=train_months)
-        test_end = train_end + pd.DateOffset(months=test_months)
-        
-        if test_end > end:
-            break
-
-        print(f"Training: {train_start.date()} → {train_end.date()} | Testing: {train_end.date()} → {test_end.date()}")
-
-        best_params = optimize_params(
-            symbol, 
-            strategy_class,
-            train_start.strftime("%Y-%m-%d"), 
-            train_end.strftime("%Y-%m-%d"))
-
-        perf = run_one_backtest(
-            symbol, 
-            strategy_class,
-            train_end.strftime("%Y-%m-%d"), 
-            test_end.strftime("%Y-%m-%d"), 
-            **best_params,
-            plot=False)
-        
-        perf_dict = perf.get_data_dict()
-
-        fold_result = {
-            "train_start": train_start.strftime("%Y-%m-%d"),
-            "train_end": train_end.strftime("%Y-%m-%d"),
-            "test_start": train_end.strftime("%Y-%m-%d"),
-            "test_end": test_end.strftime("%Y-%m-%d"),
-            "params": best_params,
-            "perf": perf_dict
-        }
-
-        results.append(fold_result)
-        current_start += pd.DateOffset(months=step_months)
-        print()
-
-    with open("wfo_results.json", "w") as f:
-        json.dump(results, f, indent=4)
-    print(f"Saved WFO results to wfo_results.json")
-    
-    return results
 
 def grid_search(symbol, strategy_class, start_date="2023-10-01", end_date="2024-10-01"):
     best_params = optimize_params(symbol, strategy_class, start_date, end_date)
@@ -133,7 +69,7 @@ def optimize_params(symbol, strategy_class, start, end):
 
     for combo in product(*param_grid.values()):
         params = dict(zip(param_grid.keys(), combo))
-        perf = run_one_backtest(symbol, strategy_class, start, end, **params, plot=False)
+        perf = run_one_backtest(symbol, strategy_class, start, end, **params, display_plot=False, save_plot=False)
         perf_dict = perf.get_data_dict()
         pnl = perf_dict["Net Profit"]
         if pnl > best_score:
@@ -141,9 +77,8 @@ def optimize_params(symbol, strategy_class, start, end):
             best_params = params
         print(params)
         results.append({"params": params, "perf": perf_dict})
-        os.remove("trade_logs.json")
 
-    with open("gs_results.json", "w") as f:
+    with open("grid_search.json", "w") as f:
         json.dump(results, f, indent=4)
 
     elapsed_time = time.perf_counter() - start_time
@@ -266,7 +201,6 @@ strategy_kwargs = { # Stochastic
 # )
 
 # grid_search("MSFT", StochasticIndicator, start_date="2024-01-10", end_date="2026-01-02")
-# walk_forward_optimize("MSFT", StochasticIndicator)
 
 # dd = current_drawdown(stats.intraday_equity)
 # slope = equity_slope(stats.intraday_equity)

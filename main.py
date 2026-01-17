@@ -10,6 +10,7 @@ def main():
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--stream", action="store_true")
     parser.add_argument("--schwab", action="store_true")
+    parser.add_argument("--train", action="store_true")
     parser.add_argument("--strategy", type=str, default="stochastic")
     parser.add_argument("--symbol", nargs="+", type=str, default=None, help="AAPL MSFT TSLA")
     parser.add_argument("--margin", type=float, default=1.0)
@@ -24,7 +25,7 @@ def main():
         eq.run()
     elif args.backtest:
         bt = Backtest(args.symbol, strategy_class, margin=args.margin)
-        bt.run()
+        bt.run(train=args.train)
     elif args.fetch:
         dh = DataHandler()
         dh.historical_data(args.symbol, from_date='2024-01-01', to_date='2026-01-01')

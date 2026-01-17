@@ -24,7 +24,8 @@ class Backtest:
 
         self.train_time = 0
 
-    def run(self, start_date="2024-1-10", end_date="2026-1-10", train=False, display_plot=True, display_stats=True, save_plot=True):
+    def run(self, start_date="2024-1-10", end_date="2026-1-10", 
+            train=False, display_plot=True, display_stats=True, save_plot=True):
         start_time = time.perf_counter()
 
         trade_history = []
@@ -152,7 +153,7 @@ class Backtest:
         self.update_equity()
 
     def dynamic_slippage(self, signal):
-        self.spread_window.append((self.high - self.low) / self.close) # normalize by average of close and open?
+        self.spread_window.append((self.high - self.low) / self.close)
         if signal is not None:
             avg_spread = sum(self.spread_window) / len(self.spread_window)
             slippage = avg_spread * self.slippage
@@ -215,6 +216,7 @@ class Backtest:
         X_train, _, y_train, _ = train_test_split(mdl.df, n_days=train_period)
         mdl.train(X_train, y_train)
         self.strategy.model = mdl
+        # mdl.save_model()
 
         self.trade_manager.trade_history = trade_history
         os.remove("trade_logs.json")
