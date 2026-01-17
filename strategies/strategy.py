@@ -91,10 +91,9 @@ class Strategy:
             self.highs = [self.high]
             self.lows = [self.low]
             self.volumes = [self.volume]
-            self.position_manager.flatten()
+            self.position_manager.reset()
             self.risk_manager.reset()
             self.activated = False
-            self.features = {}
 
     def trade_window(self, start, end):
         return start <= (self.ts.hour, self.ts.minute) <= end
@@ -437,7 +436,7 @@ class PositionManager:
     def total_size(self):
         return sum(l.position_size for l in self.legs)  
 
-    def flatten(self):
+    def reset(self):
         self.legs = []
     
     def in_trade(self):
