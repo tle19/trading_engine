@@ -39,7 +39,6 @@ class StochasticIndicator(Strategy):
         self.regime_ema = None
         self.adx = None
         self.atr = None
-        self.trade_manager = None
         
         # meta labeling models
         self.model = XGBModel(symbol=symbol, live=True)
@@ -186,22 +185,6 @@ class StochasticIndicator(Strategy):
         return signal, leg
 
     def add_features(self, direction, stop_price, target_price):
-        yesterday_pnl = 0.0
-        if self.trade_manager and self.trade_manager.trade_history:
-            df = pd.DataFrame(self.trade_manager.trade_history)
-            df['entry_time'] = pd.to_datetime(df['entry_time'], utc=True)
-            df = df[df["entry_time"] < self.ts.normalize()]
-            # filter symbol here ____
-            if not df.empty:
-                df["date"] = df["entry_time"].dt.date
-                daily_pnl = df.groupby("date")["pnl_pct"].sum().sort_index()
-                yesterday_pnl = daily_pnl.iloc[-1]
-        
-        proba = 0.0
-        if self.model and not self.model.df.empty:
-            proba = self.model.get_proba(self.model.df)
-            proba = float(proba)
-
         self.features = {
             "direction": direction,
             "entry_time": self.ts.isoformat(),
@@ -216,8 +199,6 @@ class StochasticIndicator(Strategy):
             "ema": self.regime_ema,
             "adx": self.adx,
             "atr": self.atr,
-            "yday_pnl": yesterday_pnl,
-            "original_dir": self.stoch_signal,
-            "proba": proba
+            "original_dir": self.stoch_signal
         }
 

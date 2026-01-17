@@ -7,6 +7,7 @@ trade_logs.json
 trade_logs_live.json
 gs_results.json
 wfo_results.json
+math.txt
 
 # --- Pickle Files ---
 *_model.pkl

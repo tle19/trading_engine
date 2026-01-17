@@ -73,24 +73,6 @@ class XGBModel(BaseModel):
         df["atr_trend"] = df["atr"] - df["atr_ma"]
         feature_cols.extend(["atr", "atr_ma", "atr_trend"])
 
-        # pnl performance
-        daily_pnl = df.groupby('date')['yday_pnl'].sum().sort_index()
-        daily_pnl_rolling_mean = daily_pnl.rolling(window=10, min_periods=1).mean()
-        daily_pnl_rolling_sum = daily_pnl.rolling(window=10, min_periods=1).sum()
-        df['pnl_rolling_mean'] = df['date'].map(daily_pnl_rolling_mean)
-        df['pnl_rolling_sum'] = df['date'].map(daily_pnl_rolling_sum)
-        # feature_cols.extend(["pnl_rolling_mean", "pnl_rolling_sum"])
-
-        # drawdown performance
-        daily_equity = (1 + daily_pnl).cumprod()
-        rolling_max_1 = daily_equity.rolling(5, min_periods=1).max()
-        rolling_max_2 = daily_equity.rolling(20, min_periods=1).max()
-        drawdown_1 = (rolling_max_1 - daily_equity) / rolling_max_1
-        drawdown_2 = (rolling_max_2 - daily_equity) / rolling_max_2
-        df['drawdown_1'] = df['date'].map(drawdown_1)
-        df['drawdown_2'] = df['date'].map(drawdown_2)
-        # feature_cols.extend(['drawdown_1', 'drawdown_2'])
-
         # print(f"Features: {feature_cols}")
         self.df = df[feature_cols]
 

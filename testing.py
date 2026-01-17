@@ -151,41 +151,6 @@ def optimize_params(symbol, strategy_class, start, end):
     
     return best_params
 
-def ml_walk_forward_backtest(symbol, strategy, start_date, end_date, cash=25_000, day_rebalance=5, **strategy_kwargs):
-    start_time = time.perf_counter()
-        
-    start = pd.Timestamp(start_date)
-    end = pd.Timestamp(end_date)
-    current_start = start
-    curr_cash = cash
-    days = day_rebalance
-
-    while True:
-
-        fold_start = current_start
-        fold_end = fold_start + pd.DateOffset(days=days)
-
-        if fold_start > end:
-            break
-        else:
-            print(f"Backtesting: {fold_start.date()} → {fold_end.date()}")
-        
-        plot = fold_end >= end
-        stats = run_one_backtest(symbol, strategy, fold_start.strftime("%Y-%m-%d"), fold_end.strftime("%Y-%m-%d"), cash=curr_cash, plot=plot, save_plot=True, **strategy_kwargs)
-        curr_cash = stats.get_data_dict()["Equity Final"]
-
-        train_model(XGBModel, strategy, symbol)
-
-        current_start += pd.DateOffset(days=days + 1)
-
-        # dd = current_drawdown(stats.intraday_equity)
-        # slope = equity_slope(stats.intraday_equity)
-        # days = drawdown_rebalance(dd, slope, day_rebalance)
-
-    elapsed_time = time.perf_counter() - start_time
-    print(f"Elapsed Full Backtest Time: {elapsed_time:.6f} seconds")
-    return stats
-
 symbols = [
     "SPY", "QQQ", "IWM", "TLT", "BRK.B", 
     "AAPL", "MSFT", "NVDA", "AMD", "GOOG",
@@ -303,6 +268,6 @@ strategy_kwargs = { # Stochastic
 # grid_search("MSFT", StochasticIndicator, start_date="2024-01-10", end_date="2026-01-02")
 # walk_forward_optimize("MSFT", StochasticIndicator)
 
-# perf = run_one_backtest("AAPL", StochasticIndicator, start_date="2024-01-10", end_date="2025-01-01", plot=False, **strategy_kwargs)
-# cash = perf.get_data_dict()["Equity Final"]
-# ml_walk_forward_backtest("AAPL", StochasticIndicator, start_date="2025-01-02", end_date="2026-01-02", cash=cash, day_rebalance=7, **strategy_kwargs)
+# dd = current_drawdown(stats.intraday_equity)
+# slope = equity_slope(stats.intraday_equity)
+# days = drawdown_rebalance(dd, slope, day_rebalance)

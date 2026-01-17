@@ -2,7 +2,10 @@ import os
 import time
 from collections import deque
 
+from core import *
 from metrics import *
+from strategies import *
+from models import *
 from utils import *
 
 class Backtest:
@@ -19,7 +22,9 @@ class Backtest:
         self.slip_up = 0
         self.slip_dn = 0
 
-    def run(self, start_date="2024-1-10", end_date="2026-1-10", display_plot=True, display_stats=True, save_plot=True):
+        self.train_time = 0
+
+    def run(self, start_date="2024-1-10", end_date="2026-1-10", train=False, display_plot=True, display_stats=True, save_plot=True):
         start_time = time.perf_counter()
 
         trade_history = []
@@ -35,6 +40,9 @@ class Backtest:
                 self.low = row.low
                 self.close = row.close
 
+                if train and (self.ts.hour, self.ts.minute) == (9, 30):
+                    self.train_model(symbol)
+                
                 signal = self.strategy.generate_signal(row)
                 self.dynamic_slippage(signal)
                 self.interpret_signal(signal, symbol)
@@ -48,6 +56,7 @@ class Backtest:
             self.plotting.update_data(self.trade_manager.intraday_equity)
             self.plotting.plot_equity(display=False, save=save_plot)
         
+        # trade history sort by exit time
         intraday_equity = self.combine_equity_dicts(intraday_equity)
 
         if display_stats:
@@ -186,3 +195,27 @@ class Backtest:
                     last_eq = eq
                 combined[ts] += eq
         return combined
+    
+    def train_model(self, symbol, train_period=60, rebalance_period=30):
+        self.train_time += 1
+        if self.train_time < rebalance_period:
+            return
+
+        curr_date = self.ts.normalize() 
+        start_date = curr_date - pd.DateOffset(days=train_period)
+        trade_history = self.trade_manager.trade_history
+        self.trade_manager.trade_history = [
+            trade for trade in trade_history
+            if start_date < pd.to_datetime(trade["entry_time"]).normalize() < curr_date
+        ]
+        self.trade_manager.save_logs()
+
+        mdl = XGBModel(symbol=symbol, strategy=self.strategy.__class__.__name__)
+        mdl.initialize()
+        X_train, _, y_train, _ = train_test_split(mdl.df, n_days=train_period)
+        mdl.train(X_train, y_train)
+        self.strategy.model = mdl
+
+        self.trade_manager.trade_history = trade_history
+        os.remove("trade_logs.json")
+        self.train_time = 0

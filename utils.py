@@ -55,12 +55,12 @@ def resample_data(df, type="1D"):
     )
     return df
 
-def train_test_split(df, n_months=18, datetime_column="entry_time", target_column="target"):
+def train_test_split(df, n_days=540, datetime_column="entry_time", target_column="target"):
     df = df.sort_values(datetime_column)
     df[datetime_column] = pd.to_datetime(df[datetime_column])
 
     train_start = df[datetime_column].min()
-    train_end = train_start + pd.DateOffset(months=n_months)
+    train_end = train_start + pd.DateOffset(days=n_days)
     print(f"Train Start: {train_start.date()} Train End: {train_end.date()}")
 
     train_df = df[(df[datetime_column] < train_end)].drop(columns=[datetime_column])

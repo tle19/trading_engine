@@ -93,36 +93,77 @@ def test_ml_model():
     # mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
     # mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
     mdl.initialize()
-    X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_months=18)
+    X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_days=540)
     mdl.train(X_train, y_train)
     mdl.evaluate_classification(X_train, y_train, X_test, y_test)
     mdl.save_model()
 
+def plot_diist(df, col):
+    x = df[col].dropna()
+    lo, hi = x.quantile([0.001, 0.999])
+    x_clip = x.clip(lo, hi)
+    mu = x.mean()
+    sigma = x.std()
+    plt.figure(figsize=(10, 6))
+    plt.hist(x_clip, bins=100, color="lightgray", edgecolor="black")
+    plt.axvspan(mu - sigma,   mu + sigma,   color="green",  alpha=0.15, label="68% (±1σ)")
+    plt.axvspan(mu - 2*sigma, mu + 2*sigma, color="yellow", alpha=0.15, label="95% (±2σ)")
+    plt.axvspan(mu - 3*sigma, mu + 3*sigma, color="red",    alpha=0.15, label="99.7% (±3σ)")
+    plt.axvline(mu, color="blue", linestyle="--", linewidth=2, label="Mean")
+    plt.title(f"{col} (0.1-99.9% clipped)")
+    plt.xlabel(col)
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.show()
 
-# window = 50
-# df = open_data(
-#     "TSLA", start_date="2025-11-18", end_date="2025-11-18", start_time="10:30", end_time="16:00")
-# df["ema"] = df["close"].ewm(span=window, adjust=False).mean()
-# df["close_minus_ema_pct"] = (df["close"] - df["ema"]) / df["ema"]
-# print(df)
+def find_proba(df):
+    wins = 0
+    losses = 0
 
-# x = df["close_minus_ema_pct"].dropna()
-# lo, hi = x.quantile([0.001, 0.999])
-# x_clip = x.clip(lo, hi)
-# mu = x.mean()
-# sigma = x.std()
-# plt.figure(figsize=(10, 6))
-# plt.hist(x_clip, bins=100, color="lightgray", edgecolor="black")
-# plt.axvspan(mu - sigma,   mu + sigma,   color="green",  alpha=0.25, label="68% (±1σ)")
-# plt.axvspan(mu - 2*sigma, mu + 2*sigma, color="yellow", alpha=0.20, label="95% (±2σ)")
-# plt.axvspan(mu - 3*sigma, mu + 3*sigma, color="red",    alpha=0.15, label="99.7% (±3σ)")
-# plt.axvline(mu, color="black", linewidth=2, label="Mean")
-# plt.axvline(0, color="blue", linestyle="--", label="Zero")
-# plt.title("Close Relative to EMA (1–99% clipped)")
-# plt.xlabel("(Close - EMA) / EMA")
-# plt.ylabel("Frequency")
-# plt.legend()
-# plt.show()
+    target = 0
+    stop = 0
+    for i, entry_cond in enumerate(df["entry_cond"]):
+        if not entry_cond:
+            continue
+        if df["straddle_up"]:
+            direction = 1
+        elif df["straddle_down"]:
+            direction = -1
+        # find timestamp
+        # set target to ema +/- abs(ema_straddle_target)
+        # set stop to ema +/- abs(target - ema) / 2
+        for j in range(i + 1, len(df)):
+            high = df.loc[j, "high"]
+            low = df.loc[j, "low"]
 
-# P (price will pull back towards mean | slope is steady)
-# P (price will pull back towards mean | slope is trending)
+            if high >= target:
+                wins += 1
+                break
+            elif low <= stop:
+                losses += 1
+                break
+
+            if df.loc["timestamp"] == 15.59:
+                break
+
+ema_window = 25
+lookback = 5
+df = open_data("GOOG", start_date="2025-01-01", end_date="2026-01-01", start_time="10:00", end_time="15:59")
+df["ema"] = df["close"].ewm(span=ema_window, adjust=False).mean()
+df["straddle_up"] = (df["close"] > df["ema"]) & (df["open"] < df["ema"])
+df["straddle_down"] = (df["close"] < df["ema"]) & (df["open"] > df["ema"])
+df["ema_max_last5_pct"] = (df["high"].rolling(lookback, min_periods=1).max() - df["ema"]) / df["ema"]
+df["ema_min_last5_pct"] = (df["low"].rolling(lookback, min_periods=1).min() - df["ema"]) / df["ema"]
+df["ema_straddle_target"] = np.where(df["straddle_up"], df["ema_min_last5_pct"],
+    np.where(df["straddle_down"], df["ema_max_last5_pct"], np.nan)
+)
+
+col = "ema_straddle_target"
+x = df[col].dropna()
+mu = x.mean()
+sigma = x.std()
+df["entry_cond"] = (df[col] >= mu - 2*sigma) | (df[col] <= mu + 2*sigma)
+
+save_data(df, "AAAAA")
+# find_proba(df)
+plot_diist(df, "ema_straddle_target")
