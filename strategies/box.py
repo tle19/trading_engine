@@ -6,7 +6,7 @@ from strategies import Strategy
 from models import *
 from utils import *
 
-class PairArb(Strategy):
+class BoxIndicator(Strategy):
     def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=50, 
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, 
                  pnl_target=0.02, pnl_loss=-0.02, trade_max=10):
