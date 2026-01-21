@@ -26,7 +26,10 @@ class BaseModel:
             self.build_model()
             self.open_trade_hist()
             self.prepare_features(self.df)
-    
+   
+    def build_model(self):
+        raise NotImplementedError
+       
     def save_model(self, file="ml_model.pkl"):
         with open(file, "wb") as f:
             pickle.dump(self.model, f)
@@ -46,8 +49,7 @@ class BaseModel:
             with open(file, "r") as f:
                 data = json.load(f)
         except (FileNotFoundError):
-            print("Trade Logs not found")
-            return
+            raise FileNotFoundError(f"Trade Logs file not found: {file}")
 
         rows = []
         for trade in data.get("trade_history", []):
@@ -68,9 +70,6 @@ class BaseModel:
             print(f"No trades found for strategy: {self.strategy}")
 
         self.df = pd.DataFrame(rows)
-  
-    def build_model(self):
-        raise NotImplementedError
            
     def prepare_features(self, df):
         df = df.copy()
