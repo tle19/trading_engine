@@ -1,4 +1,3 @@
-import os
 import time
 from collections import deque
 
@@ -23,6 +22,7 @@ class Backtest:
         self.slip_dn = 0
 
         self.train_time = 0
+        self.train_wait = True
 
     def run(self, start_date="2024-1-10", end_date="2026-1-10", 
             train=False, display_plot=True, display_stats=True, save_plot=True):
@@ -42,7 +42,7 @@ class Backtest:
                 self.close = row.close
 
                 if train and (self.ts.hour, self.ts.minute) == (9, 30):
-                    self.train_model(symbol)
+                    self.train_model(symbol, start_date)
                 
                 signal = self.strategy.generate_signal(row)
                 self.dynamic_slippage(signal)
@@ -56,12 +56,14 @@ class Backtest:
 
             self.plotting.update_data(self.trade_manager.intraday_equity)
             self.plotting.plot_equity(display=False, save=save_plot)
+
+            self.train_wait = True
         
         # trade history sort by exit time
         intraday_equity = self.combine_equity_dicts(intraday_equity)
 
         if display_stats:
-            stats = Stats("COMBINED")
+            stats = Stats("AGGREGATE")
             stats.update_data(trade_history, intraday_equity)
             stats.summary()
 
@@ -72,7 +74,7 @@ class Backtest:
         print(f"Elapsed Backtest Time: {elapsed_time:.6f} seconds")
 
         if display_plot:
-            plotting = Plotting("COMBINED")
+            plotting = Plotting("AGGREGATE")
             plotting.update_data(intraday_equity)
             plotting.plot_equity(display=display_plot, save=save_plot, overlay=False)
         
@@ -197,13 +199,22 @@ class Backtest:
                 combined[ts] += eq
         return combined
     
-    def train_model(self, symbol, train_period=60, rebalance_period=30):
+    def train_model(self, symbol, start_date, train_period=60, validation_period=30, rebalance_period=10):
         self.train_time += 1
+        if self.train_wait:
+            required_date = pd.to_datetime(start_date) + pd.DateOffset(days=train_period + validation_period)
+            required_date = required_date.tz_localize(self.ts.tz)
+            if self.ts < required_date:
+                return
+            self.train_wait = False
+            
         if self.train_time < rebalance_period:
             return
+        self.train_time = 0
 
         curr_date = self.ts.normalize() 
-        start_date = curr_date - pd.DateOffset(days=train_period)
+        start_date = curr_date - pd.DateOffset(days=train_period + validation_period)
+
         trade_history = self.trade_manager.trade_history
         self.trade_manager.trade_history = [
             trade for trade in trade_history
@@ -211,13 +222,13 @@ class Backtest:
         ]
         self.trade_manager.save_logs()
 
-        mdl = XGBModel(symbol=symbol, strategy=self.strategy.__class__.__name__)
+        mdl = XGBModel(symbol=symbol, strategy=self.strategy.__class__.__name__, live=False)
         mdl.initialize()
-        X_train, _, y_train, _ = train_test_split(mdl.df, n_days=train_period)
-        mdl.train(X_train, y_train)
+        X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_days=train_period)
+        if validation_period > 0:
+            mdl.grid_search(X_train, X_test, y_train, y_test)
+        else:
+            mdl.train(X_train, y_train)
         self.strategy.model = mdl
-        # mdl.save_model()
 
         self.trade_manager.trade_history = trade_history
-        os.remove("trade_logs.json")
-        self.train_time = 0

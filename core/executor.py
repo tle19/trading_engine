@@ -25,9 +25,6 @@ class Equities:
 
         self.trade_manager = TradeManager(log_file="trade_logs_live.json", live=True)
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
-        
-        # new trade manager with backtest files and put into here
-        # self.strategy.trade_manager = self.trade_manager
 
     def run(self):
         def response_handler(response):

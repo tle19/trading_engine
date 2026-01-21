@@ -1,7 +1,9 @@
 import os
 import json
+import numpy as np
 import pandas as pd
 import pickle
+from itertools import product
 from zoneinfo import ZoneInfo
 
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
@@ -18,11 +20,12 @@ class BaseModel:
         self.df = pd.DataFrame()
        
     def initialize(self):
-        self.model = None
-
-        if not self.live:
+        if self.live:
+            self.load_model(file=f"{self.symbol}_{self.strategy}_xgb_model.pkl")
+        else:
+            self.model = self.build_model()
             self.open_trade_hist()
-            self.prepare_features(self.df)    
+            self.prepare_features(self.df)
     
     def save_model(self, file="ml_model.pkl"):
         with open(file, "wb") as f:
@@ -38,9 +41,13 @@ class BaseModel:
         except (FileNotFoundError):
             return False
 
-    def open_trade_hist(self, log_file="trade_logs.json"):
-        with open(log_file, "r") as f:
-            data = json.load(f)
+    def open_trade_hist(self, file="trade_logs.json"):
+        try:
+            with open(file, "r") as f:
+                data = json.load(f)
+        except (FileNotFoundError):
+            print("Trade Logs not found")
+            return
 
         rows = []
         for trade in data.get("trade_history", []):
@@ -61,7 +68,10 @@ class BaseModel:
             print(f"No trades found for strategy: {self.strategy}")
 
         self.df = pd.DataFrame(rows)
-         
+  
+    def build_model(self):
+        raise NotImplementedError
+           
     def prepare_features(self, df):
         df = df.copy()
         feature_cols = []
@@ -76,16 +86,6 @@ class BaseModel:
         # regression target
         if not self.live and "pnl" in self.df.columns:
             df["target"] = df["pnl"] / (df["direction"] * (df["entry_price"] - df["stop_price"]))
-
-        # ohlcv normalization
-        for base in ["opens", "closes", "lows", "highs", "volumes"]:
-            cols = [f"{base}_{i}" for i in range(0, 10)]
-            df[cols] = df[cols].apply(
-                lambda x: (x - x.min()) / (x.max() - x.min())
-                if (x.max() - x.min()) != 0 else 0,
-                axis=1
-            )
-            feature_cols.extend(cols)
 
         # session-relative prices
         for col in ["session_open", "session_low", "session_high"]:
@@ -102,6 +102,33 @@ class BaseModel:
                 
     def train(self, X, y):
         self.model.fit(X, y)
+    
+    def grid_search(self, X_train, X_val, y_train, y_val):
+        best_score = -float("inf")
+        best_params = None
+
+        for params in self.param_grid():
+            self.model = self.build_model(**params)
+            self.train(X_train, y_train)
+
+            preds = self.model.predict(X_val)
+            score = self.metric(y_val, preds)
+
+            if score > best_score:
+                best_score = score
+                best_params = params
+
+        X_full = pd.concat([X_train, X_val])
+        y_full = pd.concat([y_train, y_val])
+
+        self.model = self.build_model(**best_params)
+        self.train(X_full, y_full)
+    
+    def param_grid(self):
+        raise NotImplementedError
+    
+    def metric(self):
+        raise NotImplementedError
     
     def evaluate_classification(self, X_train, y_train, X_test, y_test, threshold=0.4):
         y_train_proba = self.model.predict_proba(X_train)[:, 1]
@@ -146,5 +173,5 @@ class BaseModel:
 
     def get_proba(self, feature_row):
         X_input = feature_row.values.reshape(1, -1) if isinstance(feature_row, pd.Series) else feature_row.values
-        prob = self.model.predict_proba(X_input)[0, 1]
-        return prob
+        proba = self.model.predict_proba(X_input)[0, 1]
+        return proba

@@ -7,7 +7,7 @@ from models import *
 from utils import *
 
 class BoxIndicator(Strategy):
-    def __init__(self, symbol, fast_window=10, slow_window=20, htf_window=50, 
+    def __init__(self, symbol, fast_window=50, slow_window=50, htf_window=100, 
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, 
                  pnl_target=0.02, pnl_loss=-0.02, trade_max=10):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid,
@@ -32,28 +32,52 @@ class BoxIndicator(Strategy):
         if self.risk_manager._day_pause: 
             return None
 
-        if not self.trade_window((9, 30), (16, 00)) and not self.position_manager.in_trade():
+        if not self.trade_window((9, 30), (15, 00)) and not self.position_manager.in_trade():
             return None
         
         signal = None
         if self.activated:
-            signal = self.exit_trade(slow_ma)
+            signal = self.exit_trade()
             if signal is None:
                 signal = self.enter_trade(slow_ma, htf_ma)
         return signal
     
-    def enter_trade(self, slow_ma, htf_ma):
-        if self.ema > slow_ma >= htf_ma:
-            return self.buy()
-        if self.ema < slow_ma <= htf_ma:
-            return self.sell()
+    def enter_trade(self, slow_ma, htf_ma, threshold=0.005, ema_band=0.002):
+        signal = None
+        down_stretch = abs(self.ema - min(self.lows[-15:])) / self.ema
+        up_stretch = abs(self.ema - max(self.highs[-15:])) / self.ema
+        near_ema = (abs(self.close - self.ema) / self.ema) < ema_band
+        if near_ema:
+            if self.close > self.ema and down_stretch > threshold:
+                if self.symbol == "GOOG":
+                    signal, pos_leg = self.buy()
+                    if signal:
+                        pos_leg.target_price = self.close * (1 + threshold)
+                        pos_leg.stop_price = (self.close * (1 - (threshold / 2)))
+                elif self.symbol == "GOOGL":
+                    signal, pos_leg = self.sell()
+                    if signal:
+                        pos_leg.target_price = self.close * (1 - threshold)
+                        pos_leg.stop_price = (self.close * (1 + (threshold / 2)))
+            elif self.close < self.ema and up_stretch > threshold:
+                if self.symbol == "GOOG":
+                    signal, pos_leg = self.sell()
+                    if signal:
+                        pos_leg.target_price = self.close * (1 - threshold)
+                        pos_leg.stop_price = (self.close * (1 + (threshold / 2)))
+                elif self.symbol == "GOOGL":
+                    signal, pos_leg = self.buy()
+                    if signal:
+                        pos_leg.target_price = self.close * (1 + threshold)
+                        pos_leg.stop_price = (self.close * (1 - (threshold / 2)))
+            return signal
         
-    def exit_trade(self, slow_ma):
-        direction = self.position_manager.direction()
-        if direction == 1 and self.ema < slow_ma:
-            return self.exit()
-        if direction == -1 and self.ema > slow_ma:
-            return self.exit()
+    # def exit_trade(self, slow_ma):
+    #     direction = self.position_manager.direction()
+    #     if direction == 1 and self.ema < slow_ma:
+    #         return self.exit()
+    #     if direction == -1 and self.ema > slow_ma:
+    #         return self.exit()
         
     def compute_indicators(self):
         arr = np.array(self.prices)

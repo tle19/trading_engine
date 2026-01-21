@@ -201,7 +201,3 @@ strategy_kwargs = { # Stochastic
 # )
 
 # grid_search("MSFT", StochasticIndicator, start_date="2024-01-10", end_date="2026-01-02")
-
-# dd = current_drawdown(stats.intraday_equity)
-# slope = equity_slope(stats.intraday_equity)
-# days = drawdown_rebalance(dd, slope, day_rebalance)

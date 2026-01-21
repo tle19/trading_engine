@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
+from itertools import product
 from xgboost import XGBClassifier
+
+from sklearn.metrics import confusion_matrix
 
 from models import BaseModel
 
@@ -9,26 +12,28 @@ class XGBModel(BaseModel):
         super().__init__(symbol, strategy, live)
         
     def initialize(self):
-        if not self.live:
-            self.model = XGBClassifier(
-                n_estimators=50,
-                max_depth=2,
-                learning_rate=0.1,
-                subsample=1.0,
-                colsample_bytree=1.0,
-                reg_alpha=1.0,
-                reg_lambda=1.0,
-                scale_pos_weight=1.0,
-                eval_metric='logloss',
-                random_state=42
-            )
-            self.open_trade_hist()
-            if hasattr(self, "df") and not self.df.empty:
-                self.prepare_features(self.df)
-            return True
+        if self.live:
+            return self.load_model(file=f"{self.symbol}_{self.strategy}_xgb_model.pkl")
         else:
-            return self.load_model(file=f"{self.symbol}_xgb_model.pkl")
-    
+            self.model = self.build_model()
+            self.open_trade_hist()
+            self.prepare_features(self.df)
+            return True
+           
+    def build_model(self, **params):
+        return XGBClassifier(
+            n_estimators=params.get("n_estimators", 50),
+            max_depth=params.get("max_depth", 2),
+            learning_rate=params.get("learning_rate", 0.1),
+            subsample=params.get("subsample", 1.0),
+            colsample_bytree=params.get("colsample_bytree", 1.0),
+            reg_alpha=params.get("reg_alpha", 1.0),
+            reg_lambda=params.get("reg_lambda", 1.0),
+            scale_pos_weight=params.get("scale_pos_weight", 1.0),
+            eval_metric="logloss",
+            random_state=42
+        )
+     
     def prepare_features(self, df):
         feature_cols = []
         df = df.copy()
@@ -75,7 +80,7 @@ class XGBModel(BaseModel):
 
         # print(f"Features: {feature_cols}")
         self.df = df[feature_cols]
-
+    
     def train(self, X, y, decay=0.0001):
         n = len(X)
         sample_weight = np.exp(decay * np.arange(n))
@@ -83,5 +88,38 @@ class XGBModel(BaseModel):
 
         self.model.fit(X, y, sample_weight=sample_weight)
 
+    def param_grid(self):
+        grid = {
+            "n_estimators": [50, 100, 150],
+            "max_depth": [2, 3],
+            "learning_rate": [0.05, 0.1, 0.15, 0.2],
+            "subsample": [0.8, 1.0],
+            "colsample_bytree": [0.8, 1.0],
+            "reg_alpha": [0.0, 0.5],
+            "reg_lambda": [0.5, 1.0],
+            "scale_pos_weight": [1.0]
+        }
+
+        keys = grid.keys()
+        for values in product(*grid.values()):
+            yield dict(zip(keys, values))
+    
+    def metric(self, y_true, y_pred, max_tn_fraction=0.3):
+        y_true = np.array(y_true)
+        y_pred = np.array(y_pred)
+
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+        total_preds = tn + fp + fn + tp
+        tn_fraction = tn / total_preds
+        
+        if tn_fraction > max_tn_fraction:
+            return -1.0
+        
+        if tn + fn == 0:
+            return 0.0
+        
+        npv = tn / (tn + fn)
+        return npv
+    
     def save_model(self):
-        super().save_model(file=f"{self.symbol}_xgb_model.pkl")
+        super().save_model(file=f"{self.symbol}_{self.strategy}_xgb_model.pkl")

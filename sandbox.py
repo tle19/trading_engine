@@ -2,6 +2,7 @@ import time
 import matplotlib.pyplot as plt
 
 from core import *
+from metrics import *
 from strategies import *
 from models import *
 from utils import *
@@ -87,8 +88,19 @@ def test_order(symbol="[AAPL]"):
     fill_price = eq.get_fill_price(exit_id, timeout=0.1)
     print(fill_price)
 
-def test_ml_model():
-    symbol = "META"
+def test_ml_model(symbol="META"):
+    trade_manager = TradeManager(live=False)
+    trade_manager.load_logs()
+    trade_history = trade_manager.trade_history
+    
+    curr_date = ts.normalize() 
+    start_date = curr_date - pd.DateOffset(days=90)
+    trade_manager.trade_history = [
+            trade for trade in trade_history
+            if start_date < pd.to_datetime(trade["entry_time"]).normalize() < curr_date
+       ]
+    trade_manager.save_logs()
+
     mdl = XGBModel(symbol=symbol, strategy="StochasticIndicator", live=False)
     # mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
     # mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
@@ -98,12 +110,18 @@ def test_ml_model():
     mdl.evaluate_classification(X_train, y_train, X_test, y_test)
     mdl.save_model()
 
+    trade_manager.trade_history = trade_history
+    trade_manager.save_logs()
+
 def plot_diist(df, col):
     x = df[col].dropna()
     lo, hi = x.quantile([0.001, 0.999])
     x_clip = x.clip(lo, hi)
     mu = x.mean()
     sigma = x.std()
+    print(f"±1σ: {round(mu + sigma, 5)}")
+    print(f"±2σ: {round(mu + 2*sigma, 5)}")
+    print(f"±3σ: {round(mu + 3*sigma, 5)}")
     plt.figure(figsize=(10, 6))
     plt.hist(x_clip, bins=100, color="lightgray", edgecolor="black")
     plt.axvspan(mu - sigma,   mu + sigma,   color="green",  alpha=0.15, label="68% (±1σ)")
@@ -146,9 +164,9 @@ def find_proba(df):
             if df.loc["timestamp"] == 15.59:
                 break
 
-ema_window = 25
-lookback = 5
-df = open_data("GOOG", start_date="2025-01-01", end_date="2026-01-01", start_time="10:00", end_time="15:59")
+ema_window = 50
+lookback = 15
+df = open_data("GOOG", start_date="2024-01-01", end_date="2026-01-01", start_time="10:00", end_time="15:59")
 df["ema"] = df["close"].ewm(span=ema_window, adjust=False).mean()
 df["straddle_up"] = (df["close"] > df["ema"]) & (df["open"] < df["ema"])
 df["straddle_down"] = (df["close"] < df["ema"]) & (df["open"] > df["ema"])
@@ -164,6 +182,5 @@ mu = x.mean()
 sigma = x.std()
 df["entry_cond"] = (df[col] >= mu - 2*sigma) | (df[col] <= mu + 2*sigma)
 
-save_data(df, "AAAAA")
-# find_proba(df)
+# save_data(df, "AAAAA")
 plot_diist(df, "ema_straddle_target")

@@ -94,7 +94,6 @@ def fetch_latest_prices(symbols):
     stream.send(stream.level_one_equities(symbols, "0,3", command="SUBS"))
     time.sleep(3)
     stream.stop()
-    time.sleep(1)
 
     print("Current Prices:", prices)
     return prices
@@ -106,13 +105,6 @@ def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
         data["normalized_spread"] = data["spread"] / data["close"]
         avg_spread = data["normalized_spread"].mean()
         print(symbol, avg_spread)
-
-def train_model(model, strategy, symbol):
-    mdl = model(symbol=symbol, strategy=strategy.__name__, live=False)
-    mdl.initialize()
-    X_train, _, y_train, _ = train_test_split(mdl.df, n_months=24)
-    mdl.train(X_train, y_train)
-    mdl.save_model()
 
 def current_drawdown(intraday_equity):
     curr_max = max(intraday_equity)
