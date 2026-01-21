@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from itertools import product
 from sklearn.neighbors import KNeighborsClassifier
 
 from models import BaseModel
@@ -9,20 +10,25 @@ class KNNModel(BaseModel):
         super().__init__(symbol, strategy, live)
         
     def initialize(self):
-        if not self.live:
-            self.model = KNeighborsClassifier(
-                n_neighbors=5,
-                leaf_size=30,
-                p=2,
-                weights='uniform',
-                metric='minkowski'
-            )
-            self.open_trade_hist()
-            if hasattr(self, "df") and not self.df.empty:
-                self.prepare_features(self.df)
-            return True
+        if self.live:
+            return self.load_model(file=f"{self.symbol}_{self.strategy}_knn_model.pkl")
         else:
-            return self.load_model(file=f"{self.symbol}_rf_model.pkl")
+            self.build_model()
+            self.open_trade_hist()
+            self.prepare_features(self.df)
+            return True
+
+    def build_model(self, **params):
+        self.model = KNeighborsClassifier(
+            n_neighbors=params.get("n_neighbors", 5),
+            weights=params.get("weights", "uniform"),
+            algorithm=params.get("algorithm", "auto"),
+            leaf_size=params.get("leaf_size", 30),
+            p=params.get("p", 2),
+            metric=params.get("metric", "minkowski"),
+            metric_params=params.get("metric_params", None),
+            n_jobs=params.get("n_jobs", -1)
+        )
     
     def prepare_features(self, df):
         feature_cols = []
@@ -63,5 +69,18 @@ class KNNModel(BaseModel):
         # print(f"Features: {feature_cols}")
         self.df = df[feature_cols]
 
+    def param_grid(self):
+        grid = {
+            "n_neighbors": [3, 5, 7, 9],
+            "weights": ["uniform", "distance"],
+            "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
+            "leaf_size": [20, 30, 40],
+            "p": [1, 2],  # 1 = Manhattan, 2 = Euclidean
+            "metric": ["minkowski", "manhattan", "euclidean"]
+        }
+
+        for combo in product(*grid.values()):
+            yield dict(zip(grid, combo))
+    
     def save_model(self):
-        super().save_model(file=f"{self.symbol}_knn_model.pkl")
+        super().save_model(file=f"{self.symbol}_{self.strategy}_knn_model.pkl")

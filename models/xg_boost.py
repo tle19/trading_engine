@@ -3,8 +3,6 @@ import pandas as pd
 from itertools import product
 from xgboost import XGBClassifier
 
-from sklearn.metrics import confusion_matrix
-
 from models import BaseModel
 
 class XGBModel(BaseModel):
@@ -15,13 +13,13 @@ class XGBModel(BaseModel):
         if self.live:
             return self.load_model(file=f"{self.symbol}_{self.strategy}_xgb_model.pkl")
         else:
-            self.model = self.build_model()
+            self.build_model()
             self.open_trade_hist()
             self.prepare_features(self.df)
             return True
            
     def build_model(self, **params):
-        return XGBClassifier(
+        self.model = XGBClassifier(
             n_estimators=params.get("n_estimators", 50),
             max_depth=params.get("max_depth", 2),
             learning_rate=params.get("learning_rate", 0.1),
@@ -43,14 +41,6 @@ class XGBModel(BaseModel):
         
         # classification target
         if not self.live and "pnl_pct" in self.df.columns:
-            # filter chop
-            # df = df[df["pnl_pct"].abs() > 0.001]
-
-            # original output labels
-            # mask = df["direction"] != df["original_dir"]
-            # df.loc[mask, "direction"] = df.loc[mask, "original_dir"]
-            # df.loc[mask, "pnl_pct"] = -df.loc[mask, "pnl_pct"]
-
             df["target"] = (df["pnl_pct"] > 0.000).astype(int)
             feature_cols.append("entry_time")
             feature_cols.append("target")
@@ -100,26 +90,8 @@ class XGBModel(BaseModel):
             "scale_pos_weight": [1.0]
         }
 
-        keys = grid.keys()
-        for values in product(*grid.values()):
-            yield dict(zip(keys, values))
-    
-    def metric(self, y_true, y_pred, max_tn_fraction=0.3):
-        y_true = np.array(y_true)
-        y_pred = np.array(y_pred)
-
-        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
-        total_preds = tn + fp + fn + tp
-        tn_fraction = tn / total_preds
-        
-        if tn_fraction > max_tn_fraction:
-            return -1.0
-        
-        if tn + fn == 0:
-            return 0.0
-        
-        npv = tn / (tn + fn)
-        return npv
+        for combo in product(*grid.values()):
+            yield dict(zip(grid, combo))
     
     def save_model(self):
         super().save_model(file=f"{self.symbol}_{self.strategy}_xgb_model.pkl")

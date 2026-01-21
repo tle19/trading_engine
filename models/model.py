@@ -23,7 +23,7 @@ class BaseModel:
         if self.live:
             self.load_model(file=f"{self.symbol}_{self.strategy}_xgb_model.pkl")
         else:
-            self.model = self.build_model()
+            self.build_model()
             self.open_trade_hist()
             self.prepare_features(self.df)
     
@@ -75,12 +75,20 @@ class BaseModel:
     def prepare_features(self, df):
         df = df.copy()
         feature_cols = []
-
-        # filter out chop
-        df = df[df["pnl_pct"].abs() > 0.001]
-
+        df['entry_time'] = pd.to_datetime(df['entry_time'], utc=True)
+        df = df.sort_values('entry_time')
+        df['date'] = df['entry_time'].dt.date
+        
         # classification target
         if not self.live and "pnl" in self.df.columns:
+            # filter out chop
+            df = df[df["pnl_pct"].abs() > 0.001]
+            
+            # original output labels
+            mask = df["direction"] != df["original_dir"]
+            df.loc[mask, "direction"] = df.loc[mask, "original_dir"]
+            df.loc[mask, "pnl_pct"] = -df.loc[mask, "pnl_pct"]
+
             df["target"] = (df["pnl_pct"] > 0).astype(int)
 
         # regression target
@@ -108,7 +116,7 @@ class BaseModel:
         best_params = None
 
         for params in self.param_grid():
-            self.model = self.build_model(**params)
+            self.build_model(**params)
             self.train(X_train, y_train)
 
             preds = self.model.predict(X_val)
@@ -121,14 +129,28 @@ class BaseModel:
         X_full = pd.concat([X_train, X_val])
         y_full = pd.concat([y_train, y_val])
 
-        self.model = self.build_model(**best_params)
+        self.build_model(**best_params)
         self.train(X_full, y_full)
     
     def param_grid(self):
         raise NotImplementedError
     
-    def metric(self):
-        raise NotImplementedError
+    def metric(self, y_true, y_pred, min_tn_fraction=0.05, max_tn_fraction=0.3):
+        y_true = np.array(y_true)
+        y_pred = np.array(y_pred)
+
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+        total_preds = tn + fp + fn + tp
+        tn_fraction = tn / total_preds
+        
+        if tn_fraction > max_tn_fraction or tn_fraction < min_tn_fraction:
+            return -1.0
+        
+        if tn + fn == 0:
+            return 0.0
+        
+        npv = tn / (tn + fn)
+        return npv
     
     def evaluate_classification(self, X_train, y_train, X_test, y_test, threshold=0.4):
         y_train_proba = self.model.predict_proba(X_train)[:, 1]

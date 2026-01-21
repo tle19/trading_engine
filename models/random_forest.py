@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from itertools import product
 from sklearn.ensemble import RandomForestClassifier
 
 from models import BaseModel
@@ -9,24 +10,27 @@ class RFModel(BaseModel):
         super().__init__(symbol, strategy, live)
         
     def initialize(self):
-        if not self.live:
-            self.model = RandomForestClassifier(
-                n_estimators=150,
-                max_depth=10,
-                max_features='sqrt', 
-                min_samples_split=3,
-                min_samples_leaf=3,
-                class_weight={0: 1.0, 1: 1.0},
-                bootstrap=True,
-                random_state=42
-            )
-            self.open_trade_hist()
-            if hasattr(self, "df") and not self.df.empty:
-                self.prepare_features(self.df)
-            return True
+        if self.live:
+            return self.load_model(file=f"{self.symbol}_{self.strategy}_rf_model.pkl")
         else:
-            return self.load_model(file=f"{self.symbol}_rf_model.pkl")
-    
+            self.build_model()
+            self.open_trade_hist()
+            self.prepare_features(self.df)
+            return True
+        
+    def build_model(self, **params):
+        self.model = RandomForestClassifier(
+            n_estimators=params.get("n_estimators", 150),
+            max_depth=params.get("max_depth", 10),
+            max_features=params.get("max_features", "sqrt"),
+            min_samples_split=params.get("min_samples_split", 3),
+            min_samples_leaf=params.get("min_samples_leaf", 3),
+            class_weight=params.get("class_weight", {0: 1.0, 1: 1.0}),
+            bootstrap=params.get("bootstrap", True),
+            n_jobs=params.get("n_jobs", -1),
+            random_state=params.get("random_state", 42)
+        )
+       
     def prepare_features(self, df):
         feature_cols = []
         df = df.copy()
@@ -73,5 +77,23 @@ class RFModel(BaseModel):
 
         self.model.fit(X, y, sample_weight=sample_weight)
 
+    def param_grid(self):
+        grid = {
+            "n_estimators": [100, 150, 300],
+            "max_depth": [5, 10, 15],
+            "max_features": ["sqrt", "log2"],
+            "min_samples_split": [2, 3, 5],
+            "min_samples_leaf": [1, 2, 3],
+            "bootstrap": [True],
+            "class_weight": [
+                {0: 1.0, 1: 1.0},
+                {0: 1.0, 1: 2.0},
+                {0: 1.0, 1: 3.0},
+            ]
+        }
+
+        for combo in product(*grid.values()):
+            yield dict(zip(grid, combo))
+
     def save_model(self):
-        super().save_model(file=f"{self.symbol}_rf_model.pkl")
+        super().save_model(file=f"{self.symbol}_{self.strategy}_rf_model.pkl")
