@@ -199,7 +199,7 @@ class Backtest:
                 combined[ts] += eq
         return combined
     
-    def train_model(self, symbol, start_date, train_period=60, validation_period=30, rebalance_period=10):
+    def train_model(self, symbol, start_date, train_period=100, validation_period=50, rebalance_period=10):
         self.train_time += 1
         if self.train_wait:
             required_date = pd.to_datetime(start_date) + pd.DateOffset(days=train_period + validation_period)
@@ -207,7 +207,7 @@ class Backtest:
             if self.ts < required_date:
                 return
             self.train_wait = False
-            
+
         if self.train_time < rebalance_period:
             return
         self.train_time = 0

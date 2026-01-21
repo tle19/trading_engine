@@ -91,20 +91,12 @@ def fetch_latest_prices(symbols):
             prices[item["key"]] = float(item.get("3"))
 
     stream.start(response_handler)
-    stream.send(stream.level_one_equities(symbols, "0,3", command="SUBS"))
+    stream.send(stream.level_one_equities(symbols, "0,1,2,3", command="SUBS"))
     time.sleep(3)
     stream.stop()
 
     print("Current Prices:", prices)
     return prices
-
-def get_average_spread(symbols, start_date="2023-10-02", end_date="2024-10-02"):
-    for symbol in symbols:
-        data = open_data(symbol, start_date=start_date, end_date=end_date)
-        data["spread"] = data["high"] - data["low"]
-        data["normalized_spread"] = data["spread"] / data["close"]
-        avg_spread = data["normalized_spread"].mean()
-        print(symbol, avg_spread)
 
 def current_drawdown(intraday_equity):
     curr_max = max(intraday_equity)
@@ -128,5 +120,3 @@ def drawdown_rebalance(drawdown, slope, day_rebalance=7):
     else:
         days = day_rebalance
     return days
-
-        
