@@ -92,7 +92,8 @@ class XGBModel(BaseModel):
             "colsample_bytree": [0.8, 1.0],
             "reg_alpha": [0.0, 0.5],
             "reg_lambda": [0.5, 1.0],
-            "scale_pos_weight": [1.0]
+            "scale_pos_weight": [1.0],
+            "random_state": [42]
         }
 
         for combo in product(*grid.values()):

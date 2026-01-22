@@ -79,17 +79,15 @@ class RFModel(BaseModel):
 
     def param_grid(self):
         grid = {
-            "n_estimators": [100, 150, 300],
-            "max_depth": [5, 10, 15],
+            "n_estimators": [50, 100, 150],
+            "max_depth": [7, 12, None],
             "max_features": ["sqrt", "log2"],
             "min_samples_split": [2, 3, 5],
             "min_samples_leaf": [1, 2, 3],
-            "bootstrap": [True],
             "class_weight": [
-                {0: 1.0, 1: 1.0},
-                {0: 1.0, 1: 2.0},
-                {0: 1.0, 1: 3.0},
-            ]
+                {0: 1.0, 1: 1.0}
+            ],
+            "random_state": [42]
         }
 
         for combo in product(*grid.values()):

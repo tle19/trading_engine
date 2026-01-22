@@ -223,6 +223,8 @@ class Backtest:
         self.trade_manager.save_logs()
 
         mdl = XGBModel(symbol=symbol, strategy=self.strategy.__class__.__name__, live=False)
+        # mdl = RFModel(symbol=symbol, strategy=self.strategy.__class__.__name__, live=False)
+        # mdl = KNNModel(symbol=symbol, strategy=self.strategy.__class__.__name__, live=False)
         mdl.initialize()
         X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_days=train_period)
         if validation_period > 0:

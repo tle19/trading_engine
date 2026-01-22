@@ -106,6 +106,9 @@ class BaseModel:
 
         # market open volume
         feature_cols.append("open_volume")
+
+        # print(f"Features: {feature_cols}")
+        self.df = df[feature_cols]
                 
     def train(self, X, y):
         self.model.fit(X, y)
@@ -127,7 +130,7 @@ class BaseModel:
 
         X_full = pd.concat([X_train, X_val])
         y_full = pd.concat([y_train, y_val])
-
+    
         self.build_model(**best_params)
         self.train(X_full, y_full)
     
@@ -192,7 +195,7 @@ class BaseModel:
         print(f"Train MSE: {train_mse:.6f}, MAE: {train_mae:.6f}, R²: {train_r2:.4f}")
         print(f"Test  MSE: {test_mse:.6f}, MAE: {test_mae:.6f}, R²: {test_r2:.4f}")
 
-    def get_proba(self, feature_row):
-        X_input = feature_row.values.reshape(1, -1) if isinstance(feature_row, pd.Series) else feature_row.values
+    def get_proba(self):
+        X_input = self.df[self.model.feature_names_in_]
         proba = self.model.predict_proba(X_input)[0, 1]
         return proba

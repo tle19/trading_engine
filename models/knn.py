@@ -71,12 +71,13 @@ class KNNModel(BaseModel):
 
     def param_grid(self):
         grid = {
-            "n_neighbors": [3, 5, 7, 9],
+            "n_neighbors": [3, 5, 7],
             "weights": ["uniform", "distance"],
             "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
             "leaf_size": [20, 30, 40],
             "p": [1, 2],  # 1 = Manhattan, 2 = Euclidean
-            "metric": ["minkowski", "manhattan", "euclidean"]
+            "metric": ["minkowski", "manhattan", "euclidean"],
+            "random_state": [42]
         }
 
         for combo in product(*grid.values()):
