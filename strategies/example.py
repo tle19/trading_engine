@@ -53,10 +53,12 @@ class SMACrossover(Strategy):
         return signal
     
     def enter_trade(self, slow_ma, htf_ma):
+        signal = None
         if self.ema > slow_ma >= htf_ma:
-            return self.buy()
+            signal, _ = self.buy()
         if self.ema < slow_ma <= htf_ma:
-            return self.sell()
+            signal, _ = self.sell()
+        return signal
         
     def exit_trade(self, slow_ma):
         direction = self.position_manager.direction()

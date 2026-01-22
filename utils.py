@@ -53,6 +53,7 @@ def resample_data(df, type="1D"):
             "volume": "sum"
         }).dropna()
     )
+    df = df.reset_index()
     return df
 
 def train_test_split(df, n_days=540, datetime_column="entry_time", target_column="target"):

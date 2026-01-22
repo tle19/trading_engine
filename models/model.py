@@ -137,7 +137,7 @@ class BaseModel:
     def param_grid(self):
         raise NotImplementedError
     
-    def metric(self, y_true, y_pred, min_tn_fraction=0.05, max_tn_fraction=0.25):
+    def metric(self, y_true, y_pred, min_tn_fraction=0.05, max_tn_fraction=0.2):
         y_true = np.array(y_true)
         y_pred = np.array(y_pred)
 

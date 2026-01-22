@@ -6,6 +6,7 @@ from .orb import ORBIndicator
 from .volume_decay import VolumeDecay
 from .rsi_scalp import RSIScalp
 from .box import BoxIndicator
+from .ema_swing import EMASwing
 
 __all__ = [
     "SMACrossover",
@@ -15,6 +16,7 @@ __all__ = [
     "VolumeDecay",
     "RSIScalp",
     "BoxIndicator",
+    "EMASwing",
     "strategy_map"
 ]
 
@@ -26,5 +28,6 @@ strategy_map = {
     "volume": VolumeDecay,
     "rsi": RSIScalp,
     "box": BoxIndicator,
+    "swing": EMASwing,
 }
 
