@@ -145,7 +145,7 @@ class Backtest:
                             fill_price = self.close * self.slip_up
                             exit_price = self.close
                         pnl = (entry_price - fill_price) * shares
-
+                    
                     self.cash_allocation += pnl
                     self.trade_manager.update_exit(leg, self.ts, exit_price, fill_price)
                     self.risk_manager.update_trade(pnl)

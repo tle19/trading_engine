@@ -78,14 +78,14 @@ class StochasticIndicator(Strategy):
         rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
         
         if self.stoch_signal == 1 and rsi > 55 and rsi > rsi_ma and hist > 0 and vol > 0.025:
-            # if self.symbol in ("META", "ABBV", "AXP", "MRK", "CAT"):
-            #     signal, _ = self.sell()
-            # else:
+            if self.symbol in ("META", "ABBV", "AXP", "MRK", "CAT"):
+                signal, _ = self.sell()
+            else:
                 signal, _ = self.buy()
         if self.stoch_signal == -1 and rsi < 45 and rsi < rsi_ma and hist < 0 and vol > 0.025:
-            # if self.symbol in ("META", "ABBV", "AXP", "MRK", "CAT"):
-            #     signal, _ = self.buy()
-            # else:
+            if self.symbol in ("META", "ABBV", "AXP", "MRK", "CAT"):
+                signal, _ = self.buy()
+            else:
                 signal, _ = self.sell()
         return signal
 

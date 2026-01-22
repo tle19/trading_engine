@@ -435,7 +435,11 @@ class PositionManager:
 
     def total_size(self):
         return sum(l.position_size for l in self.legs)  
-
+    
+    def average_entry(self):
+        weighted_sum = sum(l.entry_price * l.position_size for l in self.legs)
+        return weighted_sum / self.total_size()
+    
     def reset(self):
         self.legs = []
     

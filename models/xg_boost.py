@@ -42,9 +42,9 @@ class XGBModel(BaseModel):
         # classification target
         if not self.live and "pnl_pct" in self.df.columns:
             # original output labels
-            mask = df["direction"] != df["original_dir"]
-            df.loc[mask, "direction"] = df.loc[mask, "original_dir"]
-            df.loc[mask, "pnl_pct"] = -df.loc[mask, "pnl_pct"]
+            # mask = df["direction"] != df["original_dir"]
+            # df.loc[mask, "direction"] = df.loc[mask, "original_dir"]
+            # df.loc[mask, "pnl_pct"] = -df.loc[mask, "pnl_pct"]
             
             df["target"] = (df["pnl_pct"] > 0.000).astype(int)
             feature_cols.append("entry_time")
