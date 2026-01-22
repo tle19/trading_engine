@@ -30,10 +30,16 @@ class Strategy:
 
         self.prices = []
         self.opens = []
-        self.closes = []
         self.highs = []
         self.lows = []
+        self.closes = []
         self.volumes = [] 
+
+        self.d_opens = []
+        self.d_closes = []
+        self.d_highs = []
+        self.d_lows = []
+        self.d_volumes = [] 
 
         self.activated = False
         self.model = None
@@ -83,6 +89,13 @@ class Strategy:
         self.closes.append(self.close)
         self.volumes.append(self.volume)
         self.features = {}
+
+        if (self.ts.hour, self.ts.minute) == (15, 58):
+            self.d_opens.append(self.opens[0])
+            self.d_highs.append(max(self.highs))
+            self.d_lows.append(min(self.lows))
+            self.d_closes.append(self.closes[-1])
+            self.d_volumes.append(sum(self.volumes))
                    
     def reset_data(self):
         if self.trade_window((9, 30), (9, 30)):
@@ -92,6 +105,9 @@ class Strategy:
             self.highs = [self.high]
             self.lows = [self.low]
             self.volumes = [self.volume]
+    
+    def reset_day(self):
+        if self.trade_window((9, 30), (9, 30)):
             self.position_manager.reset()
             self.risk_manager.reset()
             self.activated = False
@@ -288,7 +304,7 @@ class Strategy:
         closes = np.array(closes)
 
         if len(closes) < 2:
-            return 2.5
+            return 3.0
 
         tr = np.maximum.reduce([
             highs[1:] - lows[1:],
@@ -309,7 +325,7 @@ class Strategy:
 
         n = len(highs)
         if n < 2:
-            return 20.0
+            return 99.9
 
         up_move = highs[1:] - highs[:-1]
         down_move = lows[:-1] - lows[1:]

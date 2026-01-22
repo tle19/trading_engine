@@ -26,10 +26,17 @@ class SMACrossover(Strategy):
         self.model = XGBModel(symbol=symbol, live=True)
         if not self.model.initialize():
             self.model = None
+        self.model2 = RFModel(symbol=symbol, live=True)
+        if not self.model2.initialize():
+            self.model2 = None
+        self.model3 = KNNModel(symbol=symbol, live=True)
+        if not self.model3.initialize():
+            self.model3 = None
     
     def generate_signal(self, row):
         self.update(row)  # store OHLCV
         self.reset_data() # intraday data reset
+        self.reset_day() # reset position manager and risk manager
         self.reset_indicators()
         self.minimum_computations() # ensure enough data for indicators
         
@@ -79,15 +86,11 @@ class SMACrossover(Strategy):
         if self.trade_window((9, 30), (9, 30)):
             self.ema = None
             
-            history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
-            highs = history["high"].values
-            lows = history["low"].values
-            closes = history["close"].values
-
-            self.prev_day_close = closes[-1]
-            self.regime_ema = self.compute_ma(closes, window=50)
-            self.adx = self.compute_adx(highs, lows, closes)
-            self.atr = self.compute_atr(highs, lows, closes)
+            if self.d_closes:
+                self.prev_day_close = self.d_closes[-1]
+                self.regime_ema = self.compute_ma(self.d_closes, window=50)
+                self.adx = self.compute_adx(self.d_highs, self.d_lows, self.d_closes)
+                self.atr = self.compute_atr(self.d_highs, self.d_lows, self.d_closes)
 
     def minimum_computations(self):
         if not self.activated:
@@ -97,6 +100,26 @@ class SMACrossover(Strategy):
                 self.htf_window
             ) + 1
             self.activated = len(self.prices) > required_data
+
+    def predict_trade(self, threshold=0.4):
+        df = pd.DataFrame(self.features)
+        self.model.prepare_features(df)
+        proba = self.model.get_proba()
+
+        if self.stoch_signal == 1:
+            if proba > threshold:
+                self.position_size = 1.0
+            else:
+                self.position_size = 0.5
+            signal, leg = self.buy() 
+        elif self.stoch_signal == -1:
+            if proba > threshold:
+                self.position_size = 1.0
+            else:
+                self.position_size = 0.5
+            signal, leg = self.sell() 
+
+        return signal, leg
 
     def add_features(self, direction, stop_price, target_price):
         self.features = {

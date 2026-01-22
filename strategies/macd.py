@@ -50,6 +50,7 @@ class MACDIndicator(Strategy):
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
+        self.reset_day()
         self.reset_indicators()
         self.minimum_computations()
 

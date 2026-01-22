@@ -3,32 +3,25 @@ import numpy as np
 from strategies import Strategy
 from utils import *
 
-class RSIScalp(Strategy):
-    def __init__(self, symbol, rsi_period=2, rsi_lower=1, rsi_upper=99, htf_window=20, vol_length=5,
-                 stop_loss=0.0025, take_profit=0.001, position_size=0.25, trailing_ratio=0.15, pyramid=True, force_close=True, 
-                 pnl_target=0.02, pnl_loss=-0.02, trade_max=50):
-        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
-                         pnl_target, pnl_loss, trade_max)
+class RSISwing(Strategy):
+    def __init__(self, symbol, rsi_period=2, rsi_lower=10, rsi_upper=90, htf_window=20,
+                 stop_loss=0.0025, take_profit=0.001, position_size=0.25, trailing_ratio=0.15, pyramid=True, force_close=False):
+        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close)
         self.rsi_period = rsi_period
         self.rsi_lower = rsi_lower
         self.rsi_upper = rsi_upper
         self.htf_window = htf_window
-        self.vol_length = vol_length
 
         self.ema = None
     
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
-        self.reset_day()
-        self.reset_indicators()
         self.minimum_computations()
 
         rsi = self.compute_indicators()
 
-        if self.risk_manager._day_pause: 
-            return None
-        if not self.trade_window((10, 30), (15, 00)) and not self.position_manager.in_trade():
+        if self.trade_window((9, 31), (15, 57)):
             return None
         
         signal = None
@@ -66,11 +59,6 @@ class RSIScalp(Strategy):
         
         return rsi
 
-    def reset_indicators(self):
-        if self.trade_window((9, 30), (9, 30)):
-            self.ema = None
-            return None
-
     def minimum_computations(self):
         if not self.activated:
             required_data = max(
@@ -78,16 +66,3 @@ class RSIScalp(Strategy):
                 self.htf_window
             ) + 1
             self.activated = len(self.prices) > required_data
-
-    def add_features(self, direction, stop_price, target_price):
-        self.features = {
-            "direction": direction,
-            "entry_time": self.ts.isoformat(),
-            "entry_price": self.price,
-            "stop_price": stop_price,
-            "target_price": target_price,
-            "session_open": self.opens[0],
-            "session_low": min(self.lows),
-            "session_high": max(self.highs),
-            "volumes": self.volumes[-10:]
-        }

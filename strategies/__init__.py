@@ -7,6 +7,7 @@ from .volume_decay import VolumeDecay
 from .rsi_scalp import RSIScalp
 from .box import BoxIndicator
 from .ema_swing import EMASwing
+from .rsi_swing import RSISwing
 
 __all__ = [
     "SMACrossover",
@@ -17,6 +18,7 @@ __all__ = [
     "RSIScalp",
     "BoxIndicator",
     "EMASwing",
+    "RSISwing",
     "strategy_map"
 ]
 
@@ -28,6 +30,7 @@ strategy_map = {
     "volume": VolumeDecay,
     "rsi": RSIScalp,
     "box": BoxIndicator,
-    "swing": EMASwing,
+    "ema_swing": EMASwing,
+    "rsi_swing": RSISwing
 }
 

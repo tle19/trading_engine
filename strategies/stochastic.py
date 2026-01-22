@@ -33,27 +33,19 @@ class StochasticIndicator(Strategy):
         self.rolling_rsi = deque(maxlen=10)
         self.rolling_vol = deque(maxlen=10)
 
-        df = open_data(self.symbol, start_date="2024-01-01", end_date="2026-01-01")
-        self.history = resample_data(df)
         self.prev_day_close = None
         self.regime_ema = None
         self.adx = None
         self.atr = None
         
-        # meta labeling models
         self.model = XGBModel(symbol=symbol, live=True)
         if not self.model.initialize():
             self.model = None
-        # self.model2 = RFModel(symbol=symbol, live=True)
-        # if not self.model2.initialize():
-        #     self.model2 = None
-        # self.model3 = KNNModel(symbol=symbol, live=True)
-        # if not self.model3.initialize():
-        #     self.model3 = None
 
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
+        self.reset_day()
         self.reset_indicators()
         self.minimum_computations()
 
@@ -110,15 +102,11 @@ class StochasticIndicator(Strategy):
             self.rolling_rsi = deque(maxlen=10)
             self.rolling_vol = deque(maxlen=10)
 
-            history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
-            highs = history["high"].values
-            lows = history["low"].values
-            closes = history["close"].values
-
-            self.prev_day_close = closes[-1]
-            self.regime_ema = self.compute_ma(closes, window=50)
-            self.adx = self.compute_adx(highs, lows, closes)
-            self.atr = self.compute_atr(highs, lows, closes)
+            if self.d_closes:
+                self.prev_day_close = self.d_closes[-1]
+                self.regime_ema = self.compute_ma(self.d_closes, window=50)
+                self.adx = self.compute_adx(self.d_highs, self.d_lows, self.d_closes)
+                self.atr = self.compute_atr(self.d_highs, self.d_lows, self.d_closes)
         
     def minimum_computations(self):
         if not self.activated:
@@ -149,7 +137,7 @@ class StochasticIndicator(Strategy):
                 self.stoch_signal = None
     
     def predict_trade(self, threshold=0.4):
-        df = pd.DataFrame({k: [v] for k, v in self.features.items()})
+        df = pd.DataFrame(self.features)
         self.model.prepare_features(df)
         proba = self.model.get_proba()
 

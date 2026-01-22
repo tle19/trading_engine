@@ -33,7 +33,6 @@ class Backtest:
         for symbol in self.symbols:
             self.initialize(symbol, self.strategy_class)
             df = open_data(symbol, start_date, end_date, start_time="9:30", end_time="15:59")
-            # df = resample_data(df, type="1D").reset_index()
 
             for row in df.itertuples(index=False):
                 self.ts = row.timestamp
