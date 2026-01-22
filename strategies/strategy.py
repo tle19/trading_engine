@@ -11,7 +11,7 @@ HOLD = None
 
 class Strategy:
     def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, 
-                 position_size=1.0, trailing_ratio=0.15, pyramid=False,
+                 position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=5):
         self.symbol = symbol
         self.stop_loss = stop_loss
@@ -19,6 +19,7 @@ class Strategy:
         self.position_size = position_size
         self.trailing_ratio = trailing_ratio
         self.pyramid = pyramid
+        self.force_close = force_close
 
         self.open = None
         self.close = None
@@ -112,7 +113,8 @@ class Strategy:
                 stop_price=stop_price,
                 target_price=target_price,
                 position_size=self.position_size,
-                cash=self.risk_manager.start_cash
+                cash=self.risk_manager.start_cash,
+                force_close=self.force_close
             )
 
             if self.model and not self.features:
@@ -139,7 +141,8 @@ class Strategy:
                 stop_price=stop_price,
                 target_price=target_price,
                 position_size=self.position_size,
-                cash=self.risk_manager.start_cash
+                cash=self.risk_manager.start_cash,
+                force_close=self.force_close
             )
 
             if self.model and not self.features:
@@ -367,9 +370,9 @@ class Strategy:
         return max(arr) if mode == "high" else min(arr)
 
 class PositionLeg:
-    __slots__ = ("entry_time", "direction", "_entry_price", "stop_price", "target_price", "position_size", "shares")
+    __slots__ = ("entry_time", "direction", "_entry_price", "stop_price", "target_price", "position_size", "shares", "force_close")
     
-    def __init__(self, timestamp, direction, entry_price, stop_price, target_price, position_size, cash):
+    def __init__(self, timestamp, direction, entry_price, stop_price, target_price, position_size, cash, force_close):
         self.entry_time = timestamp
         self.direction = direction
         self._entry_price = entry_price
@@ -377,6 +380,7 @@ class PositionLeg:
         self.target_price = target_price
         self.position_size = position_size
         self.shares = (cash * position_size) // entry_price
+        self.force_close = force_close
 
         if direction not in (1, -1):
             raise ValueError(f"Invalid direction: {direction}")
@@ -393,14 +397,14 @@ class PositionLeg:
                 raise ValueError("Invalid long: stop >= target")
             if low <= self.stop_price or high >= self.target_price:
                 return EXIT
-            if (ts.hour, ts.minute) >= (15, 58):
+            if self.force_close and (ts.hour, ts.minute) >= (15, 58):
                 return EXIT
         elif self.direction == -1:
             if self.stop_price <= self.target_price:
                 raise ValueError("Invalid short: stop <= target")
             if high >= self.stop_price or low <= self.target_price:
                 return EXIT
-            if (ts.hour, ts.minute) >= (15, 58):
+            if self.force_close and (ts.hour, ts.minute) >= (15, 58):
                 return EXIT
         return HOLD
     

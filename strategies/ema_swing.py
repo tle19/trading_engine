@@ -7,8 +7,8 @@ from utils import *
 
 class EMASwing(Strategy):
     def __init__(self, symbol, fast_window=5, slow_window=10, htf_window=25, 
-                 stop_loss=0.01, take_profit=0.02, position_size=1.0, trailing_ratio=0.15, pyramid=False):
-        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid)
+                 stop_loss=0.01, take_profit=0.03, position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=False):
+        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close)
         self.fast_window = fast_window
         self.slow_window = slow_window
         self.htf_window = htf_window
@@ -22,8 +22,8 @@ class EMASwing(Strategy):
         self.update(row)
         self.minimum_computations()
         
-        # if self.trade_window((9, 30), (15, 57)):
-        #     return None
+        if self.trade_window((9, 30), (15, 57)):
+            return None
         
         slow_ma, htf_ma = self.compute_indicators()
 

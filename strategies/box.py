@@ -8,9 +8,9 @@ from utils import *
 
 class BoxIndicator(Strategy):
     def __init__(self, symbol, fast_window=50, slow_window=50, htf_window=100, 
-                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, 
+                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
                  pnl_target=0.02, pnl_loss=-0.02, trade_max=10):
-        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid,
+        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
                          pnl_target, pnl_loss, trade_max)
         self.fast_window = fast_window
         self.slow_window = slow_window
