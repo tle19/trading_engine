@@ -7,23 +7,21 @@ from utils import *
 
 class EMASwing(Strategy):
     def __init__(self, symbol, fast_window=5, slow_window=10, htf_window=25, 
-                 stop_loss=0.01, take_profit=0.04, position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=False):
+                 stop_loss=0.01, take_profit=0.03, position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=False):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close)
         self.fast_window = fast_window
         self.slow_window = slow_window
         self.htf_window = htf_window
 
         self.ema = None
-
-        self.df = pd.DataFrame()
-        # construct daily df inside
     
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
         self.minimum_computations()
 
-        slow_ma, htf_ma = self.compute_indicators()     
+        if self.d_closes:
+            slow_ma, htf_ma = self.compute_indicators()     
 
         signal = None
         if self.activated:
@@ -41,7 +39,6 @@ class EMASwing(Strategy):
         return signal
         
     def compute_indicators(self):
-        arr = np.array(self.d_closes)
         self.ema = self.compute_ema(self.ema, self.d_closes[-1], self.fast_window)
         slow_ma = self.compute_ma(self.d_closes, self.slow_window)
         htf_ma = self.compute_ma(self.d_closes, self.htf_window)
@@ -56,21 +53,3 @@ class EMASwing(Strategy):
                 self.htf_window
             ) + 1
             self.activated = len(self.d_closes) > required_data
-            
-    def update(self, row=None): 
-        if row is not None:
-            self.ts = row.timestamp
-            self.open = row.open
-            self.high = row.high
-            self.low = row.low
-            self.close = row.close
-            self.volume = row.volume
-
-        self.price = self.close  # (self.close + self.open + self.high) / 3
-        self.prices.append(self.price)
-        self.opens.append(self.open)
-        self.highs.append(self.high)
-        self.lows.append(self.low)
-        self.closes.append(self.close)
-        self.volumes.append(self.volume)
-        self.features = {}
