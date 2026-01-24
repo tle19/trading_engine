@@ -98,25 +98,3 @@ def fetch_latest_prices(symbols):
     print("Current Prices:", prices)
     return prices
 
-def current_drawdown(intraday_equity):
-    curr_max = max(intraday_equity)
-    current = intraday_equity[-1]
-    drawdown = (curr_max - current) / curr_max
-    return drawdown
-
-def equity_slope(intraday_equity, lookback=10):
-    df = pd.DataFrame(list(intraday_equity.items()), columns=['timestamp', 'equity'])
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-    df = df.sort_values('timestamp')
-    start_time = df['timestamp'].iloc[-1] - pd.Timedelta(days=lookback)
-    df = df[df['timestamp'] >= start_time]
-    x = (df['timestamp'] - df['timestamp'].iloc[0]).dt.total_seconds()
-    y = df['equity'].values
-    return np.polyfit(x, y, 1)[0]
-    
-def drawdown_rebalance(drawdown, slope, day_rebalance=7):
-    if drawdown > 0.05:
-        days = 3
-    else:
-        days = day_rebalance
-    return days

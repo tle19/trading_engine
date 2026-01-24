@@ -7,11 +7,11 @@ from models import *
 from utils import *
 
 class EODBuyBack(Strategy):
-    def __init__(self, symbol, orb_window=1, htf_window=10, overnight_thresh=0.03,
+    def __init__(self, symbol, orb_window=1, htf_window=10, overnight_thresh=0.04,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
-                 pnl_target=0.01, pnl_loss=-0.01, trade_max=1):
+                 pnl_target=0.01, pnl_loss=-0.01, trade_max=1, drawdown_max=0.20):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
-                         pnl_target, pnl_loss, trade_max)
+                         pnl_target, pnl_loss, trade_max, drawdown_max)
         self.orb_window = orb_window
         self.htf_window = htf_window
         self.overnight_thresh = overnight_thresh
@@ -54,9 +54,10 @@ class EODBuyBack(Strategy):
         pos_sum = sum(x for x in self.weighted_pressure if x > 0)
         neg_sum = sum(x for x in self.weighted_pressure if x < 0)
         pressure = pos_sum + neg_sum
-        if pressure < 0 and self.close < self.lower_support and self.close > self.open and self.overnight_pct < self.overnight_thresh:
+        self.position_size = self.risk_manager.position_size
+        if pressure < 0 and self.close < self.lower_support and self.overnight_pct < self.overnight_thresh and self.close > self.open:
             signal, _ = self.buy()
-        if pressure > 0 and self.close > self.upper_support and self.close < self.open and self.overnight_pct < self.overnight_thresh:
+        if pressure > 0 and self.close > self.upper_support and self.overnight_pct < self.overnight_thresh and self.close < self.open:
             signal, _ = self.sell()
         return signal
         
@@ -87,3 +88,20 @@ class EODBuyBack(Strategy):
             ) + 1
             self.upper_support, self.lower_support = self.donchian_channel(self.orb_window)
             self.activated = len(self.prices) > required_data
+            
+    def add_features(self, direction, stop_price, target_price):
+        self.features = {
+            "direction": direction,
+            "entry_time": self.ts.isoformat(),
+            "entry_price": self.price,
+            "stop_price": stop_price,
+            "target_price": target_price,
+            "session_open": self.opens[0],
+            "session_low": min(self.lows),
+            "session_high": max(self.highs),
+            "open_volume": sum(self.volumes[0:5]),
+            "prev_day_close": self.prev_day_close,
+            "ema": self.regime_ema,
+            "adx": self.adx,
+            "atr": self.atr,
+        }
