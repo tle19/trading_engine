@@ -8,6 +8,7 @@ from .rsi_scalp import RSIScalp
 from .box import BoxIndicator
 from .ema_swing import EMASwing
 from .rsi_swing import RSISwing
+from .eod_buyback import EODBuyBack
 
 __all__ = [
     "SMACrossover",
@@ -19,6 +20,7 @@ __all__ = [
     "BoxIndicator",
     "EMASwing",
     "RSISwing",
+    "EODBuyBack",
     "strategy_map"
 ]
 
@@ -31,6 +33,7 @@ strategy_map = {
     "rsi": RSIScalp,
     "box": BoxIndicator,
     "ema_swing": EMASwing,
-    "rsi_swing": RSISwing
+    "rsi_swing": RSISwing,
+    "eod_buyback": EODBuyBack
 }
 

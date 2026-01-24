@@ -48,7 +48,7 @@ class SMACrossover(Strategy):
             return None
 
         # set trading window
-        if not self.trade_window((9, 30), (16, 00)) and not self.position_manager.in_trade():
+        if not self.trade_window((9, 30), (15, 59)) and not self.position_manager.in_trade():
             return None
         
         # enter/exit positions
