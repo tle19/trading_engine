@@ -47,11 +47,11 @@ class Stats:
         self.max_day_loss_streak = 0
 
     def update_data(self, trade_history, intraday_equity):
-        self.trade_history = trade_history
+        self.trade_history = trade_history.copy()
         self.intraday_equity = [v for k, v in sorted(intraday_equity.items())]
         self._update_dates(intraday_equity)
 
-    def summary(self):
+    def summary(self, display=True):
         self._calculate_pnls()
         self._calculate_win_rates()
         self._calculate_streaks()
@@ -60,6 +60,9 @@ class Stats:
         self._calculate_sharpe_ratio()
         self._calculate_cagr()
         self._calculate_trade_behavior()
+        
+        if not display:
+            return
         
         print("=" * 50)
         print(f"{self.symbol} PERFORMANCE SUMMARY")

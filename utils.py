@@ -26,6 +26,8 @@ def save_data(df, symbol):
 
 def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_time="15:59"):
     file_path = os.path.join(data_path, f"{symbol}_historical_data.csv")
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"[WARN] Missing CSV for {symbol}: {file_path}")
     df = pd.read_csv(file_path)
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     df["timestamp"] = df["timestamp"].dt.tz_convert(timezone)
@@ -95,6 +97,6 @@ def fetch_latest_prices(symbols):
     time.sleep(3)
     stream.stop()
 
-    print("Current Prices:", prices)
+    for key, value in prices.items():
+        print(f"[{key}] {value}")
     return prices
-

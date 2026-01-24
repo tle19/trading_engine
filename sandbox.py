@@ -1,4 +1,7 @@
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 from core import *
 from metrics import *
@@ -76,7 +79,9 @@ symbols = [
     "TMO",   # Thermo Fisher Scientific
     "AMGN"  # Amgen
 ]
-def test_order(symbol="[AAPL]"):
+symbols = ["QQQ", "AAPL", "MSFT", "META", "CRM", "ABBV", "CVX", "MRK", "UPS", "AXP", "CAT"]
+
+def test_order(symbol="AAPL"):
     eq = Equities(symbol, StochasticIndicator)
     symbol = symbol[0]
 
@@ -86,13 +91,30 @@ def test_order(symbol="[AAPL]"):
     fill_price = eq.get_fill_price(exit_id, timeout=0.1)
     print(fill_price)
 
-def get_average_spread(symbols, start_date="2024-01-10", end_date="2026-01-10"):
-    for symbol in symbols:
-        data = open_data(symbol, start_date=start_date, end_date=end_date)
-        data["spread"] = data["high"] - data["low"]
-        data["normalized_spread"] = data["spread"] / data["close"]
-        avg_spread = data["normalized_spread"].mean()
-        print(symbol, avg_spread)
+def train_model(symbol="META", train_period=100, test_period=50):
+    trade_manager = TradeManager(live=False)
+    trade_manager.load_logs()
+    trade_history = trade_manager.trade_history
+
+    curr_date = pd.to_datetime(datetime.now()).normalize() 
+    start_date = curr_date - pd.DateOffset(days=train_period + test_period)
+    trade_manager.trade_history = [
+            trade for trade in trade_history
+            if start_date < pd.to_datetime(trade["entry_time"]).normalize() < curr_date
+       ]
+    trade_manager.save_logs()
+
+    mdl = XGBModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+    # mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+    # mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+    mdl.initialize()
+    X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_days=train_period)
+    mdl.train(X_train, y_train)
+    mdl.evaluate_classification(X_train, y_train, X_test, y_test)
+    mdl.save_model()
+
+    trade_manager.trade_history = trade_history
+    trade_manager.save_logs()
 
 def plot_diist(df, col):
     x = df[col].dropna()

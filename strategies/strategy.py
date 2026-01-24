@@ -526,7 +526,7 @@ class RiskManager:
         self.pnl = 0
         self._day_pause = False
 
-    def equity_slope(self, intraday_equity, lookback=10):
+    def equity_slope(self, intraday_equity, lookback=10): # find all other drawdowns to compare
         df = pd.DataFrame(list(intraday_equity.items()), columns=['timestamp', 'equity'])
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         df = df.sort_values('timestamp')

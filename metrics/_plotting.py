@@ -16,12 +16,12 @@ class Plotting:
         self.end_date = None
 
     def update_data(self, intraday_equity):
-        self.intraday_equity = intraday_equity
+        self.intraday_equity = intraday_equity.copy()
         dates = sorted(intraday_equity)
         self.start_date = dates[0]
         self.end_date = dates[-1]
 
-    def plot_equity(self, display=True, save=True, overlay=True, drawdown=True):
+    def plot_equity(self, display=True, overlay=True, drawdown=True):
         intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
         if not intraday_equity:
             print("No equity data to plot.")
@@ -51,11 +51,10 @@ class Plotting:
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.6)
         plt.tight_layout()
-        if save:
-            os.makedirs(self.img_path, exist_ok=True)
-            filename = f"{self.symbol}_{self.start_date.date()}_{self.end_date.date()}.png"
-            file_path = os.path.join(self.img_path, filename)
-            plt.savefig(file_path)
+        os.makedirs(self.img_path, exist_ok=True)
+        filename = f"{self.symbol}_{self.start_date.date()}_{self.end_date.date()}.png"
+        file_path = os.path.join(self.img_path, filename)
+        plt.savefig(file_path)
         if display:
             plt.show()
         plt.close()

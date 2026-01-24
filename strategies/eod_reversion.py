@@ -6,7 +6,7 @@ from strategies import Strategy
 from models import *
 from utils import *
 
-class EODBuyBack(Strategy):
+class EODReversion(Strategy):
     def __init__(self, symbol, orb_window=1, htf_window=10, overnight_thresh=0.04,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=1, drawdown_max=0.20):
@@ -105,3 +105,15 @@ class EODBuyBack(Strategy):
             "adx": self.adx,
             "atr": self.atr,
         }
+
+    def param_grid(self):
+        params = {
+            "orb_window": [1], # 1 , 3, 5, 10, 15, 30
+            "htf_window": [10],
+            "overnight_thresh": [0.04], # 0.01, 0.02, 0.03, 0.04, 0.05
+            "stop_loss": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015],
+            "take_profit": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015],
+            "trailing_ratio": [0.15],
+            "drawdown_max": [0.20]
+        }
+        return params

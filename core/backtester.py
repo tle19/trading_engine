@@ -1,5 +1,6 @@
 import time
 from collections import deque
+from itertools import product
 
 from core import *
 from metrics import *
@@ -25,59 +26,63 @@ class Backtest:
         self.train_wait = True
 
     def run(self, start_date="2024-1-10", end_date="2026-1-10", 
-            train=False, display_plot=True, display_stats=True, save_plot=True):
+            grid=False, train=False, display_stats=True, display_plot=True):
         start_time = time.perf_counter()
 
-        trade_history = []
-        intraday_equity = []
+        self.trade_history = []
+        self.intraday_equity = []
         for symbol in self.symbols:
-            self.initialize(symbol, self.strategy_class)
             df = open_data(symbol, start_date, end_date, start_time="9:30", end_time="15:59")
-
-            for row in df.itertuples(index=False):
-                self.ts = row.timestamp
-                self.open = row.open
-                self.high = row.high
-                self.low = row.low
-                self.close = row.close
-
-                if train and (self.ts.hour, self.ts.minute) == (9, 30):
-                    self.train_model(symbol, start_date)
-                
-                signal = self.strategy.generate_signal(row)
-                self.dynamic_slippage(signal)
-                self.interpret_signal(signal, symbol)
-
-            trade_history.extend(self.trade_manager.trade_history)
-            intraday_equity.append(self.trade_manager.intraday_equity)
-
-            self.stats.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
-            self.stats.summary()
-
-            self.plotting.update_data(self.trade_manager.intraday_equity)
-            self.plotting.plot_equity(display=False, save=save_plot)
-
+            self.initialize(symbol, self.strategy_class)
             self.train_wait = True
-        
+            
+            if grid:
+                self.grid_search(symbol, df, train)
+            else:
+                self.run_simulation(symbol, df, train, display_stats, display_plot)
+
+            self.trade_history.extend(self.trade_manager.trade_history)
+            self.intraday_equity.append(self.trade_manager.intraday_equity)
+
         # trade history sort by exit time
-        intraday_equity = self.combine_equity_dicts(intraday_equity)
+        self.intraday_equity = self.combine_equity_dicts(self.intraday_equity)
 
-        if display_stats:
-            stats = Stats("AGGREGATE")
-            stats.update_data(trade_history, intraday_equity)
-            stats.summary()
+        stats = Stats("AGGREGATE")
+        stats.update_data(self.trade_history, self.intraday_equity)
+        stats.summary(display_stats)
 
-        self.trade_manager.update_data(trade_history, intraday_equity)
+        self.trade_manager.update_data(self.trade_history, self.intraday_equity)
         self.trade_manager.save_logs()
 
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Backtest Time: {elapsed_time:.6f} seconds")
 
+        plotting = Plotting("AGGREGATE")
+        plotting.update_data(self.intraday_equity)
+        plotting.plot_equity(display=display_plot, overlay=False)
+
+    def run_simulation(self, symbol, df, train, display_stats, display_plot):
+        for row in df.itertuples(index=False):
+            self.ts = row.timestamp
+            self.open = row.open
+            self.high = row.high
+            self.low = row.low
+            self.close = row.close
+
+            if train and (self.ts.hour, self.ts.minute) == (9, 30):
+                self.train_model(symbol)
+            
+            signal = self.strategy.generate_signal(row)
+            self.dynamic_slippage(signal)
+            self.interpret_signal(signal, symbol)
+
+        self.stats.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
+        self.stats.summary(display=display_stats)
+
         if display_plot:
-            plotting = Plotting("AGGREGATE")
-            plotting.update_data(intraday_equity)
-            plotting.plot_equity(display=display_plot, save=save_plot, overlay=False)
-        
+            self.plotting.update_data(self.trade_manager.intraday_equity)
+            self.plotting.plot_equity(display=False)
+
     def interpret_signal(self, signal, symbol):
         name = self.strategy.__class__.__name__
         direction = self.position_manager.direction()
@@ -154,6 +159,18 @@ class Backtest:
 
         self.update_equity()
 
+    def initialize(self, symbol, strategy_class, **params):
+        self.strategy = strategy_class(symbol, **params)
+        self.cash_allocation = round(self.cash / len(self.symbols), 2)
+        self.strategy.risk_manager.start_cash = self.cash_allocation
+        
+        self.risk_manager = self.strategy.risk_manager
+        self.position_manager = self.strategy.position_manager
+
+        self.trade_manager = TradeManager(live=False)
+        self.stats = Stats(symbol)
+        self.plotting = Plotting(symbol)
+
     def dynamic_slippage(self, signal):
         self.spread_window.append((self.high - self.low) / self.close)
         if signal is not None:
@@ -173,18 +190,6 @@ class Backtest:
 
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
 
-    def initialize(self, symbol, strategy_class):
-        self.strategy = strategy_class(symbol)
-        self.cash_allocation = round(self.cash / len(self.symbols), 2)
-        self.strategy.risk_manager.start_cash = self.cash_allocation
-        
-        self.risk_manager = self.strategy.risk_manager
-        self.position_manager = self.strategy.position_manager
-
-        self.trade_manager = TradeManager(live=False)
-        self.stats = Stats(symbol)
-        self.plotting = Plotting(symbol)
-    
     def combine_equity_dicts(self, dicts):
         all_ts = sorted({ts for d in dicts for ts in d})
         combined = {ts: 0 for ts in all_ts}
@@ -199,10 +204,42 @@ class Backtest:
                 combined[ts] += eq
         return combined
     
-    def train_model(self, symbol, start_date, train_period=100, validation_period=50, rebalance_period=10):
+    def grid_search(self, symbol, df, train, target_metric="Net Profit", top_n=5):
+        param_grid = self.strategy.param_grid()
+        combos = list(product(*param_grid.values()))
+        total = len(combos)
+        results = []
+
+        best_score = -np.inf
+        best_trade_manager = None
+
+        for i, combo in enumerate(combos, 1):
+            params = dict(zip(param_grid.keys(), combo))
+            self.initialize(symbol, self.strategy_class, **params)
+            self.run_simulation(symbol, df, train, display_stats=False, display_plot=False)
+
+            stats_dict = self.stats.get_data_dict()
+            if stats_dict[target_metric] > best_score:
+                best_score = stats_dict[target_metric]
+                best_trade_manager = self.trade_manager
+
+            results.append({"PARAMS": params, "STATS": stats_dict})
+            print(f"[{i}/{total}] Params: {params}")
+        
+        self.trade_manager = best_trade_manager
+        top_results = sorted(results, key=lambda x: x["STATS"][target_metric], reverse=True)[:top_n]
+
+        print("\nTOP RESULTS:")
+        for r in top_results:
+            print(f"{target_metric}: {r['STATS'][target_metric]:.4f} | Params: {r['PARAMS']}")
+
+        with open(f"{symbol}_{self.strategy.__class__.__name__}_grid_search.json", "w") as f:
+            json.dump(results, f, indent=4)
+
+    def train_model(self, symbol, train_period=100, validation_period=50, rebalance_period=10):
         self.train_time += 1
         if self.train_wait:
-            required_date = pd.to_datetime(start_date) + pd.DateOffset(days=train_period + validation_period)
+            required_date = pd.to_datetime(self.start_date) + pd.DateOffset(days=train_period + validation_period)
             required_date = required_date.tz_localize(self.ts.tz)
             if self.ts < required_date:
                 return

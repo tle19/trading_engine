@@ -18,7 +18,10 @@ class Equities:
         self.hash = self.client.linked_accounts().json()[0].get('hashValue')
         self.stream = schwabdev.Stream(self.client)
 
-        self.cash = self.get_liquidation_value() * margin
+        self.cash = self.get_cash_balance() * margin
+        day_trading_power = self.get_day_trading_power()
+        if day_trading_power < self.cash:
+            raise ValueError(f"Insufficient day trading power: available ${day_trading_power}")
         self.timezone = ZoneInfo("America/New_York")
         self.symbols = symbols if isinstance(symbols, list) else [symbols]
         self.initialize(symbols, strategy_class)
@@ -325,11 +328,17 @@ class Equities:
                 return None
             time.sleep(polling_rate)
 
-    def get_liquidation_value(self):
+    def get_cash_balance(self):
         details = self.client.account_details(self.hash)
         details_json = details.json()
-        liquidationValue = details_json["securitiesAccount"]["currentBalances"]["liquidationValue"]
-        return liquidationValue
+        cash_balance = details_json["securitiesAccount"]["currentBalances"]["cashBalance"]
+        return cash_balance
+    
+    def get_day_trading_power(self):
+        details = self.client.account_details(self.hash)
+        details_json = details.json()
+        day_trading_power = details_json["securitiesAccount"]["currentBalances"]["dayTradingBuyingPower"]
+        return day_trading_power
     
     def await_market_open(self):
         print("[WAIT] Market open pending")
