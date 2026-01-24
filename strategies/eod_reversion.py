@@ -7,7 +7,7 @@ from models import *
 from utils import *
 
 class EODReversion(Strategy):
-    def __init__(self, symbol, orb_window=1, htf_window=10, overnight_thresh=0.04,
+    def __init__(self, symbol, orb_window=1, htf_window=10, overnight_thresh=0.05,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=1, drawdown_max=0.20):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
@@ -55,9 +55,9 @@ class EODReversion(Strategy):
         neg_sum = sum(x for x in self.weighted_pressure if x < 0)
         pressure = pos_sum + neg_sum
         self.position_size = self.risk_manager.position_size
-        if pressure < 0 and self.close < self.lower_support and self.overnight_pct < self.overnight_thresh and self.close > self.open:
+        if pressure < 0 and self.close < self.lower_support and self.overnight_pct < self.overnight_thresh:
             signal, _ = self.buy()
-        if pressure > 0 and self.close > self.upper_support and self.overnight_pct < self.overnight_thresh and self.close < self.open:
+        if pressure > 0 and self.close > self.upper_support and self.overnight_pct < self.overnight_thresh:
             signal, _ = self.sell()
         return signal
         
