@@ -174,24 +174,25 @@ class Strategy:
         elif direction == 1:
             return HOLD, None
           
-    def exit(self): # implement non-static exits
-        for leg in self.position_manager.legs:
+    def exit(self):
+        for leg in self.position_manager.legs.copy():
             if leg.check_exit(self.ts, self.low, self.high) == EXIT:
                 return EXIT
         return HOLD
     
     def set_trailing_stop(self):
-        if not self.in_safe_range():
-            return None
-        
-        trailing_ratio = self.compute_trailing_ratio(self.stop_price)
-        adjustment = trailing_ratio * abs(self.stop_price - self.price)
+        for leg in self.position_manager.legs.copy():
+            if not self.in_safe_range(leg):
+                return None
+            
+            trailing_ratio = self.compute_trailing_ratio(leg.stop_price)
+            adjustment = trailing_ratio * abs(leg.stop_price - self.price)
 
-        if self.position == 1 and self.price > self.entry_price:
-            self.stop_price = round(self.stop_price + adjustment, 2)
+            if leg.direction == 1 and self.price > leg.entry_price:
+                leg.stop_price = round(leg.stop_price + adjustment, 2)
 
-        elif self.position == -1 and self.price < self.entry_price:
-            self.stop_price = round(self.stop_price - adjustment, 2)
+            elif leg.direction == -1 and self.price < leg.entry_price:
+                leg.stop_price = round(leg.stop_price - adjustment, 2)
 
     def compute_trailing_ratio(self, price):
         min_distance = self.compute_min_distance()
@@ -207,10 +208,10 @@ class Strategy:
         min_dist = spread * min_dist_ratio
         return min_dist
     
-    def in_safe_range(self):
+    def in_safe_range(self, leg):
         min_distance = self.compute_min_distance()
-        stop_distance = abs(self.stop_price - self.price)
-        target_distance = abs(self.target_price - self.price)
+        stop_distance = abs(leg.stop_price - self.price)
+        target_distance = abs(leg.target_price - self.price)
 
         if min_distance is None:
             return False

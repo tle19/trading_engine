@@ -8,7 +8,7 @@ from utils import *
 
 class EODReversion(Strategy):
     def __init__(self, symbol, orb_window=1, htf_window=10, overnight_thresh=0.05,
-                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
+                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False, force_close=True,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=1, drawdown_max=0.20):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
                          pnl_target, pnl_loss, trade_max, drawdown_max)
@@ -21,12 +21,17 @@ class EODReversion(Strategy):
         self.ema = None
         self.weighted_pressure = []
         self.overnight_pct = 0
+        self.signal = 0
 
         self.prev_day_close = None
         self.regime_ema = None
         self.adx = None
         self.atr = None
-    
+
+        self.model = XGBModel(symbol=symbol, live=True)
+        if not self.model.initialize():
+            self.model = None
+
     def generate_signal(self, row):
         self.update(row)
         self.reset_data()
@@ -51,16 +56,20 @@ class EODReversion(Strategy):
     
     def enter_trade(self):
         signal = None
-        pos_sum = sum(x for x in self.weighted_pressure if x > 0)
-        neg_sum = sum(x for x in self.weighted_pressure if x < 0)
-        pressure = pos_sum + neg_sum
-        self.position_size = self.risk_manager.position_size
-        if pressure < 0 and self.close < self.lower_support and self.overnight_pct < self.overnight_thresh:
+        self.pressure = sum(self.weighted_pressure)
+        if self.pressure < 0 and self.close < self.lower_support:
+            self.signal = 1
+        elif self.pressure > 0 and self.close > self.upper_support:
+            self.signal = -1
+        # self.position_size = self.risk_manager.position_size
+        if self.signal == 1 and self.close < self.ema and self.overnight_pct < self.overnight_thresh:
+            self.signal = 0
             signal, _ = self.buy()
-        if pressure > 0 and self.close > self.upper_support and self.overnight_pct < self.overnight_thresh:
+        if self.signal == -1 and self.close > self.ema and self.overnight_pct < self.overnight_thresh:
+            self.signal = 0
             signal, _ = self.sell()
         return signal
-        
+    
     def compute_indicators(self):
         self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
         self.weighted_pressure.append((self.close - self.open) * self.volume)
@@ -88,6 +97,26 @@ class EODReversion(Strategy):
             ) + 1
             self.upper_support, self.lower_support = self.donchian_channel(self.orb_window)
             self.activated = len(self.prices) > required_data
+
+    def predict_trade(self, threshold=0.4):
+        df = pd.DataFrame(self.features)
+        self.model.prepare_features(df)
+        proba = self.model.get_proba()
+
+        if self.signal == 1:
+            if proba > threshold:
+                self.position_size = 1.0
+            else:
+                self.position_size = 0.75
+            signal, leg = self.buy() 
+        elif self.signal == -1:
+            if proba > threshold:
+                self.position_size = 1.0
+            else:
+                self.position_size = 0.75
+            signal, leg = self.sell() 
+
+        return signal, leg
             
     def add_features(self, direction, stop_price, target_price):
         self.features = {
@@ -99,21 +128,21 @@ class EODReversion(Strategy):
             "session_open": self.opens[0],
             "session_low": min(self.lows),
             "session_high": max(self.highs),
-            "open_volume": sum(self.volumes[0:5]),
+            "open_volume": sum(self.volumes[0:15]),
             "prev_day_close": self.prev_day_close,
             "ema": self.regime_ema,
             "adx": self.adx,
             "atr": self.atr,
+            "pressure": self.pressure,
         }
 
     def param_grid(self):
         params = {
-            "orb_window": [1], # 1 , 3, 5, 10, 15, 30
-            "htf_window": [10],
-            "overnight_thresh": [0.04], # 0.01, 0.02, 0.03, 0.04, 0.05
-            "stop_loss": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015],
-            "take_profit": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015],
-            "trailing_ratio": [0.15],
+            "orb_window": [1, 2, 3, 5, 10, 15, 30, 45, 60], # 1, 2, 3, 5, 10, 15, 30, 45, 60
+            "htf_window": [3, 5, 10, 15, 20, 25, 30], # 3, 5, 10, 15, 20, 25, 30
+            "overnight_thresh": [0.05], # 0.01, 0.02, 0.03, 0.04, 0.05
+            "stop_loss": [0.01], # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
+            "take_profit": [0.01], # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
             "drawdown_max": [0.20]
         }
         return params

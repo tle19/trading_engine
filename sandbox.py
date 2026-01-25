@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from datetime import datetime
 
 from core import *
 from metrics import *
@@ -92,26 +91,25 @@ def test_order(symbol="AAPL"):
     print(fill_price)
 
 def train_model(symbol="META", train_period=100, test_period=50):
-    trade_manager = TradeManager(live=False)
-    trade_manager.load_logs()
+    trade_manager = TradeManager(live=True)
     trade_history = trade_manager.trade_history
 
-    curr_date = pd.to_datetime(datetime.now()).normalize() 
+    curr_date = pd.Timestamp.utcnow().normalize()
     start_date = curr_date - pd.DateOffset(days=train_period + test_period)
     trade_manager.trade_history = [
             trade for trade in trade_history
-            if start_date < pd.to_datetime(trade["entry_time"]).normalize() < curr_date
+            if start_date < pd.to_datetime(trade["entry_time"], utc=True).normalize() < curr_date
        ]
     trade_manager.save_logs()
 
-    mdl = XGBModel(symbol=symbol, strategy="StochasticIndicator", live=False)
+    mdl = XGBModel(symbol=symbol, strategy="EODReversion", live=False)
     # mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
     # mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
     mdl.initialize()
     X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_days=train_period)
     mdl.train(X_train, y_train)
     mdl.evaluate_classification(X_train, y_train, X_test, y_test)
-    mdl.save_model()
+    # mdl.save_model()
 
     trade_manager.trade_history = trade_history
     trade_manager.save_logs()
@@ -167,23 +165,24 @@ def find_proba(df):
             if df.loc["timestamp"] == 15.59:
                 break
 
-ema_window = 50
-lookback = 15
-df = open_data("GOOG", start_date="2024-01-01", end_date="2026-01-01", start_time="10:00", end_time="15:59")
-df["ema"] = df["close"].ewm(span=ema_window, adjust=False).mean()
-df["straddle_up"] = (df["close"] > df["ema"]) & (df["open"] < df["ema"])
-df["straddle_down"] = (df["close"] < df["ema"]) & (df["open"] > df["ema"])
-df["ema_max_last5_pct"] = (df["high"].rolling(lookback, min_periods=1).max() - df["ema"]) / df["ema"]
-df["ema_min_last5_pct"] = (df["low"].rolling(lookback, min_periods=1).min() - df["ema"]) / df["ema"]
-df["ema_straddle_target"] = np.where(df["straddle_up"], df["ema_min_last5_pct"],
-    np.where(df["straddle_down"], df["ema_max_last5_pct"], np.nan)
-)
+# ema_window = 50
+# lookback = 15
+# df = open_data("GOOG", start_date="2024-01-01", end_date="2026-01-01", start_time="10:00", end_time="15:59")
+# df["ema"] = df["close"].ewm(span=ema_window, adjust=False).mean()
+# df["straddle_up"] = (df["close"] > df["ema"]) & (df["open"] < df["ema"])
+# df["straddle_down"] = (df["close"] < df["ema"]) & (df["open"] > df["ema"])
+# df["ema_max_last5_pct"] = (df["high"].rolling(lookback, min_periods=1).max() - df["ema"]) / df["ema"]
+# df["ema_min_last5_pct"] = (df["low"].rolling(lookback, min_periods=1).min() - df["ema"]) / df["ema"]
+# df["ema_straddle_target"] = np.where(df["straddle_up"], df["ema_min_last5_pct"],
+#     np.where(df["straddle_down"], df["ema_max_last5_pct"], np.nan)
+# )
 
-col = "ema_straddle_target"
-x = df[col].dropna()
-mu = x.mean()
-sigma = x.std()
-df["entry_cond"] = (df[col] >= mu - 2*sigma) | (df[col] <= mu + 2*sigma)
+# col = "ema_straddle_target"
+# x = df[col].dropna()
+# mu = x.mean()
+# sigma = x.std()
+# df["entry_cond"] = (df[col] >= mu - 2*sigma) | (df[col] <= mu + 2*sigma)
 
-# save_data(df, "AAAAA")
-plot_diist(df, "ema_straddle_target")
+# plot_diist(df, "ema_straddle_target")
+
+train_model(symbol="AAPL", train_period=300, test_period=300)

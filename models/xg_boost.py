@@ -41,10 +41,8 @@ class XGBModel(BaseModel):
         
         # classification target
         if not self.live and "pnl_pct" in self.df.columns:
-            # original output labels
-            mask = df["direction"] != df["original_dir"]
-            df.loc[mask, "direction"] = df.loc[mask, "original_dir"]
-            df.loc[mask, "pnl_pct"] = -df.loc[mask, "pnl_pct"]
+            # filter out chop
+            df = df[df["pnl_pct"].abs() > -0.001]
             
             df["target"] = (df["pnl_pct"] > 0.000).astype(int)
             feature_cols.append("entry_time")
@@ -64,14 +62,19 @@ class XGBModel(BaseModel):
         daily_adx_ma = daily_adx.rolling(window=3, min_periods=1).mean()
         df["adx_ma"] = df["date"].map(daily_adx_ma)
         df["adx_trend"] = df["adx"] - df["adx_ma"]
-        feature_cols.extend(["adx", "adx_ma", "adx_trend"])
+        # feature_cols.extend(["adx", "adx_ma", "adx_trend"])
 
         # atr relationship
         daily_atr = df.groupby("date")["atr"].first().sort_index()
         daily_atr_ma = daily_atr.rolling(window=3, min_periods=1).mean()
         df["atr_ma"] = df["date"].map(daily_atr_ma)
         df["atr_trend"] = df["atr"] - df["atr_ma"]
-        feature_cols.extend(["atr", "atr_ma", "atr_trend"])
+        # feature_cols.extend(["atr", "atr_ma", "atr_trend"])
+
+        # market open volume
+        feature_cols.append("open_volume")
+
+        # feature_cols.append("pressure")
 
         # print(f"Features: {feature_cols}")
         self.df = df[feature_cols]

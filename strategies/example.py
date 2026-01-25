@@ -69,6 +69,9 @@ class SMACrossover(Strategy):
         
     def exit_trade(self, slow_ma):
         direction = self.position_manager.direction()
+        # set trailing stop (optional)
+        if direction == 1 and self.close > self.open or direction == -1 and self.close < self.open:
+            self.set_trailing_stop()
         if direction == 1 and self.ema < slow_ma:
             return self.exit()
         if direction == -1 and self.ema > slow_ma:
