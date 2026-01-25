@@ -21,7 +21,6 @@ class EODReversion(Strategy):
         self.ema = None
         self.weighted_pressure = []
         self.overnight_pct = 0
-        self.signal = 0
 
         self.prev_day_close = None
         self.regime_ema = None
@@ -57,16 +56,10 @@ class EODReversion(Strategy):
     def enter_trade(self):
         signal = None
         self.pressure = sum(self.weighted_pressure)
-        if self.pressure < 0 and self.close < self.lower_support:
-            self.signal = 1
-        elif self.pressure > 0 and self.close > self.upper_support:
-            self.signal = -1
         # self.position_size = self.risk_manager.position_size
-        if self.signal == 1 and self.close < self.ema and self.overnight_pct < self.overnight_thresh:
-            self.signal = 0
+        if self.pressure < 0 and self.close < self.lower_support and self.close < self.ema and self.overnight_pct < self.overnight_thresh:
             signal, _ = self.buy()
-        if self.signal == -1 and self.close > self.ema and self.overnight_pct < self.overnight_thresh:
-            self.signal = 0
+        if self.pressure > 0 and self.close > self.upper_support and self.close > self.ema and self.overnight_pct < self.overnight_thresh:
             signal, _ = self.sell()
         return signal
     
@@ -99,17 +92,17 @@ class EODReversion(Strategy):
             self.activated = len(self.prices) > required_data
 
     def predict_trade(self, threshold=0.4):
-        df = pd.DataFrame(self.features)
+        df = pd.DataFrame([self.features])
         self.model.prepare_features(df)
         proba = self.model.get_proba()
 
-        if self.signal == 1:
+        if self.pressure < 0 and self.close < self.lower_support and self.close < self.ema and self.overnight_pct < self.overnight_thresh:
             if proba > threshold:
                 self.position_size = 1.0
             else:
                 self.position_size = 0.75
             signal, leg = self.buy() 
-        elif self.signal == -1:
+        elif self.pressure > 0 and self.close > self.upper_support and self.close > self.ema and self.overnight_pct < self.overnight_thresh:
             if proba > threshold:
                 self.position_size = 1.0
             else:
@@ -134,11 +127,12 @@ class EODReversion(Strategy):
             "adx": self.adx,
             "atr": self.atr,
             "pressure": self.pressure,
+            "original_dir": 1 if self.pressure < 0 else -1
         }
 
     def param_grid(self):
         params = {
-            "orb_window": [1, 2, 3, 5, 10, 15, 30, 45, 60], # 1, 2, 3, 5, 10, 15, 30, 45, 60
+            "orb_window": [1, 2, 3, 4, 5, 10, 15, 30, 45, 60], # 1, 2, 3, 4, 5, 10, 15, 30, 45, 60
             "htf_window": [3, 5, 10, 15, 20, 25, 30], # 3, 5, 10, 15, 20, 25, 30
             "overnight_thresh": [0.05], # 0.01, 0.02, 0.03, 0.04, 0.05
             "stop_loss": [0.01], # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015

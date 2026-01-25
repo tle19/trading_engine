@@ -137,7 +137,7 @@ class StochasticIndicator(Strategy):
                 self.stoch_signal = None
     
     def predict_trade(self, threshold=0.4):
-        df = pd.DataFrame(self.features)
+        df = pd.DataFrame([self.features])
         self.model.prepare_features(df)
         proba = self.model.get_proba()
 

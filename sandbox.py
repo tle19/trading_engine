@@ -90,7 +90,7 @@ def test_order(symbol="AAPL"):
     fill_price = eq.get_fill_price(exit_id, timeout=0.1)
     print(fill_price)
 
-def train_model(symbol="META", train_period=100, test_period=50):
+def train_model(symbol="META", train_period=100, test_period=50, grid=False):
     trade_manager = TradeManager(live=True)
     trade_history = trade_manager.trade_history
 
@@ -107,8 +107,11 @@ def train_model(symbol="META", train_period=100, test_period=50):
     # mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
     mdl.initialize()
     X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_days=train_period)
-    mdl.train(X_train, y_train)
-    mdl.evaluate_classification(X_train, y_train, X_test, y_test)
+    if grid:
+        mdl.grid_search(X_train, X_test, y_train, y_test)
+    else:
+        mdl.train(X_train, y_train)
+    mdl.evaluate_classification(X_train, X_test, y_train, y_test)
     # mdl.save_model()
 
     trade_manager.trade_history = trade_history
@@ -185,4 +188,4 @@ def find_proba(df):
 
 # plot_diist(df, "ema_straddle_target")
 
-train_model(symbol="AAPL", train_period=300, test_period=300)
+train_model(symbol="AAPL", train_period=300, test_period=300, grid=True)

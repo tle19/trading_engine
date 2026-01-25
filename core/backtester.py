@@ -29,6 +29,7 @@ class Backtest:
             grid=False, train=False, display_stats=True, display_plot=True):
         start_time = time.perf_counter()
 
+        self.start_date = start_date
         self.trade_history = []
         self.intraday_equity = []
         for symbol in self.symbols:

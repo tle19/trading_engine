@@ -154,7 +154,7 @@ class BaseModel:
         npv = tn / (tn + fn)
         return npv
     
-    def evaluate_classification(self, X_train, y_train, X_test, y_test, threshold=0.4):
+    def evaluate_classification(self, X_train, X_test, y_train, y_test, threshold=0.4):
         y_train_proba = self.model.predict_proba(X_train)[:, 1]
         y_test_proba = self.model.predict_proba(X_test)[:, 1]
         y_train_pred = (y_train_proba >= threshold).astype(int)
@@ -179,7 +179,7 @@ class BaseModel:
         print(f"Test NPV:       {npv:.4f}")
         print(f"Test F1 Score:  {f1:.4f}")
 
-    def evaluate_regression(self, X_train, y_train, X_test, y_test):
+    def evaluate_regression(self, X_train, X_test, y_train, y_test):
         y_train_pred = self.model.predict(X_train)
         y_test_pred = self.model.predict(X_test)
 
