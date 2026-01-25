@@ -26,9 +26,15 @@ class Stats:
         self.loss_streak = 0
         self.max_gain_streak = 0
         self.max_loss_streak = 0
+        self.long_trades = 0
+        self.short_trades = 0
+        self.long_win_rate = 0
+        self.short_win_rate = 0
 
         self.max_drawdown = 0
         self.sharpe_ratio = 0
+        self.sortino_ratio = 0
+        self.calmar_ratio = 0
         self.cagr = 0
         self.profit_factor = 0
 
@@ -56,8 +62,11 @@ class Stats:
         self._calculate_win_rates()
         self._calculate_streaks()
         self._calculate_daily_streaks()
+        self._calculate_long_short_trades()
         self._calculate_drawdown()
         self._calculate_sharpe_ratio()
+        self._calculate_sortino_ratio()
+        self._calculate_calmar_ratio()
         self._calculate_cagr()
         self._calculate_trade_behavior()
         
@@ -84,11 +93,15 @@ class Stats:
         print(f"Win Rate:                   {self.win_rate:.2%}")
         print(f"Consecutive Wins:           {self.win_streak} (${self.max_gain_streak:.2f})")
         print(f"Consecutive Losses:         {self.loss_streak} (${self.max_loss_streak:.2f})")
+        print(f"Long Trades:                {self.long_trades} (Win Rate: {self.long_win_rate:.2%})")
+        print(f"Short Trades:               {self.short_trades} (Win Rate: {self.short_win_rate:.2%})")
         print("-" * 50)
 
          # --- Risk-Adjusted Performance ---
         print(f"Max Drawdown:               {self.max_drawdown:.2%}")
         print(f"Sharpe Ratio:               {self.sharpe_ratio:.2f}")
+        print(f"Sortino Ratio:              {self.sortino_ratio:.2f}")
+        print(f"Calmar Ratio:               {self.calmar_ratio:.2f}")
         print(f"CAGR:                       {self.cagr:.2%}")
         print(f"Profit Factor:              {self.profit_factor:.2f}")
         print("-" * 50)
@@ -188,6 +201,22 @@ class Stats:
             self.max_day_gain_streak = max(self.max_day_gain_streak, cur_gain)
             self.max_day_loss_streak = min(self.max_day_loss_streak, cur_loss)
 
+    def _calculate_long_short_trades(self):
+        longs = [t for t in self.trade_history if t["direction"] == 1]
+        shorts = [t for t in self.trade_history if t["direction"] == -1]
+
+        self.long_trades = len(longs)
+        self.short_trades = len(shorts)
+
+        long_wins = sum(1 for t in longs if t["pnl"] > 0)
+        short_wins = sum(1 for t in shorts if t["pnl"] > 0)
+
+        self.long_wins = long_wins
+        self.short_wins = short_wins
+
+        self.long_win_rate = long_wins / self.long_trades if self.long_trades > 0 else 0
+        self.short_win_rate = short_wins / self.short_trades if self.short_trades > 0 else 0
+
     def _calculate_drawdown(self):
         cum_max = np.maximum.accumulate(self.intraday_equity)
         drawdowns = (cum_max - self.intraday_equity) / cum_max
@@ -195,13 +224,35 @@ class Stats:
 
     def _calculate_sharpe_ratio(self, risk_free_rate=0.05):
         daily_returns = np.array(self.daily_pnls) / self.equity_initial
-        mean = np.mean(daily_returns)
+        daily_rf = (1 + risk_free_rate) ** (1/252) - 1
+        
+        excess_mean = np.mean(daily_returns) - daily_rf
         std = np.std(daily_returns, ddof=1)
 
-        daily_rf = (1 + risk_free_rate) ** (1/252) - 1
-        excess_daily_return = mean - daily_rf
+        self.sharpe_ratio = np.sqrt(252) * (excess_mean / std)
 
-        self.sharpe_ratio = np.sqrt(252) * (excess_daily_return / std)
+    def _calculate_sortino_ratio(self, risk_free_rate=0.05):
+        daily_returns = np.array(self.daily_pnls) / self.equity_initial
+        daily_rf = (1 + risk_free_rate) ** (1 / 252) - 1
+
+        excess_returns = daily_returns - daily_rf
+        downside_returns = excess_returns[excess_returns < 0]
+
+        if len(downside_returns) == 0:
+            return
+
+        downside_std = np.std(downside_returns, ddof=1)
+        mean_excess = np.mean(excess_returns)
+
+        self.sortino_ratio = np.sqrt(252) * (mean_excess / downside_std)
+
+    def _calculate_calmar_ratio(self):
+        if self.max_drawdown == 0:
+            return
+
+        num_days = len(self.daily_pnls)
+        annualized_return = (1 + self.net_profit_pct) ** (252 / num_days) - 1
+        self.calmar_ratio = annualized_return / self.max_drawdown
 
     def _calculate_cagr(self):
         years = self.duration.days / 365.25
@@ -248,10 +299,16 @@ class Stats:
             "Max Gain": float(self.max_gain_streak),
             "Consecutive Losses": int(self.loss_streak),
             "Max Loss": float(self.max_loss_streak),
+            "Long Trades": int(self.long_trades),
+            "Short Trades": int(self.short_trades),
+            "Long Win Rate": float(self.long_win_rate),
+            "Short Win Rate": float(self.short_win_rate),
 
             # --- Risk-Adjusted Performance ---
             "Max Drawdown": float(self.max_drawdown),
             "Sharpe Ratio": float(self.sharpe_ratio),
+            "Sortino Ratio": float(self.sortino_ratio),
+            "Calmar Ratio": float(self.calmar_ratio),
             "CAGR": float(self.cagr),
             "Profit Factor": float(self.profit_factor),
 
