@@ -54,7 +54,7 @@ class XGBModel(BaseModel):
             feature_cols.append("target")
 
         # session-relative prices
-        for col in ["session_open", "session_low", "session_high"]:
+        for col in ["session_open"]: # , "session_low", "session_high"
             df[f"{col}_pct_from_entry"] = df["direction"] * (df[col] - df["entry_price"]) / df["entry_price"]
             feature_cols.append(f"{col}_pct_from_entry")
 
@@ -62,24 +62,15 @@ class XGBModel(BaseModel):
         df[f"overnight_gap"] = abs(1 - (df["session_open"] / df["prev_day_close"]))
         feature_cols.append("overnight_gap")
 
-        # adx relationship
-        daily_adx = df.groupby("date")["adx"].first().sort_index()
-        daily_adx_ma = daily_adx.rolling(window=3, min_periods=1).mean()
-        df["adx_ma"] = df["date"].map(daily_adx_ma)
-        df["adx_trend"] = df["adx"] - df["adx_ma"]
-        # feature_cols.extend(["adx", "adx_ma", "adx_trend"])
-
         # atr relationship
         daily_atr = df.groupby("date")["atr"].first().sort_index()
         daily_atr_ma = daily_atr.rolling(window=3, min_periods=1).mean()
         df["atr_ma"] = df["date"].map(daily_atr_ma)
         df["atr_trend"] = df["atr"] - df["atr_ma"]
-        # feature_cols.extend(["atr", "atr_ma", "atr_trend"])
+        feature_cols.extend(["atr", "atr_ma", "atr_trend"])
 
         # market open volume
         feature_cols.append("open_volume")
-
-        # feature_cols.append("pressure")
 
         # print(f"Features: {feature_cols}")
         self.df = df[feature_cols]

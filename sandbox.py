@@ -186,6 +186,6 @@ def find_proba(df):
 # sigma = x.std()
 # df["entry_cond"] = (df[col] >= mu - 2*sigma) | (df[col] <= mu + 2*sigma)
 
-# plot_diist(df, "ema_straddle_target")
+# plot_dist(df, "ema_straddle_target")
 
-train_model(symbol="AAPL", train_period=300, test_period=300, grid=True)
+train_model(symbol="AAPL", train_period=450, test_period=300, grid=True)

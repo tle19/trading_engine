@@ -237,7 +237,7 @@ class Backtest:
         with open(f"{symbol}_{self.strategy.__class__.__name__}_grid_search.json", "w") as f:
             json.dump(results, f, indent=4)
 
-    def train_model(self, symbol, train_period=100, validation_period=50, rebalance_period=10):
+    def train_model(self, symbol, train_period=100, validation_period=100, rebalance_period=3):
         self.train_time += 1
         if self.train_wait:
             required_date = pd.to_datetime(self.start_date) + pd.DateOffset(days=train_period + validation_period)
