@@ -5,5 +5,6 @@ from .executor import *
 __all__ = [
     "DataHandler",
     "Backtest",
-    "Equities"
+    "Equities",
+    "Pairs"
 ]

@@ -20,7 +20,6 @@ class EODReversion(Strategy):
         self.lower_support = None
         self.ema = None
         self.weighted_pressure = []
-        self.overnight_pct = 0
 
         self.prev_day_close = None
         self.regime_ema = None
@@ -58,7 +57,6 @@ class EODReversion(Strategy):
     
     def enter_trade(self):
         signal = None
-        self.pressure = sum(self.weighted_pressure)
         # self.position_size = self.risk_manager.position_size
         self.atr_cond = np.mean(self.rolling_atr) - self.prev_day_atr_sum < self.atr_diff
         # sum day adx for entry?
@@ -73,6 +71,7 @@ class EODReversion(Strategy):
     def compute_indicators(self):
         self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
         self.weighted_pressure.append((self.close - self.open) * self.volume)
+        self.pressure = sum(self.weighted_pressure)
         self.rolling_atr.append(self.compute_atr(self.highs, self.lows, self.closes))
 
     def reset_indicators(self):
@@ -83,14 +82,13 @@ class EODReversion(Strategy):
 
             self.weighted_pressure = []
             self.rolling_atr = []
-            self.daily_atr = []
+            self.prev_day_atr_sum = 0.2
 
             if self.d_closes:
                 self.prev_day_close = self.d_closes[-1]
                 self.regime_ema = self.compute_ma(self.d_closes, window=50)
                 self.adx = self.compute_adx(self.d_highs, self.d_lows, self.d_closes)
                 self.atr = self.compute_atr(self.d_highs, self.d_lows, self.d_closes)
-                self.overnight_pct = abs(self.open - self.prev_day_close) / self.prev_day_close
 
     def minimum_computations(self):
         if not self.activated:
@@ -119,14 +117,14 @@ class EODReversion(Strategy):
                 self.position_size = 0.75
             signal, leg = self.sell() 
 
-        # if self.pressure < 0 and self.close < self.lower_support and self.close < self.ema and self.overnight_pct < self.overnight_thresh:
+        # if self.pressure < 0 and self.close < self.lower_support and self.close < self.ema and self.atr_cond:
         #     if proba > threshold:
         #         signal, leg = self.buy() 
         #         confidence = proba
         #     else:
         #         signal, leg = self.sell() 
         #         confidence = 1 - proba
-        # elif self.pressure > 0 and self.close > self.upper_support and self.close > self.ema and self.overnight_pct < self.overnight_thresh:
+        # elif self.pressure > 0 and self.close > self.upper_support and self.close > self.ema and self.atr_cond:
         #     if proba > threshold:
         #         signal, leg = self.sell()
         #         confidence = proba

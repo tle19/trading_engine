@@ -2,8 +2,8 @@ import os
 import json
 import time
 import pandas as pd
-import numpy as np
 from zoneinfo import ZoneInfo
+from collections import namedtuple
 
 import schwabdev
 
@@ -100,3 +100,36 @@ def fetch_latest_prices(symbols):
     for key, value in prices.items():
         print(f"[{key}] {value}")
     return prices
+
+def fetch_bid_ask(symbols):
+    config = load_config()
+    client = schwabdev.Client(config["app_key"], config["app_secret"])
+    stream = schwabdev.Stream(client)
+
+    Row = namedtuple("Row", ["timestamp", "bid", "ask", "last", "bid_size", "ask_size"])
+
+    def response_handler(message):
+        data = json.loads(message).get("data", [])
+        if not data:
+            return
+        
+        content = data[0].get("content")
+        if not content:
+            return
+        for item in content:
+            symbol = item["key"]
+
+            timestamp = pd.to_datetime(item.get("34"), unit='ms', utc=True).tz_convert(timezone)
+            bid = item.get("1")
+            ask = item.get("2")
+            last = item.get("3")
+            bid_size = item.get("4")
+            ask_size = item.get("5")
+
+            row = Row(timestamp, bid, ask, last, bid_size, ask_size)
+            print(f"[{symbol}] {row}")
+
+    stream.start(response_handler)
+    stream.send(stream.level_one_equities(symbols, "0,1,2,3,4,5,34", command="SUBS"))
+    time.sleep(3)
+    stream.stop()
