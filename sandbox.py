@@ -2,110 +2,14 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from symbols import SYMBOLS
 from core import *
 from metrics import *
 from strategies import *
 from models import *
 from utils import *
 
-symbols = [
-    # ===== INDEX / MACRO =====
-    "SPY",   # S&P 500 ETF
-    "QQQ",   # Nasdaq-100 ETF
-    "IWM",   # Russell 2000 ETF
-    "TLT",   # 20+ Year Treasury Bonds ETF
-    "BRK.B",  # Berkshire Hathaway
-
-    # ===== TECH =====
-    "AAPL",  # Apple
-    "MSFT",  # Microsoft
-    "NVDA",  # NVIDIA
-    "AMD",   # AMD
-    "GOOG",  # Alphabet
-    "META",  # Meta Platforms
-    "ADBE",  # Adobe
-    "CRM",   # Salesforce
-    "INTC",  # Intel
-    "AVGO",  # Broadcom
-    "NFLX",  # Netflix
-
-    # ===== CONSUMER =====
-    "TSLA",  # Tesla
-    "AMZN",  # Amazon
-    "HD",    # Home Depot
-    "MCD",   # McDonald's
-    "NKE",   # Nike
-    "SBUX",  # Starbucks
-    "COST",  # Costco
-    "WMT",   # Walmart
-    "PG",    # Procter & Gamble
-    "KO",    # Coca-Cola
-    "PEP",   # PepsiCo
-
-    # ===== FINANCIALS =====
-    "V",     # Visa
-    "MA",     # Mastercard
-    "JPM",   # JPMorgan Chase
-    "GS",    # Goldman Sachs
-    "BAC",   # Bank of America
-    "MS",    # Morgan Stanley
-    "C",     # Citigroup
-    "AXP",   # American Express
-    "SCHW",  # Charles Schwab
-    "WFC",   # Wells Fargo
-    "COF",   # Capital One
-
-    # ===== INDUSTRIALS / ENERGY =====
-    "XOM",   # ExxonMobil
-    "CVX",   # Chevron
-    "SLB",   # Schlumberger
-    "CAT",   # Caterpillar
-    "DE",    # Deere & Co
-    "GE",    # General Electric
-    "BA",    # Boeing
-    "LMT",   # Lockheed Martin
-    "RTX",   # RTX
-    "HON",   # Honeywell
-    "UPS",   # United Parcel Service
-
-    # ===== HEALTHCARE =====
-    "UNH",   # UnitedHealth Group
-    "LLY",   # Eli Lilly
-    "ABBV",  # AbbVie
-    "JNJ",   # Johnson & Johnson
-    "MRK",   # Merck
-    "PFE",   # Pfizer
-    "TMO",   # Thermo Fisher Scientific
-    "AMGN"  # Amgen
-]
-symbols = ["QQQ", "AAPL", "MSFT", "META", "CRM", "ABBV", "CVX", "MRK", "UPS", "AXP", "CAT"]
-
-def train_model(symbol="META", train_period=100, test_period=50, grid=False):
-    trade_manager = TradeManager(live=True)
-    trade_history = trade_manager.trade_history
-
-    curr_date = pd.Timestamp.utcnow().normalize()
-    start_date = curr_date - pd.DateOffset(days=train_period + test_period)
-    trade_manager.trade_history = [
-            trade for trade in trade_history
-            if start_date < pd.to_datetime(trade["entry_time"], utc=True).normalize() < curr_date
-       ]
-    trade_manager.save_logs()
-
-    mdl = XGBModel(symbol=symbol, strategy="EODReversion", live=False)
-    # mdl = RFModel(symbol=symbol, strategy="StochasticIndicator", live=False)
-    # mdl = KNNModel(symbol=symbol, strategy="StochasticIndicator", live=False)
-    mdl.initialize()
-    X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_days=train_period)
-    if grid:
-        mdl.grid_search(X_train, X_test, y_train, y_test)
-    else:
-        mdl.train(X_train, y_train)
-    mdl.evaluate_classification(X_train, X_test, y_train, y_test)
-    # mdl.save_model()
-
-    trade_manager.trade_history = trade_history
-    trade_manager.save_logs()
+symbols = SYMBOLS
 
 def plot_diist(df, col):
     x = df[col].dropna()

@@ -35,6 +35,7 @@ class SMACrossover(Strategy):
     
     def generate_signal(self, row):
         self.update(row)  # store OHLCV
+        self.backfill_data() # backfill data if needed
         self.reset_data() # intraday data reset
         self.reset_day() # reset position manager and risk manager
         self.reset_indicators()
@@ -94,6 +95,18 @@ class SMACrossover(Strategy):
                 self.regime_ema = self.compute_ma(self.d_closes, window=50)
                 self.adx = self.compute_adx(self.d_highs, self.d_lows, self.d_closes)
                 self.atr = self.compute_atr(self.d_highs, self.d_lows, self.d_closes)
+                
+    def backfill_data(self):
+        if not self.back_filled:
+            df = open_data(self.symbol, start_time="9:30", end_time="15:59")
+            df = df[df['timestamp'] < self.ts]
+            last_trading_day = df['timestamp'].dt.date.max()
+            df = df[df['timestamp'].dt.date == last_trading_day]
+            if not df.empty:
+                print("No Backfill")
+            else:
+                print("Backfilled")
+            self.back_filled = True
 
     def minimum_computations(self):
         if not self.activated:

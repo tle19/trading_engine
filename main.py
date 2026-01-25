@@ -1,4 +1,5 @@
 import argparse
+from symbols import SYMBOLS
 from core import *
 from utils import *
 from strategies import strategy_map
@@ -28,8 +29,14 @@ def main():
         raise ValueError(f"Unknown Strategy: {args.strategy}")
     if args.symbol is None:
         raise ValueError(f"You must provide a symbol, e.g., --symbol SPY")
+    if args.symbol == "EVERYTHING":
+        args.symbol = SYMBOLS
 
     if args.live:
+        # dh = DataHandler()
+        # dh.historical_data(symbols)
+        # bt = Backtest(args.symbol, strategy_class, margin=args.margin)
+        # bt.run()
         eq = Equities(
             args.symbol, 
             strategy_class, 
@@ -51,7 +58,7 @@ def main():
         if args.schwab:
             dh.schwab_data(args.symbol[0])
         else:
-            dh.historical_data(args.symbol, from_date='2024-01-10', to_date='2026-01-10')
+            dh.historical_data(args.symbol)
     elif args.stream:
         dh = DataHandler()
         dh.stream_data(args.symbol)

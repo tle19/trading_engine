@@ -24,13 +24,14 @@ class DataHandler:
         self.Equity_Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
         self.Forex_Row = namedtuple("Row", ["timestamp", "bid", "ask", "last", "bid_size", "ask_size", "volume"])
 
-    def historical_data(self, symbols=['SPY'], from_date='2024-01-01', to_date='2026-01-01',
+    def historical_data(self, symbols=['SPY'], from_date='2024-01-01', to_date='2027-01-01',
                                 timespan='minute', multiplier=1, max_iter=10):
         start_time = time.perf_counter()
-        data_list = []
-        current_from = from_date
 
         for symbol in symbols:
+            data_list = []
+            current_from = from_date
+
             if "/" in symbol:
                 base, quote = symbol.split("/")
                 polygon_symbol = f"C:{base}{quote}"
@@ -77,8 +78,20 @@ class DataHandler:
                     break
                 
                 time.sleep(13) # Polygon.io rate limit (5 calls/minute)
-
+            
             df = pd.DataFrame(data_list)
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
+            df['timestamp'] = df['timestamp'].dt.tz_convert(self.timezone)
+
+            try:
+                existing_df = open_data(symbol, start_time="0:00", end_time="23:59")
+                df = pd.concat([existing_df, df], ignore_index=True)
+                df.drop_duplicates(subset='timestamp', inplace=True)
+                df.sort_values('timestamp', inplace=True)
+                df = df.reset_index(drop=True)
+            except FileNotFoundError:
+                pass
+
             save_data(df, symbol)
 
         elapsed_time = time.perf_counter() - start_time
@@ -107,7 +120,6 @@ class DataHandler:
         df.rename(columns={"datetime": "timestamp"}, inplace=True)
 
         save_data(df, symbol)
-
         return df
 
     def stream_data(self, symbols, duration=300):

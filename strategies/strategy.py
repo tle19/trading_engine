@@ -41,6 +41,7 @@ class Strategy:
         self.d_lows = []
         self.d_volumes = [] 
 
+        self.back_filled = False
         self.activated = False
         self.model = None
         self.features = {}
@@ -64,6 +65,9 @@ class Strategy:
         raise NotImplementedError
         
     def minimum_computations(self):
+        raise NotImplementedError
+    
+    def backfill_data(self):
         raise NotImplementedError
     
     def param_grid(self):

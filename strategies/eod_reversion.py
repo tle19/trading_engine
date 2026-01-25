@@ -27,7 +27,7 @@ class EODReversion(Strategy):
         self.atr = None
 
         self.rolling_atr = []
-        self.prev_day_atr_sum = 0.2
+        self.prev_day_atr_mean = 0.0
 
         self.model = XGBModel(symbol=symbol, live=True)
         if not self.model.initialize():
@@ -35,6 +35,7 @@ class EODReversion(Strategy):
 
     def generate_signal(self, row):
         self.update(row)
+        self.backfill_data()
         self.reset_data()
         self.reset_day()
         self.reset_indicators()
@@ -42,7 +43,7 @@ class EODReversion(Strategy):
         
         self.compute_indicators()
 
-        if self.risk_manager._day_pause: 
+        if self.risk_manager._day_pause:
             return None
 
         if not self.trade_window((15, 00), (15, 45)) and not self.position_manager.in_trade():
@@ -58,21 +59,21 @@ class EODReversion(Strategy):
     def enter_trade(self):
         signal = None
         # self.position_size = self.risk_manager.position_size
-        self.atr_cond = np.mean(self.rolling_atr) - self.prev_day_atr_sum < self.atr_diff
+        self.atr_cond = np.mean(self.rolling_atr) - self.prev_day_atr_mean < self.atr_diff
         # sum day adx for entry?
         if self.pressure < 0 and self.close < self.lower_support and self.close < self.ema and self.atr_cond:
-            self.prev_day_atr_sum = np.mean(self.rolling_atr)
+            self.prev_day_atr_mean = np.mean(self.rolling_atr)
             signal, _ = self.buy()
         if self.pressure > 0 and self.close > self.upper_support and self.close > self.ema and self.atr_cond:
-            self.prev_day_atr_sum = np.mean(self.rolling_atr)
+            self.prev_day_atr_mean = np.mean(self.rolling_atr)
             signal, _ = self.sell()
         return signal
     
     def compute_indicators(self):
         self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
         self.weighted_pressure.append((self.close - self.open) * self.volume)
-        self.pressure = sum(self.weighted_pressure)
         self.rolling_atr.append(self.compute_atr(self.highs, self.lows, self.closes))
+        self.pressure = sum(self.weighted_pressure)
 
     def reset_indicators(self):
         if self.trade_window((9, 30), (9, 30)):
@@ -82,7 +83,6 @@ class EODReversion(Strategy):
 
             self.weighted_pressure = []
             self.rolling_atr = []
-            self.prev_day_atr_sum = 0.2
 
             if self.d_closes:
                 self.prev_day_close = self.d_closes[-1]
@@ -99,6 +99,19 @@ class EODReversion(Strategy):
             self.upper_support, self.lower_support = self.donchian_channel(self.orb_window)
             self.activated = len(self.prices) > required_data
 
+    def backfill_data(self):
+        if not self.back_filled:
+            df = open_data(self.symbol, start_time="9:30", end_time="15:59")
+            df = df[df['timestamp'] < self.ts]
+            last_trading_day = df['timestamp'].dt.date.max()
+            df = df[df['timestamp'].dt.date == last_trading_day]
+            if not df.empty:
+                atr = self.compute_atr(df['high'], df['low'], df['close'])
+                self.prev_day_atr_mean = np.mean(atr)
+            else:
+                self.prev_day_atr_mean = 0.25
+            self.back_filled = True
+    
     def predict_trade(self, threshold=0.4):
         df = pd.DataFrame([self.features])
         self.model.prepare_features(df)
@@ -153,8 +166,8 @@ class EODReversion(Strategy):
             "upper_support": self.upper_support,
             "lower_support": self.lower_support,
             "pressure": self.pressure,
-            "curr_day_atr_sum": np.mean(self.rolling_atr), 
-            "prev_day_atr_sum": self.prev_day_atr_sum,
+            "curr_day_atr_mean": np.mean(self.rolling_atr), 
+            "prev_day_atr_mean": self.prev_day_atr_mean,
             "original_dir": 1 if self.pressure < 0 else -1
         }
 
