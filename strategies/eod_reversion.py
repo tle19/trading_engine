@@ -7,7 +7,7 @@ from models import *
 from utils import *
 
 class EODReversion(Strategy):
-    def __init__(self, symbol, orb_window=1, htf_window=10, atr_diff=0.15,
+    def __init__(self, symbol, orb_window=1, htf_window=10, atr_diff=0.2,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False, force_close=True,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=1, drawdown_max=0.20):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
@@ -68,6 +68,17 @@ class EODReversion(Strategy):
             self.prev_day_atr_mean = np.mean(self.rolling_atr)
             signal, _ = self.sell()
         return signal
+    
+    def exit_trade(self):
+        for leg in self.position_manager.legs:
+            diff = leg.target_price - leg.entry_price
+            if leg.direction == 1:
+                if self.price >= leg.entry_price + 0.75 * diff:
+                    leg.stop_price = leg.entry_price + 0.25 * diff
+            elif leg.direction == -1:
+                if self.price <= leg.entry_price + 0.75 * diff:
+                    leg.stop_price = leg.entry_price + 0.25 * diff
+        return self.exit()
     
     def compute_indicators(self):
         self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
@@ -175,7 +186,7 @@ class EODReversion(Strategy):
         params = {
             "orb_window": [1], # 1, 2, 3, 4, 5, 10, 15, 30, 45, 60
             "htf_window": [10], # 3, 5, 10, 15, 20, 25, 30
-            "atr_diff": [0.05, 0.10, 0.125, 0.15, 0.175, 0.20, 0.25, 0.30], # 0.05, 0.10, 0.15, 0.20, 0.25, 0.30
+            "atr_diff": [0.05, 0.10, 0.125, 0.15, 0.175, 0.20, 0.225, 0.25, 0.30], # 0.05, 0.10, 0.15, 0.20, 0.25, 0.30
             "stop_loss": [0.01], # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
             "take_profit": [0.01], # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
             "drawdown_max": [0.20]

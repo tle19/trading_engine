@@ -1,6 +1,8 @@
 import time
+import numpy as np
 from collections import deque
 from itertools import product
+from datetime import datetime
 
 from core import *
 from metrics import *
@@ -45,7 +47,7 @@ class Backtest:
             self.trade_history.extend(self.trade_manager.trade_history)
             self.intraday_equity.append(self.trade_manager.intraday_equity)
 
-        # trade history sort by exit time
+        self.trade_history = self.sort_trade_history(self.trade_history)
         self.intraday_equity = self.combine_equity_dicts(self.intraday_equity)
 
         stats = Stats("AGGREGATE")
@@ -190,6 +192,10 @@ class Backtest:
                 current_equity += (leg.entry_price - self.close) * leg.shares * self.margin
 
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
+
+    def sort_trade_history(self, trade_history):
+        trade_history.sort(key=lambda x: datetime.fromisoformat(x["exit_time"]))
+        return trade_history
 
     def combine_equity_dicts(self, dicts):
         all_ts = sorted({ts for d in dicts for ts in d})
