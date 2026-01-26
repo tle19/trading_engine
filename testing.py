@@ -18,7 +18,6 @@ def test_order(symbol="AAPL"):
     print(fill_price)
 
 
-
 pt = Pairs(["GOOG", "GOOGL"], StochasticIndicator)
 # pt.run()
 

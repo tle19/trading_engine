@@ -373,7 +373,7 @@ class Pairs:
 
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])
         self.hash = self.client.linked_accounts().json()[0].get('hashValue')
-        self.stream = schwabdev.Stream(self.client)
+        # self.stream = schwabdev.Stream(self.client)
 
         self.cash = self.get_cash_balance() * margin
         day_trading_power = self.get_day_trading_power()

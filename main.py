@@ -1,4 +1,6 @@
 import argparse
+from datetime import date
+
 from symbols import SYMBOLS
 from core import *
 from utils import *
@@ -15,7 +17,7 @@ def main():
     parser.add_argument("--grid", action="store_true")
     parser.add_argument("--train", action="store_true")
 
-    parser.add_argument("--strategy", type=str, default="stochastic")
+    parser.add_argument("--strategy", type=str, default="eod_reversion")
     parser.add_argument("--symbol", nargs="+", type=str, default=None, help="QQQ AAPL MSFT")
     
     parser.add_argument("--cash", type=int, default=25000)
@@ -23,7 +25,7 @@ def main():
     parser.add_argument("--commission", type=float, default=0.0)
     parser.add_argument("--slippage", type=float, default=0.1)
     args = parser.parse_args()
-
+    
     strategy_class = strategy_map.get(args.strategy)
     if strategy_class is None:
         raise ValueError(f"Unknown Strategy: {args.strategy}")
@@ -31,27 +33,15 @@ def main():
         raise ValueError(f"You must provide a symbol, e.g., --symbol SPY")
     if args.symbol == "EVERYTHING":
         args.symbol = SYMBOLS
-
+    
     if args.live:
-        # dh = DataHandler()
-        # dh.historical_data(symbols)
+        # DataHandler().historical_data(symbols)
         # bt = Backtest(args.symbol, strategy_class, margin=args.margin)
-        # bt.run()
-        eq = Equities(
-            args.symbol, 
-            strategy_class, 
-            margin=args.margin
-            )
+        # bt.run(end_date=str(date.today()), display_stats=False, display_plot=False)
+        eq = Equities(args.symbol, strategy_class, margin=args.margin)
         eq.run()
     elif args.backtest:
-        bt = Backtest(
-            args.symbol, 
-            strategy_class, 
-            cash=args.cash, 
-            margin=args.margin, 
-            commission=args.commission, 
-            slippage=args.slippage
-            )
+        bt = Backtest(args.symbol, strategy_class, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage)
         bt.run(train=args.train, grid=args.grid)
     elif args.fetch:
         dh = DataHandler()

@@ -69,16 +69,16 @@ class EODReversion(Strategy):
             signal, _ = self.sell()
         return signal
     
-    def exit_trade(self):
-        for leg in self.position_manager.legs:
-            diff = leg.target_price - leg.entry_price
-            if leg.direction == 1:
-                if self.price >= leg.entry_price + 0.75 * diff:
-                    leg.stop_price = leg.entry_price + 0.25 * diff
-            elif leg.direction == -1:
-                if self.price <= leg.entry_price + 0.75 * diff:
-                    leg.stop_price = leg.entry_price + 0.25 * diff
-        return self.exit()
+    # def exit_trade(self):
+    #     for leg in self.position_manager.legs:
+    #         diff = leg.target_price - leg.entry_price
+    #         if leg.direction == 1:
+    #             if self.price >= leg.entry_price + 0.75 * diff:
+    #                 leg.stop_price = leg.entry_price + 0.25 * diff
+    #         elif leg.direction == -1:
+    #             if self.price <= leg.entry_price + 0.75 * diff:
+    #                 leg.stop_price = leg.entry_price + 0.25 * diff
+    #     return self.exit()
     
     def compute_indicators(self):
         self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
