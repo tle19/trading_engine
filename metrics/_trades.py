@@ -21,6 +21,7 @@ class TradeManager:
         self.intraday_equity[ts] = equity
 
     def log_entry(self, name, leg, symbol, direction, position_size, shares, entry_time, entry_price, fill_price, stop_price, target_price, features=None):
+        fill_price = entry_price if fill_price is None else fill_price
         trade = {
             "strategy": name,
             "symbol": symbol,
@@ -37,12 +38,13 @@ class TradeManager:
             "exit_fill": None,
             "pnl": None,
             "pnl_pct": None,
-            "features": features.copy()
+            "features": features.copy() if features else {}
         }
         self.open_trades[leg] = trade
     
     def update_exit(self, leg, exit_time, exit_price, fill_price):
         trade = self.open_trades.pop(leg)
+        fill_price = exit_price if fill_price is None else fill_price
         trade["exit_time"] = exit_time.isoformat()
         trade["exit_price"] = exit_price
         trade["exit_fill"] = round(fill_price, 2)

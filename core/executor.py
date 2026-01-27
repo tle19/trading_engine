@@ -112,7 +112,7 @@ class Equities:
                     target_price = leg.target_price
                     shares = leg.shares
 
-                    fill_price = self.get_fill_price(self.exit_ids[leg], shares, type="oco", timeout=0.25)
+                    fill_price = self.get_fill_price(self.exit_ids[leg], shares, type="oco", timeout=1)
                     # implement partial fill check
                     
                     if fill_price is None:
@@ -309,7 +309,7 @@ class Equities:
         time.sleep(polling_rate)
         return response.status_code # 200 == success; 500 == failed
         
-    def get_fill_price(self, order_id, quantity, type="single", timeout=5, polling_rate=0.25): 
+    def get_fill_price(self, order_id, quantity, type="single", timeout=10, polling_rate=0.25): 
         start = time.time()
         while True:
             order_details = self.get_order_details(order_id)
@@ -437,30 +437,29 @@ class EquityPairs:
 
     def interpret_signal(self, signal, strategy, pair):
         name = strategy.__class__.__name__
-        s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
+        symbol1, symbol2 = pair.split("-")
+        s1, s2 = self.data[symbol1], self.data[symbol2]
         
         # --- Enter Long/Short ---
         if signal == 1:
-            fill_price1, fill_price2 = self.buy_pair(pair, s1["shares"])
+            fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"])
             s1["entry_price"], s2["entry_price"] = fill_price1, fill_price2
-
-            self.trade_manager.log_entry(name, pair+":1", self.symbol1, s1["direction"], s1["position_size"], s1["shares"], s1["ts"], s1["price"], fill_price1, None, s1["target_price"])
-            self.trade_manager.log_entry(name, pair+":2", self.symbol2, s2["direction"], s2["position_size"], s2["shares"], s2["ts"], s2["price"], fill_price2, None, s2["target_price"])
+            self.trade_manager.log_entry(name, pair+":1", symbol1, s1["direction"], s1["position_size"], s1["shares"], s1["ts"], s1["price"], fill_price1, None, s1["target_price"])
+            self.trade_manager.log_entry(name, pair+":2", symbol2, s2["direction"], s2["position_size"], s2["shares"], s2["ts"], s2["price"], fill_price2, None, s2["target_price"])
 
         # --- Enter Short/Long ---
         elif signal == -1:
-            fill_price1, fill_price2 = self.sell_pair(pair, s1["shares"])
+            fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"])
             s1["entry_price"], s2["entry_price"] = fill_price1, fill_price2
-
-            self.trade_manager.log_entry(name, pair+":1", self.symbol1, s1["direction"], s1["position_size"], s1["shares"], s1["ts"], s1["price"], fill_price1, None, s1["target_price"])
-            self.trade_manager.log_entry(name, pair+":2", self.symbol2, s2["direction"], s2["position_size"], s2["shares"], s2["ts"], s2["price"], fill_price2, None, s2["target_price"])
+            self.trade_manager.log_entry(name, pair+":1", symbol1, s1["direction"], s1["position_size"], s1["shares"], s1["ts"], s1["price"], fill_price1, None, s1["target_price"])
+            self.trade_manager.log_entry(name, pair+":2", symbol2, s2["direction"], s2["position_size"], s2["shares"], s2["ts"], s2["price"], fill_price2, None, s2["target_price"])
                 
         # --- Exit Position --- 
         elif signal == 0:
             if s1["direction"] == 1:
-                fill_price1, fill_price2 = self.sell_pair(pair, s1["shares"])
+                fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"])
             elif s1["direction"] == -1:
-                fill_price1, fill_price2 = self.buy_pair(pair, s1["shares"])
+                fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"])
 
             self.update_pnl(strategy, s1["direction"], s1["entry_price"], fill_price1, s1["shares"])
             self.update_pnl(strategy, s2["direction"], s2["entry_price"], fill_price2, s1["shares"])
@@ -474,16 +473,8 @@ class EquityPairs:
         self.cash += pnl
         strategy.risk_manager.update_trade(pnl)
 
-    def get_positions(self):
-        response = self.client.account_details(self.hash, fields="positions")
-        data = response.json()
-        positions = data.get('securitiesAccount', {}).get('positions', [])
-        return positions
-
-    def buy_pair(self, pair, shares):
-        positions = self.get_positions()
-        symbol1, symbol2 = pair.split("-")
-        if not positions:
+    def buy_pair(self, signal, symbol1, symbol2, shares):
+        if signal:
             response1 = self.market_order(symbol1, shares, type="BUY")
             response2 = self.market_order(symbol2, shares, type="SELL_SHORT")
         else:
@@ -498,10 +489,8 @@ class EquityPairs:
         print(f" [SOLD] -{shares} {symbol2} @ {fill_price2}")
         return fill_price1, fill_price2
 
-    def sell_pair(self, pair, shares):
-        positions = self.get_positions()
-        symbol1, symbol2 = pair.split("-")
-        if not positions:
+    def sell_pair(self, signal, symbol1, symbol2, shares):
+        if signal:
             response1 = self.market_order(symbol1, shares, type="SELL_SHORT")
             response2 = self.market_order(symbol2, shares, type="BUY")
         else:
@@ -516,7 +505,7 @@ class EquityPairs:
         print(f" [BOT] +{shares} {symbol2} @ {fill_price2}")
         return fill_price1, fill_price2
 
-    def buy_market(self, symbol, quantity, type="BUY"):
+    def market_order(self, symbol, quantity, type="BUY"):
         order_dict = {
             "orderStrategyType": "SINGLE",
             "orderType": "MARKET",

@@ -4,7 +4,7 @@ tokens.json
 
 # --- Test files ---
 trade_logs.json
-trade_logs_live.json
+trade_logs_*.json
 *_grid_search.json
 math.txt
 
