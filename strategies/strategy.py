@@ -12,7 +12,7 @@ HOLD = None
 class Strategy:
     def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, 
                  position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
-                 pnl_target=0.01, pnl_loss=-0.01, trade_max=5, drawdown_max=0.15):
+                 pnl_target=0.01, pnl_loss=-0.01, trade_max=5, drawdown_max=0.25):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
@@ -145,8 +145,8 @@ class Strategy:
                 return self.predict_trade()
             if self.position_manager.add_leg(pos_leg):
                 self.add_features(1, stop_price, target_price)
-                return (LONG, pos_leg)
-            return (HOLD, None)
+                return LONG, pos_leg
+            return HOLD, None
         elif direction == -1:
             return HOLD, None
         
@@ -173,8 +173,8 @@ class Strategy:
                 return self.predict_trade()
             if self.position_manager.add_leg(pos_leg):
                 self.add_features(-1, stop_price, target_price)
-                return (SHORT, pos_leg)
-            return (HOLD, None)
+                return SHORT, pos_leg
+            return HOLD, None
         elif direction == 1:
             return HOLD, None
           
