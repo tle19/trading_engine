@@ -74,7 +74,10 @@ class PairStrategy:
     
     def exit_trade(self):
         return self.exit()
-
+    
+    def compute_indicators(self):
+        raise NotImplementedError
+    
     def pairmate(self, symbol):
         if symbol == self.symbol1:
             return self.symbol2
@@ -103,7 +106,8 @@ class PairStrategy:
         s["index"] += 1
 
     def trade_window(self, start, end):
-        return start <= (self.ts.hour, self.ts.minute) <= end
+        ts = self.data[self.symbol1]["ts"]
+        return start <= (ts.hour, ts.minute) <= end
     
     def buy_pair(self):
         s1, s2 = self.data[self.symbol1], self.data[self.symbol2]

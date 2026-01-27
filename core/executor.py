@@ -424,11 +424,11 @@ class EquityPairs:
                     signal = strategy.generate_signal()
                     self.interpret_signal(signal, strategy, strategy.pair)
 
-        self.stream.start_auto(
-            receiver=response_handler, 
-            start_time=datetime.time(9, 30, 0), 
-            stop_time=datetime.time(16, 0, 0), 
-            on_days=(0,1,2,3,4))
+        # self.stream.start_auto(
+        #     receiver=response_handler, 
+        #     start_time=datetime.time(9, 30, 0), 
+        #     stop_time=datetime.time(16, 0, 0), 
+        #     on_days=(0,1,2,3,4))
         self.await_market_open()
         self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34", command="SUBS"))
         self.stream_duration()

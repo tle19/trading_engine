@@ -35,17 +35,18 @@ class SpreadDiff(PairStrategy):
     
     def enter_trade(self):
         s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
-        s1["target_price"], s2["target_price"] = 0, 0
         # if spread is tight
-        # calculate target_prices for a given bid-ask for both, 
-        # look for positive difference, 
-
-        signal = self.buy_pair()
-        signal = self.sell_pair()
+        # s1 price > s2 price
+        if s1["price"] < self.ema_fast1 and s2["price"] > self.ema_fast2:
+            signal = self.buy_pair()
+        if s1["price"] > self.ema_fast1 and s2["price"] < self.ema_fast2:
+            signal = self.sell_pair()
         return signal
         
     def exit_trade(self):
         direction = self.data[self.symbol1]["direction"]
+        stop_price1 = self.data[self.symbol1]["stop_price"]
+        stop_price2 = self.data[self.symbol2]["stop_price"]
         target_price1 = self.data[self.symbol1]["target_price"]
         target_price2 = self.data[self.symbol2]["target_price"]
         # both must be above stop to exit
@@ -55,8 +56,15 @@ class SpreadDiff(PairStrategy):
             return self.exit()
         
     def compute_indicators(self):
-        self.ema_fast1 = self.compute_ema(self.ema_fast1, self.prices[-1], self.fast_window)
-        self.ema_slow1 = self.compute_ema(self.ema_slow1, self.prices[-1], self.slow_window)
+        s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
 
-        self.ema_fast2 = self.compute_ema(self.ema_fast2, self.prices[-1], self.fast_window)
-        self.ema_slow2 = self.compute_ema(self.ema_slow2, self.prices[-1], self.slow_window)
+        self.ema_fast1 = self.compute_ema(self.ema_fast1, s1["price"], self.fast_window)
+        self.ema_slow1 = self.compute_ema(self.ema_slow1, s2["price"], self.slow_window)
+
+        self.ema_fast2 = self.compute_ema(self.ema_fast2, s1["price"], self.fast_window)
+        self.ema_slow2 = self.compute_ema(self.ema_slow2, s2["price"], self.slow_window)
+
+        if s1["direction"]:
+            # calculate target_prices for a given bid-ask for both, 
+            # look for positive difference, 
+            s1["target_price"], s2["target_price"] = 0, 0
