@@ -1,4 +1,6 @@
-from .strategy import Strategy, PositionLeg, PositionManager, RiskManager
+from .strategy import Strategy
+from .strategy_pair import PairStrategy
+from .risk import RiskManager
 from .example import SMACrossover
 from .stochastic import StochasticIndicator
 from .macd import MACDIndicator
@@ -11,6 +13,9 @@ from .rsi_swing import RSISwing
 from .eod_reversion import EODReversion
 
 __all__ = [
+    "Strategy",
+    "PairStrategy",
+    "RiskManager",
     "SMACrossover",
     "StochasticIndicator",
     "MACDIndicator",

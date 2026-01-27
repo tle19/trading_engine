@@ -7,8 +7,6 @@ from utils import *
 
 timezone = ZoneInfo("America/New_York")
 
-symbols = ["GOOG", "GOOGL"]
-
 def test_order(symbol="AAPL"):
     eq = Equities(symbol, SMACrossover)
 

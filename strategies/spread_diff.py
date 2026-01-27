@@ -1,13 +1,13 @@
 import numpy as np
 
-from strategies import Strategy
+from strategies import PairStrategy
 from models import *
 from utils import *
 
-class SpreadDiff(Strategy):
-    def __init__(self, symbol, fast_window=50, slow_window=50, htf_window=100, 
+class SpreadDiff(PairStrategy):
+    def __init__(self, symbol, fast_window=10, slow_window=25, htf_window=50, 
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
-                 pnl_target=0.02, pnl_loss=-0.02, trade_max=10):
+                 pnl_target=0.02, pnl_loss=-0.02, trade_max=300):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
                          pnl_target, pnl_loss, trade_max)
         self.fast_window = fast_window
@@ -18,10 +18,10 @@ class SpreadDiff(Strategy):
     
     def on_data(self, row, symbol):
         self.update(row)
-    
-    def generate_signal(self, row):
         self.minimum_computations()
-        
+
+
+    def generate_signal(self, row):
         slow_ma, htf_ma = self.compute_indicators()
 
         if self.risk_manager._day_pause: 
@@ -67,18 +67,18 @@ class SpreadDiff(Strategy):
                         pos_leg.stop_price = (self.close * (1 - (threshold / 2)))
             return signal
         
-    # def exit_trade(self, slow_ma):
-    #     direction = self.position_manager.direction()
-    #     if direction == 1 and self.ema < slow_ma:
-    #         return self.exit()
-    #     if direction == -1 and self.ema > slow_ma:
-    #         return self.exit()
+    def exit_trade(self, slow_ma):
+        direction = self.position_manager.direction()
+        if direction == 1 and self.ema < slow_ma:
+            return self.exit()
+        if direction == -1 and self.ema > slow_ma:
+            return self.exit()
         
     def compute_indicators(self):
         arr = np.array(self.prices)
         self.ema = self.compute_ema(self.ema, self.prices[-1], self.fast_window)
-        slow_ma = self.compute_ma(arr, self.slow_window)
-        htf_ma = self.compute_ma(arr, self.htf_window)
+        self.ema = self.compute_ema(self.ema, self.prices[-1], self.slow_window)
+        self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
         
         return slow_ma, htf_ma
 

@@ -1,6 +1,6 @@
 import json
 import time
-import datetime
+from datetime import datetime
 import pandas as pd
 from collections import namedtuple
 from zoneinfo import ZoneInfo
@@ -350,7 +350,7 @@ class Equities:
         print("[ACTIVE] Market is open")
 
     def stream_duration(self):
-        now = datetime.datetime.now(self.timezone)
+        now = datetime.now(self.timezone)
         market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
         time.sleep((market_close - now).total_seconds())
     
@@ -369,7 +369,7 @@ class Equities:
                 f"symbol={symbol:5} | cash=${cash_allocation}"
             )
 
-class Pairs:
+class EquityPairs:
     def __init__(self, pairs, strategy_class, margin=1.0):
         config = load_config()
 
@@ -452,15 +452,15 @@ class Pairs:
             position_size = leg.position_size
             shares = leg.shares
         
-        # --- Enter Long ---
+        # --- Enter Long/Short ---
         if signal == 1:
-            self.entry_ids[leg], fill_price = self.buy_market(pair, shares, "BUY")
+            self.entry_ids[leg], fill_price = self.buy_pair(pair, shares)
             leg.entry_price = fill_price
             self.trade_manager.log_entry(name, leg, pair, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
 
-        # --- Enter Short ---
+        # --- Enter Short/Long ---
         elif signal == -1:
-            self.entry_ids[leg], fill_price = self.sell_market(pair, shares, "SELL_SHORT")
+            self.entry_ids[leg], fill_price = self.sell_pair(pair, shares)
             leg.entry_price = fill_price
             self.trade_manager.log_entry(name, leg, pair, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
                 
@@ -505,23 +505,39 @@ class Pairs:
         positions = data.get('securitiesAccount', {}).get('positions', [])
         return positions
 
-    def buy_pair(self, shares=100):
+    def buy_pair(self, pair, shares):
         positions = self.get_positions()
+        symbol_1, symbol_2 = pair.split("-")
         if not positions:
-            self.buy_market("GOOG", shares, type="BUY")
-            self.sell_market("GOOGL", shares, type="SELL_SHORT")
+            response_1 = self.market_order(symbol_1, shares, type="BUY")
+            response_2 = self.market_order(symbol_2, shares, type="SELL_SHORT")
         else:
-            self.buy_market("GOOG", shares, type="BUY_TO_COVER")
-            self.sell_market("GOOGL", shares, type="SELL")
+            response_1 = self.market_order(symbol_1, shares, type="BUY_TO_COVER")
+            response_2 = self.market_order(symbol_2, shares, type="SELL")
 
-    def sell_pair(self, shares=100):
+        order_id_1 = self.get_order_id(response_1)
+        order_id_2 = self.get_order_id(response_2)
+        fill_price_1 = self.get_fill_price(order_id_1, shares)
+        fill_price_2 = self.get_fill_price(order_id_2, shares)
+        print(f" [BOT] +{shares} {symbol_1} @ {fill_price_1}")
+        print(f" [SOLD] -{shares} {symbol_2} @ {fill_price_2}")
+
+    def sell_pair(self, pair, shares):
         positions = self.get_positions()
+        symbol_1, symbol_2 = pair.split("-")
         if not positions:
-            self.sell_market("GOOG", shares, type="SELL_SHORT")
-            self.buy_market("GOOGL", shares, type="BUY")
+            response_1 = self.market_order(symbol_1, shares, type="SELL_SHORT")
+            response_2 = self.market_order(symbol_2, shares, type="BUY")
         else:
-            self.sell_market("GOOG", shares, type="SELL")
-            self.buy_market("GOOGL", shares, type="BUY_TO_COVER")
+            response_1 = self.market_order(symbol_1, shares, type="SELL")
+            response_2 = self.market_order(symbol_2, shares, type="BUY_TO_COVER")
+        
+        order_id_1 = self.get_order_id(response_1)
+        order_id_2 = self.get_order_id(response_2)
+        fill_price_1 = self.get_fill_price(order_id_1, shares)
+        fill_price_2 = self.get_fill_price(order_id_2, shares)
+        print(f" [SOLD] -{shares} {symbol_1} @ {fill_price_1}")
+        print(f" [BOT] +{shares} {symbol_2} @ {fill_price_2}")
 
     def buy_market(self, symbol, quantity, type="BUY"):
         order_dict = {
@@ -542,34 +558,7 @@ class Pairs:
         }
 
         response = self.client.place_order(self.hash, order_dict)
-        order_id = self.get_order_id(response)
-        fill_price = self.get_fill_price(order_id, quantity)
-        print(f" [BOT] +{quantity} {symbol} @ {fill_price}")
-        return order_id, fill_price
-    
-    def sell_market(self, symbol, quantity, type="SELL"):
-        order_dict = {
-            "orderStrategyType": "SINGLE",
-            "orderType": "MARKET",
-            "session": "NORMAL",
-            "duration": "DAY",
-            "orderLegCollection": [
-                {
-                    "instruction": type,
-                    "quantity": quantity,
-                    "instrument": {
-                        "symbol": symbol,
-                        "assetType": "EQUITY"
-                    }
-                }
-            ]
-        }
-
-        response = self.client.place_order(self.hash, order_dict)
-        order_id = self.get_order_id(response)
-        fill_price = self.get_fill_price(order_id, quantity)
-        print(f" [SOLD] -{quantity} {symbol} @ {fill_price}")
-        return order_id, fill_price
+        return response
 
     def get_order_id(self, response):
         order_id = response.headers.get('location', '/').split('/')[-1]
@@ -621,7 +610,7 @@ class Pairs:
         print("[ACTIVE] Market is open")
 
     def stream_duration(self):
-        now = datetime.datetime.now(self.timezone)
+        now = datetime.now(self.timezone)
         market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
         time.sleep((market_close - now).total_seconds())
     

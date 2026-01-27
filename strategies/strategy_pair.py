@@ -5,28 +5,23 @@ from utils import *
 
 LONG = 1
 SHORT = -1
-ADJUST = 9
 EXIT = 0
 HOLD = None
 
-class Strategy:
+class PairStrategy:
     def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, 
-                 position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
+                 position_size=1.0,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=5, drawdown_max=0.15):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.position_size = position_size
-        self.trailing_ratio = trailing_ratio
-        self.pyramid = pyramid
-        self.force_close = force_close
 
         self.ts = None
-        self.open = None
-        self.high = None
-        self.low = None
-        self.close = None
-        self.volume = None
+        self.bid = None
+        self.ask = None
+        self.bid_size = None
+        self.ask_size = None
 
         self.prices = []
         self.opens = []
@@ -36,9 +31,9 @@ class Strategy:
         self.volumes = [] 
 
         self.d_opens = []
+        self.d_closes = []
         self.d_highs = []
         self.d_lows = []
-        self.d_closes = []
         self.d_volumes = [] 
 
         self.back_filled = False
@@ -46,7 +41,6 @@ class Strategy:
         self.model = None
         self.features = {}
 
-        self.position_manager = PositionManager(pyramid)
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max, drawdown_max=drawdown_max)
 
     def generate_signal(self, row):
@@ -82,10 +76,10 @@ class Strategy:
     def update(self, row=None): 
         if row is not None:
             self.ts = row.timestamp
-            self.open = row.open
-            self.high = row.high
-            self.low = row.low
-            self.close = row.close
+            self.bid = row.bid
+            self.ask = row.ask
+            self.bid_size = row.bid_size
+            self.ask_size = row.ask_size
             self.volume = row.volume
 
         self.price = self.close  # (self.close + self.open + self.high) / 3

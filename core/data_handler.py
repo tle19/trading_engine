@@ -3,7 +3,7 @@ import json
 import time
 import pandas as pd
 from collections import namedtuple
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 
 import schwabdev
@@ -24,10 +24,10 @@ class DataHandler:
         self.ohlcv_Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
         self.bidask_Row = namedtuple("Row", ["timestamp", "bid", "ask", "last", "bid_size", "ask_size", "volume"])
 
-    def historical_data(self, symbols=['SPY'], from_date='2024-01-01', to_date='2027-01-01',
+    def historical_data(self, symbols=['SPY'], from_date='2024-01-01', to_date='2026-01-01',
                                 timespan='minute', multiplier=1, max_iter=10):
         start_time = time.perf_counter()
-
+        to_date = str(date.today())
         for symbol in symbols:
             data_list = []
             current_from = from_date
@@ -99,8 +99,7 @@ class DataHandler:
 
     def schwab_data(self, symbols=['SPY'], periodType="month", period=6, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
-        current_date = datetime.now().date()
-        endDate=(datetime.fromisoformat(current_date) - timedelta(days=1)).date().isoformat()
+        endDate = str(date.today())
 
         for symbol in symbols:
             raw_data = self.client.price_history(

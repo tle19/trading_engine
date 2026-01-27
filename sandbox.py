@@ -11,7 +11,7 @@ from utils import *
 
 symbols = SYMBOLS
 
-def plot_diist(df, col):
+def plot_dist(df, col):
     x = df[col].dropna()
     lo, hi = x.quantile([0.001, 0.999])
     x_clip = x.clip(lo, hi)
@@ -62,24 +62,22 @@ def find_proba(df):
             if df.loc["timestamp"] == 15.59:
                 break
 
-# ema_window = 50
-# lookback = 15
-# df = open_data("GOOG", start_date="2024-01-01", end_date="2026-01-01", start_time="10:00", end_time="15:59")
-# df["ema"] = df["close"].ewm(span=ema_window, adjust=False).mean()
-# df["straddle_up"] = (df["close"] > df["ema"]) & (df["open"] < df["ema"])
-# df["straddle_down"] = (df["close"] < df["ema"]) & (df["open"] > df["ema"])
-# df["ema_max_last5_pct"] = (df["high"].rolling(lookback, min_periods=1).max() - df["ema"]) / df["ema"]
-# df["ema_min_last5_pct"] = (df["low"].rolling(lookback, min_periods=1).min() - df["ema"]) / df["ema"]
-# df["ema_straddle_target"] = np.where(df["straddle_up"], df["ema_min_last5_pct"],
-#     np.where(df["straddle_down"], df["ema_max_last5_pct"], np.nan)
-# )
+ema_window = 50
+lookback = 15
+df = open_data("GOOG", start_date="2024-01-01", end_date="2026-01-01", start_time="10:00", end_time="15:59")
+df["ema"] = df["close"].ewm(span=ema_window, adjust=False).mean()
+df["straddle_up"] = (df["close"] > df["ema"]) & (df["open"] < df["ema"])
+df["straddle_down"] = (df["close"] < df["ema"]) & (df["open"] > df["ema"])
+df["ema_max_last5_pct"] = (df["high"].rolling(lookback, min_periods=1).max() - df["ema"]) / df["ema"]
+df["ema_min_last5_pct"] = (df["low"].rolling(lookback, min_periods=1).min() - df["ema"]) / df["ema"]
+df["ema_straddle_target"] = np.where(df["straddle_up"], df["ema_min_last5_pct"],
+    np.where(df["straddle_down"], df["ema_max_last5_pct"], np.nan)
+)
 
-# col = "ema_straddle_target"
-# x = df[col].dropna()
-# mu = x.mean()
-# sigma = x.std()
-# df["entry_cond"] = (df[col] >= mu - 2*sigma) | (df[col] <= mu + 2*sigma)
+col = "ema_straddle_target"
+x = df[col].dropna()
+mu = x.mean()
+sigma = x.std()
+df["entry_cond"] = (df[col] >= mu - 2*sigma) | (df[col] <= mu + 2*sigma)
 
-# plot_dist(df, "ema_straddle_target")
-
-train_model(symbol="AAPL", train_period=450, test_period=300, grid=True)
+plot_dist(df, "ema_straddle_target")

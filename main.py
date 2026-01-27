@@ -42,8 +42,8 @@ def main():
         # bt = Backtest(args.symbol, strategy_class, margin=args.margin)
         # bt.run(end_date=str(date.today()), display_stats=False, display_plot=False)
         if args.pair:
-            pt = Pairs(args.pair, strategy_class, margin=args.margin)
-            pt.run()
+            ep = EquityPairs(args.pair, strategy_class, margin=args.margin)
+            ep.run()
         else:
             eq = Equities(args.symbol, strategy_class, margin=args.margin)
             eq.run()

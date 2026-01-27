@@ -6,5 +6,5 @@ __all__ = [
     "DataHandler",
     "Backtest",
     "Equities",
-    "Pairs"
+    "EquityPairs"
 ]
