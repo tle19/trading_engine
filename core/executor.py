@@ -1,6 +1,6 @@
 import json
 import time
-from datetime import datetime
+import datetime
 import pandas as pd
 from collections import namedtuple
 from zoneinfo import ZoneInfo
@@ -350,7 +350,7 @@ class Equities:
         print("[ACTIVE] Market is open")
 
     def stream_duration(self):
-        now = datetime.now(self.timezone)
+        now = datetime.datetime.now(self.timezone)
         market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
         time.sleep((market_close - now).total_seconds())
     
@@ -581,7 +581,7 @@ class EquityPairs:
         print("[ACTIVE] Market is open")
 
     def stream_duration(self):
-        now = datetime.now(self.timezone)
+        now = datetime.datetime.now(self.timezone)
         market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
         time.sleep((market_close - now).total_seconds())
     
