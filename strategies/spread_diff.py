@@ -5,88 +5,58 @@ from models import *
 from utils import *
 
 class SpreadDiff(PairStrategy):
-    def __init__(self, symbol, fast_window=10, slow_window=25, htf_window=50, 
-                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
-                 pnl_target=0.02, pnl_loss=-0.02, trade_max=300):
-        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
+    def __init__(self, pair, fast_window=10, slow_window=25, 
+                 stop_loss=0.01, take_profit=0.01, position_size=1.0,
+                 pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
+        super().__init__(pair, stop_loss, take_profit, position_size,
                          pnl_target, pnl_loss, trade_max)
         self.fast_window = fast_window
         self.slow_window = slow_window
-        self.htf_window = htf_window
 
-        self.ema = None
+        self.ema_fast1 = None
+        self.ema_slow1 = None
+        self.ema_fast2 = None
+        self.ema_slow2 = None
     
-    def on_data(self, row, symbol):
-        self.update(row)
-        self.minimum_computations()
-
-
-    def generate_signal(self, row):
-        slow_ma, htf_ma = self.compute_indicators()
+    def generate_signal(self):
+        self.compute_indicators()
 
         if self.risk_manager._day_pause: 
             return None
 
-        if not self.trade_window((9, 30), (14, 45)) and not self.position_manager.in_trade():
+        if not self.trade_window((10, 00), (14, 30)) and not self.position_manager.in_trade():
             return None
         
         signal = None
-        if self.activated:
-            signal = self.exit_trade()
-            if signal is None:
-                signal = self.enter_trade(slow_ma, htf_ma)
+        signal = self.exit_trade()
+        if signal is None:
+            signal = self.enter_trade()
         return signal
     
-    def enter_trade(self, slow_ma, htf_ma, threshold=0.005, ema_band=0.002):
-        signal = None
-        down_stretch = abs(self.ema - min(self.lows[-15:])) / self.ema
-        up_stretch = abs(self.ema - max(self.highs[-15:])) / self.ema
-        near_ema = (abs(self.close - self.ema) / self.ema) < ema_band
-        if near_ema:
-            if self.close > self.ema and down_stretch > threshold:
-                if self.symbol == "GOOG":
-                    signal, pos_leg = self.buy()
-                    if signal:
-                        pos_leg.target_price = self.close * (1 + threshold)
-                        pos_leg.stop_price = (self.close * (1 - (threshold / 2)))
-                elif self.symbol == "GOOGL":
-                    signal, pos_leg = self.sell()
-                    if signal:
-                        pos_leg.target_price = self.close * (1 - threshold)
-                        pos_leg.stop_price = (self.close * (1 + (threshold / 2)))
-            elif self.close < self.ema and up_stretch > threshold:
-                if self.symbol == "GOOG":
-                    signal, pos_leg = self.sell()
-                    if signal:
-                        pos_leg.target_price = self.close * (1 - threshold)
-                        pos_leg.stop_price = (self.close * (1 + (threshold / 2)))
-                elif self.symbol == "GOOGL":
-                    signal, pos_leg = self.buy()
-                    if signal:
-                        pos_leg.target_price = self.close * (1 + threshold)
-                        pos_leg.stop_price = (self.close * (1 - (threshold / 2)))
-            return signal
+    def enter_trade(self):
+        s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
+        s1["target_price"], s2["target_price"] = 0, 0
+        # if spread is tight
+        # calculate target_prices for a given bid-ask for both, 
+        # look for positive difference, 
+
+        signal = self.buy_pair()
+        signal = self.sell_pair()
+        return signal
         
-    def exit_trade(self, slow_ma):
-        direction = self.position_manager.direction()
-        if direction == 1 and self.ema < slow_ma:
+    def exit_trade(self):
+        direction = self.data[self.symbol1]["direction"]
+        target_price1 = self.data[self.symbol1]["target_price"]
+        target_price2 = self.data[self.symbol2]["target_price"]
+        # both must be above stop to exit
+        if direction == 1 and self.ema_fast1 < self.ema_slow1:
             return self.exit()
-        if direction == -1 and self.ema > slow_ma:
+        if direction == -1 and self.ema_fast2 > self.ema_slow2:
             return self.exit()
         
     def compute_indicators(self):
-        arr = np.array(self.prices)
-        self.ema = self.compute_ema(self.ema, self.prices[-1], self.fast_window)
-        self.ema = self.compute_ema(self.ema, self.prices[-1], self.slow_window)
-        self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
-        
-        return slow_ma, htf_ma
+        self.ema_fast1 = self.compute_ema(self.ema_fast1, self.prices[-1], self.fast_window)
+        self.ema_slow1 = self.compute_ema(self.ema_slow1, self.prices[-1], self.slow_window)
 
-    def minimum_computations(self):
-        if not self.activated:
-            required_data = max(
-                self.fast_window,
-                self.slow_window,
-                self.htf_window
-            ) + 1
-            self.activated = len(self.prices) > required_data
+        self.ema_fast2 = self.compute_ema(self.ema_fast2, self.prices[-1], self.fast_window)
+        self.ema_slow2 = self.compute_ema(self.ema_slow2, self.prices[-1], self.slow_window)
