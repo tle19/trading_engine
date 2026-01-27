@@ -438,6 +438,8 @@ class PositionLeg:
 
     @entry_price.setter
     def entry_price(self, value):
+        if value is None:
+            return
         if value <= 0:
             raise ValueError("entry_price must be positive")
         self._entry_price = float(value)

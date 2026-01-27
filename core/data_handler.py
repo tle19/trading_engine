@@ -176,7 +176,8 @@ class DataHandler:
             for item in content:
                 symbol = item["key"]
 
-                timestamp = pd.to_datetime(item.get("34"), unit='ms', utc=True).tz_convert(timezone)
+                ts = item.get('34') or item.get('37') or item.get('38') or item.get('35')
+                timestamp = pd.to_datetime(ts, unit='ms', utc=True).tz_convert(self.timezone)
                 bid = item.get("1")
                 ask = item.get("2")
                 last = item.get("3")
@@ -199,7 +200,7 @@ class DataHandler:
             self.stream.stop()
         # else:
         #     self.stream.start(bid_ask_handler)
-        #     self.stream.send(self.stream.level_one_equities(symbols, "0,1,2,3,4,5,6,7,8,34", command="SUBS"))
+        #     self.stream.send(self.stream.level_one_equities(symbols, "0,1,2,3,4,5,6,7,8,34,35,37,38", command="SUBS"))
         #     time.sleep(duration)
         #     self.stream.stop()
     

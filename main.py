@@ -31,8 +31,8 @@ def main():
     strategy_class = strategy_map.get(args.strategy)
     if strategy_class is None:
         raise ValueError(f"Unknown Strategy: {args.strategy}")
-    if args.symbol is None:
-        raise ValueError(f"You must provide a symbol, e.g., --symbol SPY")
+    if args.symbol is None and args.pair is None:
+        raise ValueError(f"You must provide a symbol/pair, e.g., --symbol SPY or --pair SPY-QQQ")
     if args.symbol == "EVERYTHING":
         args.symbol = SYMBOLS
     
