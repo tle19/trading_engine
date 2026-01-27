@@ -17,7 +17,7 @@ __all__ = [
     "ORBIndicator",
     "VolumeDecay",
     "RSIScalp",
-    "BoxIndicator",
+    "SpreadDiff",
     "EMASwing",
     "RSISwing",
     "EODReversion",

@@ -16,11 +16,10 @@ class SpreadDiff(Strategy):
 
         self.ema = None
     
-    def on_data(row, symbol):
-        raise NotImplementedError
+    def on_data(self, row, symbol):
+        self.update(row)
     
     def generate_signal(self, row):
-        self.update(row)
         self.minimum_computations()
         
         slow_ma, htf_ma = self.compute_indicators()
