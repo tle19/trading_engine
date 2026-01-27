@@ -24,8 +24,8 @@ class SpreadDiff(PairStrategy):
         if self.risk_manager._day_pause: 
             return None
 
-        if not self.trade_window((10, 00), (14, 30)) and not self.position_manager.in_trade():
-            return None
+        # if not self.trade_window((10, 00), (14, 30)) and not self.data[self.symbol1]["direction"]:
+        #     return None
         
         signal = None
         signal = self.exit_trade()
@@ -33,14 +33,14 @@ class SpreadDiff(PairStrategy):
             signal = self.enter_trade()
         return signal
     
-    def enter_trade(self):
+    def enter_trade(self, signal=None):
         s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
         # if spread is tight
         # s1 price > s2 price
-        if s1["price"] < self.ema_fast1 and s2["price"] > self.ema_fast2:
-            signal = self.buy_pair()
-        if s1["price"] > self.ema_fast1 and s2["price"] < self.ema_fast2:
-            signal = self.sell_pair()
+        # if s1["price"] < self.ema_fast1 and s2["price"] > self.ema_fast2:
+        #     signal = self.buy_pair()
+        # if s1["price"] > self.ema_fast1 and s2["price"] < self.ema_fast2:
+        #     signal = self.sell_pair()
         return signal
         
     def exit_trade(self):
@@ -58,11 +58,11 @@ class SpreadDiff(PairStrategy):
     def compute_indicators(self):
         s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
 
-        self.ema_fast1 = self.compute_ema(self.ema_fast1, s1["price"], self.fast_window)
-        self.ema_slow1 = self.compute_ema(self.ema_slow1, s2["price"], self.slow_window)
+        self.ema_fast1 = self.compute_ema(self.ema_fast1, s1["prices"][-1], self.fast_window)
+        self.ema_slow1 = self.compute_ema(self.ema_slow1, s2["prices"][-1], self.slow_window)
 
-        self.ema_fast2 = self.compute_ema(self.ema_fast2, s1["price"], self.fast_window)
-        self.ema_slow2 = self.compute_ema(self.ema_slow2, s2["price"], self.slow_window)
+        self.ema_fast2 = self.compute_ema(self.ema_fast2, s1["prices"][-1], self.fast_window)
+        self.ema_slow2 = self.compute_ema(self.ema_slow2, s2["prices"][-1], self.slow_window)
 
         if s1["direction"]:
             # calculate target_prices for a given bid-ask for both, 

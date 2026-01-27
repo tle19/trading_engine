@@ -37,8 +37,10 @@ class PairStrategy:
                 "shares": 0,
                 "position_size": 1.0,
                 "entry_price": None,
+                "entry_fill": None,
                 "stop_price": None,
-                "target_price": None
+                "target_price": None,
+                "exit_fill": None
             },
             self.symbol2: {
                 "ts": None,
@@ -58,8 +60,10 @@ class PairStrategy:
                 "shares": 0,
                 "position_size": 1.0,
                 "entry_price": None,
+                "entry_fill": None,
                 "stop_price": None,
-                "target_price": None
+                "target_price": None,
+                "exit_fill": None
             }
         }
 
@@ -87,7 +91,7 @@ class PairStrategy:
     def update(self, symbol, row=None): 
         s = self.data[symbol]
         idx = s["index"]
-
+        
         if row is not None:
             s["ts"] = row.timestamp
             for attr in ("bid", "ask", "last", "bid_size", "ask_size"):
@@ -95,8 +99,11 @@ class PairStrategy:
                 if val is not None:
                     s[attr] = val
 
-        s["price"] = (s["bid"] + s["ask"] + s["last"]) / 3
-        s["prices"][idx] = s["price"]
+        for attr in ("bid", "ask", "last", "bid_size", "ask_size"):
+            if s[attr] is None:
+                return
+
+        s["prices"][idx] = (s["bid"] + s["ask"] + s["last"]) / 3
         s["bids"][idx] = s["bid"]
         s["asks"][idx] = s["ask"]
         s["lasts"][idx] = s["last"]
