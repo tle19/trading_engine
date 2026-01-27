@@ -31,11 +31,11 @@ class RiskManager:
         if self.pnl / self.curr_cash <= self.pnl_loss:
             self._day_pause = True
         
-        drawdown = self.calculate_drawdown()
-        if drawdown > self.drawdown_max:
-            self.position_size = 0.75
-        else:
-            self.position_size = 1.0
+        # drawdown = self.calculate_drawdown()
+        # if drawdown > self.drawdown_max:
+        #     self.position_size = 0.75
+        # else:
+        #     self.position_size = 1.0
 
     @property
     def start_cash(self):
