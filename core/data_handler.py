@@ -21,8 +21,8 @@ class DataHandler:
         self.stream = schwabdev.Stream(self.client)
 
         self.timezone = ZoneInfo("America/New_York")
-        self.Equity_Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
-        self.Forex_Row = namedtuple("Row", ["timestamp", "bid", "ask", "last", "bid_size", "ask_size", "volume"])
+        self.ohlcv_Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
+        self.bidask_Row = namedtuple("Row", ["timestamp", "bid", "ask", "last", "bid_size", "ask_size", "volume"])
 
     def historical_data(self, symbols=['SPY'], from_date='2024-01-01', to_date='2027-01-01',
                                 timespan='minute', multiplier=1, max_iter=10):
@@ -97,30 +97,30 @@ class DataHandler:
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
 
-    def schwab_data(self, symbol='SPY', periodType="month", period=6, frequencyType="daily", frequency=1, 
+    def schwab_data(self, symbols=['SPY'], periodType="month", period=6, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
         current_date = datetime.now().date()
         endDate=(datetime.fromisoformat(current_date) - timedelta(days=1)).date().isoformat()
 
-        raw_data = self.client.price_history(
-            symbol=symbol, 
-            periodType=periodType, 
-            period=period, 
-            frequencyType=frequencyType, 
-            frequency=frequency, 
-            startDate=startDate,
-            endDate=endDate, 
-            needExtendedHoursData=needExtendedHoursData, 
-            needPreviousClose=needPreviousClose
-        )
+        for symbol in symbols:
+            raw_data = self.client.price_history(
+                symbol=symbol, 
+                periodType=periodType, 
+                period=period, 
+                frequencyType=frequencyType, 
+                frequency=frequency, 
+                startDate=startDate,
+                endDate=endDate, 
+                needExtendedHoursData=needExtendedHoursData, 
+                needPreviousClose=needPreviousClose
+            )
 
-        full_str = b"".join(raw_data).decode("utf-8")
-        data = json.loads(full_str)
-        df = pd.DataFrame(data.get("candles", []))
-        df.rename(columns={"datetime": "timestamp"}, inplace=True)
+            full_str = b"".join(raw_data).decode("utf-8")
+            data = json.loads(full_str)
+            df = pd.DataFrame(data.get("candles", []))
+            df.rename(columns={"datetime": "timestamp"}, inplace=True)
 
-        save_data(df, symbol)
-        return df
+            save_data(df, symbol)
 
     def stream_data(self, symbols, duration=300):
         def equity_handler(response):
@@ -141,7 +141,7 @@ class DataHandler:
                 close = item.get("5")
                 volume = item.get("6")
 
-                row = self.Equity_Row(timestamp, open, high, low, close, volume)
+                row = self.ohlcv_Row(timestamp, open, high, low, close, volume)
                 print(f"[{symbol}] {row}")
 
         def forex_handler(response):
@@ -155,7 +155,7 @@ class DataHandler:
             for item in content:
                 symbol = item["key"]
 
-                timestamp = pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone)
+                timestamp = pd.to_datetime(item.get("8"), unit='ms', utc=True).tz_convert(self.timezone)
                 bid = item.get("1")
                 ask = item.get("2")
                 last = item.get("3")
@@ -163,9 +163,31 @@ class DataHandler:
                 ask_size = item.get("5")
                 volume = item.get("6")
 
-                row = self.Forex_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
+                row = self.bidask_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
                 print(f"[{symbol}] {row}")
-                
+
+        def bid_ask_handler(response):
+            data = json.loads(response).get("data", [])
+            if not data:
+                return
+            
+            content = data[0].get("content")
+            if not content:
+                return
+            for item in content:
+                symbol = item["key"]
+
+                timestamp = pd.to_datetime(item.get("34"), unit='ms', utc=True).tz_convert(timezone)
+                bid = item.get("1")
+                ask = item.get("2")
+                last = item.get("3")
+                bid_size = item.get("4")
+                ask_size = item.get("5")
+                volume = item.get("8")
+
+                row = self.bidask_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
+                print(f"[{symbol}] {row}")   
+
         if "/" in symbols[0]:
             self.stream.start(forex_handler)
             self.stream.send(self.stream.level_one_forex(symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))  
@@ -176,3 +198,28 @@ class DataHandler:
             self.stream.send(self.stream.chart_equity(symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))
             time.sleep(duration)
             self.stream.stop()
+        # else:
+        #     self.stream.start(bid_ask_handler)
+        #     self.stream.send(self.stream.level_one_equities(symbols, "0,1,2,3,4,5,6,7,8,34", command="SUBS"))
+        #     time.sleep(duration)
+        #     self.stream.stop()
+    
+    def get_quote(self, symbols):
+        response = self.client.quotes(symbols)
+        data = response.json()
+        if not data:
+            return
+
+        for symbol in symbols:
+            quote = data.get(symbol, {}).get("quote", {})
+
+            timestamp = pd.to_datetime(quote['quoteTime'], unit='ms', utc=True).tz_convert(timezone)
+            bid = quote['bidPrice']
+            ask = quote['askPrice']
+            last = quote['lastPrice']
+            bid_size = quote['bidSize']
+            ask_size = quote['askSize']
+            volume = quote['totalVolume']
+
+            row = self.bidask_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
+            print(f"[{symbol}] {row}")

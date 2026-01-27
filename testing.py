@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from core import *
 from strategies import *
 from metrics import *
@@ -8,8 +10,7 @@ timezone = ZoneInfo("America/New_York")
 symbols = ["GOOG", "GOOGL"]
 
 def test_order(symbol="AAPL"):
-    eq = Equities(symbol, StochasticIndicator)
-    symbol = symbol[0]
+    eq = Equities(symbol, SMACrossover)
 
     entry_id, _ = eq.buy_market(symbol, 1, "BUY")
     exit_id = eq.long_bracket(symbol, 1, 333.0, 333.5)
@@ -23,7 +24,7 @@ def get_positions():
     positions = data.get('securitiesAccount', {}).get('positions', [])
     return positions
 
-pt = Pairs(["GOOG", "GOOGL"], StochasticIndicator)
+pt = Pairs(["GOOG", "GOOGL"], SMACrossover)
 
 def buy_pair(shares=100):
     positions = get_positions()
@@ -42,13 +43,3 @@ def sell_pair(shares=100):
     else:
         pt.sell_market("GOOG", shares, type="SELL")
         pt.buy_market("GOOGL", shares, type="BUY_TO_COVER")
-
-for _ in range(60):
-    response = pt.client.quotes(["GOOG", "GOOGL"])
-    data = response.json()
-    goog_info = data.get("GOOG", {}).get("quote", {})
-    googl_info = data.get("GOOG", {}).get("quote", {})
-    goog_ask = goog_info['askPrice']
-    googl_ask = googl_info['askPrice']
-    print("GOOG", goog_ask, "GOOGL", googl_ask)
-    time.sleep(5)

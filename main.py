@@ -12,6 +12,7 @@ def main():
     parser.add_argument("--backtest", action="store_true")
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--stream", action="store_true")
+    parser.add_argument("--quote", action="store_true")
 
     parser.add_argument("--schwab", action="store_true")
     parser.add_argument("--grid", action="store_true")
@@ -35,7 +36,8 @@ def main():
         args.symbol = SYMBOLS
     
     if args.live:
-        # DataHandler().historical_data(symbols)
+        # dh = DataHandler()
+        # dh.historical_data(symbols)
         # bt = Backtest(args.symbol, strategy_class, margin=args.margin)
         # bt.run(end_date=str(date.today()), display_stats=False, display_plot=False)
         eq = Equities(args.symbol, strategy_class, margin=args.margin)
@@ -52,6 +54,9 @@ def main():
     elif args.stream:
         dh = DataHandler()
         dh.stream_data(args.symbol)
+    elif args.quote:
+        dh = DataHandler()
+        dh.get_quote(args.symbol)
     else:
         raise ValueError(
             "You must provide one of the following arguments: --live, --backtest, --fetch, --stream"
