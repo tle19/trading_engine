@@ -1,12 +1,10 @@
-from collections import deque
-import pandas as pd
 import numpy as np
 
 from strategies import Strategy
 from models import *
 from utils import *
 
-class BoxIndicator(Strategy):
+class SpreadDiff(Strategy):
     def __init__(self, symbol, fast_window=50, slow_window=50, htf_window=100, 
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
                  pnl_target=0.02, pnl_loss=-0.02, trade_max=10):
@@ -17,15 +15,12 @@ class BoxIndicator(Strategy):
         self.htf_window = htf_window
 
         self.ema = None
-
-        df = open_data(self.symbol, start_date="2024-01-01", end_date="2026-01-01")
-        self.history = resample_data(df)
+    
+    def on_data(row, symbol):
+        raise NotImplementedError
     
     def generate_signal(self, row):
         self.update(row)
-        self.reset_data()
-        self.reset_day()
-        self.reset_indicators()
         self.minimum_computations()
         
         slow_ma, htf_ma = self.compute_indicators()
@@ -33,7 +28,7 @@ class BoxIndicator(Strategy):
         if self.risk_manager._day_pause: 
             return None
 
-        if not self.trade_window((9, 30), (15, 00)) and not self.position_manager.in_trade():
+        if not self.trade_window((9, 30), (14, 45)) and not self.position_manager.in_trade():
             return None
         
         signal = None
@@ -88,20 +83,6 @@ class BoxIndicator(Strategy):
         
         return slow_ma, htf_ma
 
-    def reset_indicators(self):
-        if self.trade_window((9, 30), (9, 30)):
-            self.ema = None
-
-            history = self.history.loc[self.history.index < self.ts.normalize()].tail(20)
-            highs = history["high"].values
-            lows = history["low"].values
-            closes = history["close"].values
-
-            self.prev_day_close = closes[-1]
-            self.regime_ema = self.compute_ma(closes, window=50)
-            self.adx = self.compute_adx(highs, lows, closes)
-            self.atr = self.compute_atr(highs, lows, closes)
-
     def minimum_computations(self):
         if not self.activated:
             required_data = max(
@@ -110,20 +91,3 @@ class BoxIndicator(Strategy):
                 self.htf_window
             ) + 1
             self.activated = len(self.prices) > required_data
-
-    def add_features(self, direction, stop_price, target_price):
-        self.features = {
-            "direction": direction,
-            "entry_time": self.ts.isoformat(),
-            "entry_price": self.price,
-            "stop_price": stop_price,
-            "target_price": target_price,
-            "session_open": self.opens[0],
-            "session_low": min(self.lows),
-            "session_high": max(self.highs),
-            "open_volume": sum(self.volumes[0:5]),
-            "prev_day_close": self.prev_day_close,
-            "ema": self.regime_ema,
-            "adx": self.adx,
-            "atr": self.atr,
-        }

@@ -5,7 +5,7 @@ from .macd import MACDIndicator
 from .orb import ORBIndicator
 from .volume_decay import VolumeDecay
 from .rsi_scalp import RSIScalp
-from .box import BoxIndicator
+from .spread_diff import SpreadDiff
 from .ema_swing import EMASwing
 from .rsi_swing import RSISwing
 from .eod_reversion import EODReversion
@@ -31,7 +31,7 @@ strategy_map = {
     "orb": ORBIndicator,
     "volume": VolumeDecay,
     "rsi": RSIScalp,
-    "box": BoxIndicator,
+    "spread_diff": SpreadDiff,
     "ema_swing": EMASwing,
     "rsi_swing": RSISwing,
     "eod_reversion": EODReversion

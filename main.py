@@ -20,6 +20,7 @@ def main():
 
     parser.add_argument("--strategy", type=str, default="eod_reversion")
     parser.add_argument("--symbol", nargs="+", type=str, default=None, help="QQQ AAPL MSFT")
+    parser.add_argument("--pair", nargs="+", type=str, default=None, help="SPY-QQQ GOOG-GOOGL")
     
     parser.add_argument("--cash", type=int, default=25000)
     parser.add_argument("--margin", type=float, default=1.0)
@@ -40,15 +41,19 @@ def main():
         # dh.historical_data(symbols)
         # bt = Backtest(args.symbol, strategy_class, margin=args.margin)
         # bt.run(end_date=str(date.today()), display_stats=False, display_plot=False)
-        eq = Equities(args.symbol, strategy_class, margin=args.margin)
-        eq.run()
+        if args.pair:
+            pt = Pairs(args.pair, strategy_class, margin=args.margin)
+            pt.run()
+        else:
+            eq = Equities(args.symbol, strategy_class, margin=args.margin)
+            eq.run()
     elif args.backtest:
         bt = Backtest(args.symbol, strategy_class, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage)
         bt.run(train=args.train, grid=args.grid)
     elif args.fetch:
         dh = DataHandler()
         if args.schwab:
-            dh.schwab_data(args.symbol[0])
+            dh.schwab_data(args.symbol)
         else:
             dh.historical_data(args.symbol)
     elif args.stream:
