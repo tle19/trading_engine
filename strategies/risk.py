@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 class RiskManager:
-    def __init__(self, pnl_target=0.02, pnl_loss=-0.01, trade_max=3, drawdown_max=0.15):
+    def __init__(self, pnl_target=0.02, pnl_loss=-0.01, trade_max=3, drawdown_max=0.25):
         self.pnl_target = pnl_target
         self.pnl_loss = pnl_loss
         self.trade_max = trade_max
