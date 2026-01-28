@@ -1,22 +1,19 @@
-import numpy as np
-
 from .risk import RiskManager
-from utils import *
 
 LONG = 1
 SHORT = -1
 EXIT = 0
 HOLD = None
-TICKS = 23500
 
 class PairStrategy:
-    def __init__(self, pair, stop_loss=0.01, take_profit=0.01, position_size=1.0,
+    def __init__(self, pair, time_start, time_end, take_profit=0.001, position_size=1.0,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
         self.pair = pair
         self.symbol1, self.symbol2 = pair.split("-")
-        self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.position_size = position_size
+        self.time_start = time_start[0] * 60 + time_start[1]
+        self.time_end = time_end[0] * 60 + time_end[1]
 
         self.data = {
             self.symbol1: {
@@ -26,21 +23,11 @@ class PairStrategy:
                 "last": None,
                 "bid_size": None,
                 "ask_size": None,
-                "prices": np.empty(TICKS, dtype=float),
-                "bids": np.empty(TICKS, dtype=float),
-                "asks": np.empty(TICKS, dtype=float),
-                "lasts": np.empty(TICKS, dtype=float),
-                "bid_sizes": np.empty(TICKS, dtype=float),
-                "ask_sizes": np.empty(TICKS, dtype=float),
-                "index": 0,
+                "entry_price": None,
+                "exit_price": None,
                 "direction": 0,
                 "shares": 0,
                 "position_size": 1.0,
-                "entry_price": None,
-                "entry_fill": None,
-                "stop_price": None,
-                "target_price": None,
-                "exit_fill": None,
                 "activated": False
             },
             self.symbol2: {
@@ -50,25 +37,17 @@ class PairStrategy:
                 "last": None,
                 "bid_size": None,
                 "ask_size": None,
-                "prices": np.empty(TICKS, dtype=float),
-                "bids": np.empty(TICKS, dtype=float),
-                "asks": np.empty(TICKS, dtype=float),
-                "lasts": np.empty(TICKS, dtype=float),
-                "bid_sizes": np.empty(TICKS, dtype=float),
-                "ask_sizes": np.empty(TICKS, dtype=float),
-                "index": 0,
+                "entry_price": None,
+                "exit_price": None,
                 "direction": 0,
                 "shares": 0,
                 "position_size": 1.0,
-                "entry_price": None,
-                "entry_fill": None,
-                "stop_price": None,
-                "target_price": None,
-                "exit_fill": None,
                 "activated": False
             }
         }
         
+        self.activated = False
+
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
         self.cash = self.risk_manager.curr_cash / 2
 
@@ -84,50 +63,33 @@ class PairStrategy:
     def compute_indicators(self):
         raise NotImplementedError
     
-    def pairmate(self, symbol):
-        if symbol == self.symbol1:
-            return self.symbol2
-        elif symbol == self.symbol2:
-            return self.symbol1
-    
     def update(self, symbol, row=None): 
         s = self.data[symbol]
-        idx = s["index"]
         
-        if row is not None:
-            s["ts"] = row.timestamp
-            for attr in ("bid", "ask", "last", "bid_size", "ask_size"):
-                val = getattr(row, attr)
-                if val is not None:
-                    s[attr] = val
+        if row.timestamp is not None: s["ts"] = row.timestamp
+        if row.bid is not None: s["bid"] = row.bid
+        if row.ask is not None: s["ask"] = row.ask
+        if row.last is not None: s["last"] = row.last
+        if row.bid_size is not None: s["bid_size"] = row.bid_size
+        if row.ask_size is not None: s["ask_size"] = row.ask_size
                 
-        if not s["activated"]:
-            if all(s[attr] is not None for attr in ("bid", "ask", "last", "bid_size", "ask_size")):
-                s["activated"] = True
-            else:
-                return
+        if not self.activated:
+            for attr in ("bid", "ask", "last", "bid_size", "ask_size"):
+                if s[attr] is None:
+                    return
+            s["activated"] = True
+            if self.data[self.symbol1]["activated"] and self.data[self.symbol2]["activated"]:
+                self.activated = True
 
-        s["prices"][idx] = (s["bid"] + s["ask"] + s["last"]) / 3
-        s["bids"][idx] = s["bid"]
-        s["asks"][idx] = s["ask"]
-        s["lasts"][idx] = s["last"]
-        s["bid_sizes"][idx] = s["bid_size"]
-        s["ask_sizes"][idx] = s["ask_size"]
-
-        s["index"] += 1
-
-    def trade_window(self, start=(14, 30), end=(21, 00)):
-        ts_ms = self.data[self.symbol1]["ts"] or self.data[self.symbol2]["ts"]
-        total_seconds = ts_ms // 1000
-        hour = (total_seconds // 3600) % 24
-        minute = (total_seconds // 60) % 60
-        return start <= (hour, minute) <= end
+    def trade_window(self):
+        ts = self.data[self.symbol1]["ts"] or self.data[self.symbol2]["ts"]
+        return self.time_start <= (ts // 1000 // 60) <= self.time_end
     
     def buy_pair(self):
         s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
         if s1["direction"] == 0:
-            shares1 = int(self.cash / s1["price"])
-            shares2 = int(self.cash / s2["price"])
+            shares1 = int(self.cash / s1["last"])
+            shares2 = int(self.cash / s2["last"])
             s1["direction"], s1["shares"] = 1, shares1
             s2["direction"], s2["shares"] = -1, shares2
             return LONG
@@ -136,8 +98,8 @@ class PairStrategy:
     def sell_pair(self):
         s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
         if s1["direction"] == 0:
-            shares1 = int(self.cash / s1["price"])
-            shares2 = int(self.cash / s2["price"])
+            shares1 = int(self.cash / s1["last"])
+            shares2 = int(self.cash / s2["last"])
             s1["direction"], s1["shares"] = -1, shares1
             s2["direction"], s2["shares"] = 1, shares2
             return SHORT
@@ -147,9 +109,6 @@ class PairStrategy:
         if self.data[self.symbol1]["direction"]:
             return EXIT
         return HOLD
- 
-    def compute_ma(self, data, window=10):
-        return np.mean(data[-window:])
     
     def compute_ema(self, prev_ema, new_value, window=10):
         if prev_ema is None:

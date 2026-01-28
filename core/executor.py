@@ -369,7 +369,7 @@ class Equities:
             )
 
 
-import time
+
 class EquityPairs:
     def __init__(self, pairs, strategy_class, margin=1.0):
         config = load_config()
@@ -401,9 +401,9 @@ class EquityPairs:
                 return
 
             for item in content:
-                s = time.perf_counter()
+                s = time.perf_counter() # timing
                 symbol = item["key"]
-                if not any(symbol in pair for pair in self.pairs):
+                if symbol not in self.symbols:
                     return
 
                 timestamp = item.get('34') or item.get('37') or item.get('38') or item.get('35')
@@ -420,19 +420,19 @@ class EquityPairs:
                 signal = strategy.generate_signal(symbol, row)
                 self.interpret_signal(signal, strategy, strategy.pair)
 
-                print(f"{1000*(time.perf_counter() - s):.3f}")
+                print(f"{1000*(time.perf_counter() - s):.3f}")  # timing
 
-        self.stream.start_auto(
-            receiver=response_handler, 
-            start_time=datetime.time(9, 30, 0), 
-            stop_time=datetime.time(16, 0, 0), 
-            on_days=(0,1,2,3,4))
-        # self.stream.start(response_handler)
-        self.await_market_open()
+        # self.stream.start_auto(
+        #     receiver=response_handler, 
+        #     start_time=datetime.time(9, 30, 0), 
+        #     stop_time=datetime.time(16, 0, 0), 
+        #     on_days=(0,1,2,3,4))
+        self.stream.start(response_handler)
+        # self.await_market_open()
         self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
         # self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
-        self.stream_duration()
-        # time.sleep(300)
+        # self.stream_duration()
+        time.sleep(300)
 
         self.trade_manager.save_logs()
 
@@ -444,28 +444,31 @@ class EquityPairs:
         # --- Enter Long/Short ---
         if signal == 1:
             fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"])
-            s1["entry_fill"], s2["entry_fill"] = fill_price1, fill_price2
-            self.trade_manager.log_entry(name, pair+":1", symbol1, s1["direction"], s1["position_size"], s1["shares"], s1["ts"], s1["entry_price"], fill_price1, None, s1["target_price"])
-            self.trade_manager.log_entry(name, pair+":2", symbol2, s2["direction"], s2["position_size"], s2["shares"], s2["ts"], s2["entry_price"], fill_price2, None, s2["target_price"])
+            s1["entry_price"], s2["entry_price"] = fill_price1, fill_price2
+            self.trade_manager.log_entry(name, pair+":1", symbol1, s1["direction"], s1["position_size"], s1["shares"], s1["ts"], s1["ask"], fill_price1, None, s1["target_price"])
+            self.trade_manager.log_entry(name, pair+":2", symbol2, s2["direction"], s2["position_size"], s2["shares"], s2["ts"], s2["bid"], fill_price2, None, s2["target_price"])
 
         # --- Enter Short/Long ---
         elif signal == -1:
             fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"])
-            s1["entry_fill"], s2["entry_fill"] = fill_price1, fill_price2
-            self.trade_manager.log_entry(name, pair+":1", symbol1, s1["direction"], s1["position_size"], s1["shares"], s1["ts"], s1["entry_price"], fill_price1, None, s1["target_price"])
-            self.trade_manager.log_entry(name, pair+":2", symbol2, s2["direction"], s2["position_size"], s2["shares"], s2["ts"], s2["entry_price"], fill_price2, None, s2["target_price"])
+            s1["entry_price"], s2["entry_price"] = fill_price1, fill_price2
+            self.trade_manager.log_entry(name, pair+":1", symbol1, s1["direction"], s1["position_size"], s1["shares"], s1["ts"], s1["bid"], fill_price1, None, s1["target_price"])
+            self.trade_manager.log_entry(name, pair+":2", symbol2, s2["direction"], s2["position_size"], s2["shares"], s2["ts"], s2["ask"], fill_price2, None, s2["target_price"])
                 
         # --- Exit Position --- 
         elif signal == 0:
             if s1["direction"] == 1:
                 fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"])
+                self.trade_manager.update_exit(pair+":1", s1["ts"], s1["bid"], fill_price1)
+                self.trade_manager.update_exit(pair+":2", s2["ts"], s2["ask"], fill_price2)
             elif s1["direction"] == -1:
                 fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"])
+                self.trade_manager.update_exit(pair+":1", s1["ts"], s1["ask"], fill_price1)
+                self.trade_manager.update_exit(pair+":2", s2["ts"], s2["bid"], fill_price2)
 
-            self.update_pnl(strategy, s1["direction"], s1["entry_fill"], fill_price1, s1["shares"])
-            self.update_pnl(strategy, s2["direction"], s2["entry_fill"], fill_price2, s1["shares"])
-            self.trade_manager.update_exit(pair+":1", s1["ts"], s1["price"], fill_price1)
-            self.trade_manager.update_exit(pair+":2", s2["ts"], s2["price"], fill_price2)
+            self.update_pnl(strategy, s1["direction"], s1["entry_price"], fill_price1, s1["shares"])
+            self.update_pnl(strategy, s2["direction"], s2["entry_price"], fill_price2, s2["shares"])
+            s1["exit_price"], s2["exit_price"] = fill_price1, fill_price2
             s1["direction"], s1["shares"] = 0, 0
             s2["direction"], s2["shares"] = 0, 0
 

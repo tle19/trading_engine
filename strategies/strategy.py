@@ -1,7 +1,6 @@
 import numpy as np
 
 from .risk import RiskManager
-from utils import *
 
 LONG = 1
 SHORT = -1
