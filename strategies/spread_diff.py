@@ -51,9 +51,9 @@ class SpreadDiff(PairStrategy):
     def exit_trade(self):
         direction = self.s1["direction"]
         # compute pnls
-        if direction == 1 and self.ema_fast1 < self.ema_slow1:
+        if direction == 1 and self.ema1 < 5000:
             return self.exit()
-        if direction == -1 and self.ema_fast2 > self.ema_slow2:
+        if direction == -1 and self.ema2 > 5000:
             return self.exit()
         
     def compute_indicators(self):

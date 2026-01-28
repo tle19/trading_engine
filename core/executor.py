@@ -425,8 +425,9 @@ class EquityPairs:
                 sys.stdout.write("\n".join(self.log_buffer) + "\n")
                 self.log_buffer.clear()
 
-            # s = time.perf_counter() # timing
-            # print(f"{1000*(time.perf_counter() - s):.3f}")  # timing
+            # timing
+            # s = time.perf_counter()
+            # sys.stdout.write(f"{1000*(time.perf_counter() - s):.3f}\n")
 
         # self.stream.start(response_handler)
         self.stream.start_auto(
