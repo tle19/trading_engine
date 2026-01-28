@@ -6,14 +6,15 @@ EXIT = 0
 HOLD = None
 
 class PairStrategy:
-    def __init__(self, pair, time_start, time_end, take_profit=0.001, position_size=1.0,
+    def __init__(self, pair, start_time, end_time, take_profit=0.001, position_size=1.0,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
         self.pair = pair
         self.symbol1, self.symbol2 = pair.split("-")
         self.take_profit = take_profit
         self.position_size = position_size
-        self.time_start = time_start[0] * 60 + time_start[1]
-        self.time_end = time_end[0] * 60 + time_end[1]
+
+        self.start_time = start_time[0] * 60 + start_time[1]
+        self.end_time = end_time[0] * 60 + end_time[1]
 
         self.data = {
             self.symbol1: {
@@ -46,6 +47,8 @@ class PairStrategy:
             }
         }
         
+        self.s1 = self.data[self.symbol1]
+        self.s2 = self.data[self.symbol2]
         self.activated = False
 
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
@@ -78,35 +81,33 @@ class PairStrategy:
                 if s[attr] is None:
                     return
             s["activated"] = True
-            if self.data[self.symbol1]["activated"] and self.data[self.symbol2]["activated"]:
+            if self.s1["activated"] and self.s2["activated"]:
                 self.activated = True
 
     def trade_window(self):
-        ts = self.data[self.symbol1]["ts"] or self.data[self.symbol2]["ts"]
-        return self.time_start <= (ts // 1000 // 60) <= self.time_end
+        ts = self.s1["ts"] or self.s2["ts"]
+        return self.start_time <= (ts // 1000 // 60) <= self.end_time
     
     def buy_pair(self):
-        s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
-        if s1["direction"] == 0:
-            shares1 = int(self.cash / s1["last"])
-            shares2 = int(self.cash / s2["last"])
-            s1["direction"], s1["shares"] = 1, shares1
-            s2["direction"], s2["shares"] = -1, shares2
+        if self.s1["direction"] == 0:
+            shares1 = int(self.cash / self.s1["last"])
+            shares2 = int(self.cash / self.s2["last"])
+            self.s1["direction"], self.s1["shares"] = 1, shares1
+            self.s2["direction"], self.s2["shares"] = -1, shares2
             return LONG
         return HOLD
         
     def sell_pair(self):
-        s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
-        if s1["direction"] == 0:
-            shares1 = int(self.cash / s1["last"])
-            shares2 = int(self.cash / s2["last"])
-            s1["direction"], s1["shares"] = -1, shares1
-            s2["direction"], s2["shares"] = 1, shares2
+        if self.s1["direction"] == 0:
+            shares1 = int(self.cash / self.s1["last"])
+            shares2 = int(self.cash / self.s2["last"])
+            self.s1["direction"], self.s1["shares"] = -1, shares1
+            self.s2["direction"], self.s2["shares"] = 1, shares2
             return SHORT
         return HOLD
           
     def exit(self):
-        if self.data[self.symbol1]["direction"]:
+        if self.s1["direction"]:
             return EXIT
         return HOLD
     

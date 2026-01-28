@@ -5,10 +5,10 @@ from models import *
 from utils import *
 
 class SpreadDiff(PairStrategy):
-    def __init__(self, pair, ema_window=10, time_start=(15, 00), time_end=(20, 00),
+    def __init__(self, pair, ema_window=10, start_time=(15, 00), end_time=(20, 00),
                  take_profit=0.001, position_size=1.0,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
-        super().__init__(pair, time_start, time_end, 
+        super().__init__(pair, start_time, end_time, 
                          take_profit, position_size,
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
@@ -21,7 +21,7 @@ class SpreadDiff(PairStrategy):
 
         if self.risk_manager._day_pause: 
             return None
-        if not self.trade_window() and not self.data[self.symbol1]["direction"]:
+        if not self.trade_window() and not self.s1["direction"]:
             return None
 
         signal = None
@@ -35,9 +35,8 @@ class SpreadDiff(PairStrategy):
     def enter_trade(self):
         signal = None
 
-        s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
-        spread1 = (s1["ask"] - s1["bid"])
-        spread2 = (s2["ask"] - s2["bid"])
+        spread1 = (self.s1["ask"] - self.s1["bid"])
+        spread2 = (self.s2["ask"] - self.s2["bid"])
 
         if spread1 > 0.05 and spread2 > 0.05:
             return
@@ -50,7 +49,7 @@ class SpreadDiff(PairStrategy):
         return signal
         
     def exit_trade(self):
-        direction = self.data[self.symbol1]["direction"]
+        direction = self.s1["direction"]
         # compute pnls
         if direction == 1 and self.ema_fast1 < self.ema_slow1:
             return self.exit()
@@ -58,10 +57,8 @@ class SpreadDiff(PairStrategy):
             return self.exit()
         
     def compute_indicators(self):
-        s1, s2 = self.data[self.symbol1], self.data[self.symbol2]
-        
-        mid1 = (s1["bid"] + s1["ask"]) * 0.5
-        mid2 = (s2["bid"] + s2["ask"]) * 0.5
+        mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
+        mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
         spread = mid1 - mid2
 
         self.ema1 = self.compute_ema(self.ema1, mid1, self.ema_window)

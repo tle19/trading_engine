@@ -1,6 +1,7 @@
 import json
 import time
 import datetime
+import sys
 import pandas as pd
 from collections import namedtuple
 from zoneinfo import ZoneInfo
@@ -370,6 +371,7 @@ class Equities:
 
 
 
+
 class EquityPairs:
     def __init__(self, pairs, strategy_class, margin=1.0):
         config = load_config()
@@ -383,12 +385,12 @@ class EquityPairs:
         if day_trading_power < self.cash:
             raise ValueError(f"Insufficient day trading power: available ${day_trading_power}")
         self.timezone = ZoneInfo("America/New_York")
-        self.pairs = pairs if isinstance(pairs, list) else [pairs]
         self.symbols = [symbol for pair in pairs for symbol in pair.split("-")]
         self.initialize(pairs, strategy_class)
 
         self.trade_manager = TradeManager(log_file="trade_logs_live_pt.json", live=True)
-        self.Row = namedtuple("Row", ["timestamp", "bid", "ask", "last", "bid_size", "ask_size"])
+        self.Row = Row
+        self.log_buffer = []
 
     def run(self):
         def response_handler(response):
@@ -401,45 +403,49 @@ class EquityPairs:
                 return
 
             for item in content:
-                s = time.perf_counter() # timing
                 symbol = item["key"]
                 if symbol not in self.symbols:
                     return
 
-                timestamp = item.get('34') or item.get('37') or item.get('38') or item.get('35')
-                bid = item.get("1")
-                ask = item.get("2")
-                last = item.get("3")
-                bid_size = item.get("4")
-                ask_size = item.get("5")
-                
-                row = self.Row(timestamp, bid, ask, last, bid_size, ask_size)
-                print(f"[{symbol}] {row}")
-                
+                row = self.Row(
+                    item.get('34') or item.get('37') or item.get('38') or item.get('35'),
+                    item.get("1"),
+                    item.get("2"),
+                    item.get("3"),
+                    item.get("4"),
+                    item.get("5")
+                )
+                self.log_buffer.append(f"[{symbol}] {row}")
+
                 strategy = self.strategies[symbol]
                 signal = strategy.generate_signal(symbol, row)
                 self.interpret_signal(signal, strategy, strategy.pair)
 
-                print(f"{1000*(time.perf_counter() - s):.3f}")  # timing
+            if self.log_buffer:
+                sys.stdout.write("\n".join(self.log_buffer) + "\n")
+                self.log_buffer.clear()
 
-        # self.stream.start_auto(
-        #     receiver=response_handler, 
-        #     start_time=datetime.time(9, 30, 0), 
-        #     stop_time=datetime.time(16, 0, 0), 
-        #     on_days=(0,1,2,3,4))
-        self.stream.start(response_handler)
-        # self.await_market_open()
+            # s = time.perf_counter() # timing
+            # print(f"{1000*(time.perf_counter() - s):.3f}")  # timing
+
+        # self.stream.start(response_handler)
+        self.stream.start_auto(
+            receiver=response_handler, 
+            start_time=datetime.time(9, 30, 0), 
+            stop_time=datetime.time(16, 0, 0), 
+            on_days=(0,1,2,3,4))
+        self.await_market_open()
         self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
         # self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
-        # self.stream_duration()
-        time.sleep(300)
+        self.stream_duration()
+        # time.sleep(300)
 
         self.trade_manager.save_logs()
 
     def interpret_signal(self, signal, strategy, pair):
         name = strategy.__class__.__name__
         symbol1, symbol2 = pair.split("-")
-        s1, s2 = strategy.data[symbol1], strategy.data[symbol2]
+        s1, s2 = strategy.s1, strategy.s2
         
         # --- Enter Long/Short ---
         if signal == 1:
@@ -489,8 +495,8 @@ class EquityPairs:
         order_id2 = self.get_order_id(response2)
         fill_price1 = self.get_fill_price(order_id1, shares)
         fill_price2 = self.get_fill_price(order_id2, shares)
-        print(f" [BOT] +{shares} {symbol1} @ {fill_price1}")
-        print(f" [SOLD] -{shares} {symbol2} @ {fill_price2}")
+        self.log_buffer.append(f" [BOT] +{shares} {symbol1} @ {fill_price1}")
+        self.log_buffer.append(f" [SOLD] -{shares} {symbol2} @ {fill_price2}")
         return fill_price1, fill_price2
 
     def sell_pair(self, signal, symbol1, symbol2, shares):
@@ -505,8 +511,8 @@ class EquityPairs:
         order_id2 = self.get_order_id(response2)
         fill_price1 = self.get_fill_price(order_id1, shares)
         fill_price2 = self.get_fill_price(order_id2, shares)
-        print(f" [SOLD] -{shares} {symbol1} @ {fill_price1}")
-        print(f" [BOT] +{shares} {symbol2} @ {fill_price2}")
+        self.log_buffer.append(f" [SOLD] -{shares} {symbol1} @ {fill_price1}")
+        self.log_buffer.append(f" [BOT] +{shares} {symbol2} @ {fill_price2}")
         return fill_price1, fill_price2
 
     def market_order(self, symbol, quantity, type="BUY"):
@@ -592,3 +598,18 @@ class EquityPairs:
                 f"[INIT] {strat.__class__.__name__:10} | "
                 f"symbol={pair:5} | cash=${cash_allocation}"
             )
+
+class Row:
+    __slots__ = ("timestamp", "bid", "ask", "last", "bid_size", "ask_size")
+
+    def __init__(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
+        self.timestamp = timestamp
+        self.bid = bid
+        self.ask = ask
+        self.last = last
+        self.bid_size = bid_size
+        self.ask_size = ask_size
+    
+    def __repr__(self):
+        return (f"timestamp={self.timestamp}, bid={self.bid}, ask={self.ask}, "
+                f"last={self.last}, bid_size={self.bid_size}, ask_size={self.ask_size})")
