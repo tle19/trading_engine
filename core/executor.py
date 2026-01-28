@@ -401,6 +401,7 @@ class EquityPairs:
                 return
 
             for item in content:
+                s = time.perf_counter()
                 symbol = item["key"]
                 if not any(symbol in pair for pair in self.pairs):
                     return
@@ -416,24 +417,22 @@ class EquityPairs:
                 print(f"[{symbol}] {row}")
                 
                 strategy = self.strategies[symbol]
-                strategy.update(symbol, row)
-
-            if strategy.pairmate(symbol):
-                s = time.perf_counter()
-                signal = strategy.generate_signal()
-                print(f"{1000*(time.perf_counter() - s):.3f}")
+                signal = strategy.generate_signal(symbol, row)
                 self.interpret_signal(signal, strategy, strategy.pair)
 
-        # self.stream.start_auto(
-        #     receiver=response_handler, 
-        #     start_time=datetime.time(9, 30, 0), 
-        #     stop_time=datetime.time(16, 0, 0), 
-        #     on_days=(0,1,2,3,4))
-        self.stream.start(response_handler)
-        # self.await_market_open()
-        self.stream.send(self.stream.level_one_equities(self.symbols + ["MSFT"], "0,1,2,3,4,5,34,35,37,38", command="ADD"))
-        # self.stream_duration()
-        time.sleep(300)
+                print(f"{1000*(time.perf_counter() - s):.3f}")
+
+        self.stream.start_auto(
+            receiver=response_handler, 
+            start_time=datetime.time(9, 30, 0), 
+            stop_time=datetime.time(16, 0, 0), 
+            on_days=(0,1,2,3,4))
+        # self.stream.start(response_handler)
+        self.await_market_open()
+        self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
+        # self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
+        self.stream_duration()
+        # time.sleep(300)
 
         self.trade_manager.save_logs()
 

@@ -40,7 +40,8 @@ class PairStrategy:
                 "entry_fill": None,
                 "stop_price": None,
                 "target_price": None,
-                "exit_fill": None
+                "exit_fill": None,
+                "activated": False
             },
             self.symbol2: {
                 "ts": None,
@@ -63,10 +64,11 @@ class PairStrategy:
                 "entry_fill": None,
                 "stop_price": None,
                 "target_price": None,
-                "exit_fill": None
+                "exit_fill": None,
+                "activated": False
             }
         }
-
+        
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
         self.cash = self.risk_manager.curr_cash / 2
 
@@ -98,9 +100,11 @@ class PairStrategy:
                 val = getattr(row, attr)
                 if val is not None:
                     s[attr] = val
-
-        for attr in ("bid", "ask", "last", "bid_size", "ask_size"):
-            if s[attr] is None:
+                
+        if not s["activated"]:
+            if all(s[attr] is not None for attr in ("bid", "ask", "last", "bid_size", "ask_size")):
+                s["activated"] = True
+            else:
                 return
 
         s["prices"][idx] = (s["bid"] + s["ask"] + s["last"]) / 3
@@ -112,9 +116,12 @@ class PairStrategy:
 
         s["index"] += 1
 
-    def trade_window(self, start, end):
-        ts = self.data[self.symbol1]["ts"]
-        return start <= (ts.hour, ts.minute) <= end
+    def trade_window(self, start=(14, 30), end=(21, 00)):
+        ts_ms = self.data[self.symbol1]["ts"] or self.data[self.symbol2]["ts"]
+        total_seconds = ts_ms // 1000
+        hour = (total_seconds // 3600) % 24
+        minute = (total_seconds // 60) % 60
+        return start <= (hour, minute) <= end
     
     def buy_pair(self):
         s1, s2 = self.data[self.symbol1], self.data[self.symbol2]

@@ -119,7 +119,7 @@ class Strategy:
             self.risk_manager.reset()
             self.activated = False
 
-    def trade_window(self, start, end):
+    def trade_window(self, start=(9, 30), end=(16, 00)):
         return start <= (self.ts.hour, self.ts.minute) <= end
         
     def buy(self):

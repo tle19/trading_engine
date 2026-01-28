@@ -18,19 +18,21 @@ class SpreadDiff(PairStrategy):
         self.ema_fast2 = None
         self.ema_slow2 = None
     
-    def generate_signal(self):
+    def generate_signal(self, symbol, row):
+        self.update(symbol, row)
         self.compute_indicators()
 
         if self.risk_manager._day_pause: 
             return None
 
-        # if not self.trade_window((10, 00), (14, 30)) and not self.data[self.symbol1]["direction"]:
-        #     return None
+        if not self.trade_window((15, 00), (20, 00)) and not self.data[self.symbol1]["direction"]:
+            return None
         
         signal = None
-        signal = self.exit_trade()
-        if signal is None:
-            signal = self.enter_trade()
+        if self.data[self.symbol1]["activated"] and self.data[self.symbol2]["activated"]:
+            signal = self.exit_trade()
+            if signal is None:
+                signal = self.enter_trade()
         return signal
     
     def enter_trade(self, signal=None):
