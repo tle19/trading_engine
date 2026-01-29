@@ -1,10 +1,10 @@
 import numpy as np
 
-from strategies import PairStrategy
+from strategies import StrategyPair
 from models import *
 from utils import *
 
-class SpreadDiff(PairStrategy):
+class SpreadDiff(StrategyPair):
     def __init__(self, pair, ema_window=10, start_time=(15, 00), end_time=(20, 00),
                  take_profit=0.001, pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
         super().__init__(pair, start_time, end_time, take_profit, 

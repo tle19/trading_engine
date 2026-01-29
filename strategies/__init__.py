@@ -1,5 +1,5 @@
 from .strategy import Strategy
-from .strategy_pair import PairStrategy
+from .strategy_pair import StrategyPair
 from .risk import RiskManager
 from .example import SMACrossover
 from .stochastic import StochasticIndicator
@@ -14,7 +14,7 @@ from .eod_reversion import EODReversion
 
 __all__ = [
     "Strategy",
-    "PairStrategy",
+    "StrategyPair",
     "RiskManager",
     "SMACrossover",
     "StochasticIndicator",

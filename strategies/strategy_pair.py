@@ -5,7 +5,7 @@ SHORT = -1
 EXIT = 0
 HOLD = None
 
-class PairStrategy:
+class StrategyPair:
     def __init__(self, pair, start_time, end_time, take_profit=0.001,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
         self.pair = pair

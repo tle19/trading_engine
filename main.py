@@ -18,7 +18,7 @@ def main():
     parser.add_argument("--grid", action="store_true")
     parser.add_argument("--train", action="store_true")
 
-    parser.add_argument("--strategy", type=str, default="eod_reversion")
+    parser.add_argument("--strategy", nargs="+", type=str, default=None, help="'eod_reversion stochastic' or 'eod_reversion:SPY spread_diff:SPY-QQQ'")
     parser.add_argument("--symbol", nargs="+", type=str, default=None, help="QQQ AAPL MSFT")
     parser.add_argument("--pair", nargs="+", type=str, default=None, help="SPY-QQQ GOOG-GOOGL")
     
@@ -28,25 +28,44 @@ def main():
     parser.add_argument("--slippage", type=float, default=0.1)
     args = parser.parse_args()
     
-    strategy_class = strategy_map.get(args.strategy)
-    if strategy_class is None:
-        raise ValueError(f"Unknown Strategy: {args.strategy}")
-    if args.symbol is None and args.pair is None:
-        raise ValueError(f"You must provide a symbol/pair, e.g., --symbol SPY and/or --pair SPY-QQQ")
+    if not args.strategy:
+        raise ValueError(f"You must provide a strategy, e.g., --strategy eod_reversion or eod_reversion:AAPL or spread_diff:SPY-QQQ")
+    colon_used = any(":" in s for s in args.strategy)
+    if colon_used and (args.symbol or args.pair):
+        raise ValueError("Cannot mix colon syntax with --symbol or --pair arguments")
+    if not colon_used and not args.symbol and not args.pair:
+        raise ValueError("Either use colon syntax in --strategy or provide --symbol / --pair")
     if args.symbol == "EVERYTHING":
         args.symbol = SYMBOLS
-    
+
+    strategy_dict = {}
+    if colon_used:
+        for item in args.strategy:
+            name, sym_str = item.split(":", 1)
+            symbols_or_pairs = sym_str.split(",") if sym_str else []
+            cls = strategy_map[name]
+            strategy_dict[cls] = symbols_or_pairs
+        args.strategy = list(strategy_dict)[0] 
+        args.symbol = strategy_dict[args.strategy][0]
+        args.pair = strategy_dict[args.strategy][0]
+    else:
+        args.strategy = strategy_map[args.strategy[0]]
+
     if args.live:
         # dh = DataHandler()
         # dh.historical_data(symbols)
-        if args.pair:
-            ep = EquityPairs(args.pair, strategy_class, margin=args.margin)
-            ep.run()
-        else:
-            eq = Equities(args.symbol, strategy_class, margin=args.margin)
+        if strategy_dict:
+            dfc = DataFeedController(strategy_dict, margin=args.margin)
+            dfc.run()
+        elif args.symbol:
+            eq = Equities(args.symbol, args.strategy, margin=args.margin) # single strategy
             eq.run()
+        elif args.pair:
+            ep = EquityPairs(args.pair, args.strategy, margin=args.margin) # single strategy
+            ep.run()
+        
     elif args.backtest:
-        bt = Backtest(args.symbol, strategy_class, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage)
+        bt = Backtest(args.symbol, args.strategy, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage) # single strategy
         bt.run(end_date=str(date.today()), train=args.train, grid=args.grid)
     elif args.fetch:
         dh = DataHandler()

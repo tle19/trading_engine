@@ -9,16 +9,122 @@ from zoneinfo import ZoneInfo
 import orjson
 import schwabdev
 
+from strategies import Strategy, StrategyPair
 from metrics import *
 from utils import *
 
 class DataFeedController:
-    def __init__(self, symbols, strategies, timezone, stream):
-        self.symbols = symbols
-        self.strategies = strategies
-        self.timezone = timezone
-        self.stream = stream
+    def __init__(self, strategy_dict, margin=1.0):
+        config = load_config()
+
+        self.client = schwabdev.Client(config['app_key'], config['app_secret'])
+        self.hash = self.client.linked_accounts().json()[0].get('hashValue')
+        self.stream = schwabdev.Stream(self.client)
         
+        self.cash = self.get_cash_balance() * margin
+        day_trading_power = self.get_day_trading_power()
+        if day_trading_power < self.cash:
+            raise ValueError(f"Insufficient day trading power: available ${day_trading_power}")
+        self.timezone = ZoneInfo("America/New_York")
+        self.initialize(strategy_dict, margin)
+
+        self.ohlcv_Row = OHLCVRow()
+        self.bidask_Row = BidAskRow()
+
+        self.log_buffer = []
+
+    def run(self):
+        def response_handler(response):
+            data = orjson.loads(response).get("data")
+            if not data:
+                return
+
+            content = data[0].get("content")
+            if not content:
+                return
+            for item in content:
+                symbol = item["key"]
+                if "7" in item:
+                    row = self.ohlcv_Row.update(
+                        pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone),
+                        item.get("2"),
+                        item.get("3"),
+                        item.get("4"),
+                        item.get("5"),
+                        item.get("6")
+                    )
+                else:
+                    row = self.bidask_Row.update(
+                        item.get('34') or item.get('37') or item.get('38') or item.get('35'),
+                        item.get("1"),
+                        item.get("2"),
+                        item.get("3"),
+                        item.get("4"),
+                        item.get("5")
+                    )
+                self.log_buffer.append(f"[{symbol}] {row}")
+
+                feed = self.strategy_dict[symbol]
+                strategy = feed.strategies[symbol]
+                signal = strategy.generate_signal(symbol, self.bidask_Row)
+                feed.interpret_signal(signal, strategy)
+            
+            if self.log_buffer:
+                sys.stdout.write("\n".join(self.log_buffer) + "\n")
+                self.log_buffer.clear()
+
+        self.stream.start_auto(
+            receiver=response_handler, 
+            start_time=datetime.time(9, 30, 0), 
+            stop_time=datetime.time(16, 0, 0), 
+            on_days=(0,1,2,3,4))
+        self.await_market_open()
+        for feed in self.feeds:
+            feed.run()
+        self.stream_duration()
+
+    def get_cash_balance(self):
+        details = self.client.account_details(self.hash)
+        details_json = details.json()
+        cash_balance = details_json["securitiesAccount"]["currentBalances"]["cashBalance"]
+        return cash_balance
+    
+    def get_day_trading_power(self):
+        details = self.client.account_details(self.hash)
+        details_json = details.json()
+        day_trading_power = details_json["securitiesAccount"]["currentBalances"]["dayTradingBuyingPower"]
+        return day_trading_power
+    
+    def await_market_open(self):
+        print("[WAIT] Market open pending")
+        while not self.stream.active:
+            time.sleep(5)
+        print("[ACTIVE] Market is open")
+
+    def stream_duration(self):
+        now = datetime.datetime.now(self.timezone)
+        market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
+        time.sleep((market_close - now).total_seconds())
+
+    def initialize(self, strategy_dict, margin):
+        self.strategy_dict = {}
+        self.feeds = []
+
+        for strategy_cl, items in strategy_dict.items():
+            if issubclass(strategy_cl, Strategy):
+                eq = Equities(items, strategy_cl, margin=margin)
+                self.feeds.append(eq)
+                for symbol in items:
+                    self.strategy_dict[symbol] = eq
+            elif issubclass(strategy_cl, StrategyPair):
+                ep = EquityPairs(items, strategy_cl, margin=margin)
+                self.feeds.append(ep)
+                for pair in items:
+                    symbol1, symbol2 = pair.split("-")
+                    self.strategy_dict[symbol1] = ep
+                    self.strategy_dict[symbol2] = ep
+                
+
 class Equities:
     def __init__(self, symbols, strategy_class, margin=1.0):
         config = load_config()
@@ -60,11 +166,15 @@ class Equities:
                 volume = item.get("6")
 
                 row = self.Row(timestamp, open, high, low, close, volume)
-                print(f"[{symbol}] {row}")
+                self.log_buffer.append(f"[{symbol}] {row}")
 
                 strategy = self.strategies[symbol]
                 signal = strategy.generate_signal(row)
                 self.interpret_signal(signal, strategy, symbol)
+
+            if self.log_buffer:
+                sys.stdout.write("\n".join(self.log_buffer) + "\n")
+                self.log_buffer.clear()
 
         self.stream.start_auto(
             receiver=response_handler, 
@@ -76,6 +186,9 @@ class Equities:
         self.stream_duration()
 
         self.trade_manager.save_logs()
+
+    # def run(self):
+    #     self.stream.send(self.stream.chart_equity(self.symbols, "0,1,2,3,4,5,6,7,8", command="ADD"))
 
     def interpret_signal(self, signal, strategy, symbol):
         name = strategy.__class__.__name__
@@ -132,9 +245,9 @@ class Equities:
                         exit_price = strategy.price
                     else:
                         if direction == 1:
-                            print(f" [SOLD] -{shares} {symbol} @ {fill_price}")
+                            self.log_buffer.append(f" [SOLD] -{shares} {symbol} @ {fill_price}")
                         elif direction == -1:
-                            print(f" [BOT] +{shares} {symbol} @ {fill_price}")
+                            self.log_buffer.append(f" [BOT] +{shares} {symbol} @ {fill_price}")
                         exit_price = min([stop_price, target_price], key=lambda x: abs(fill_price - x))
                 
                     self.update_pnl(strategy, direction, entry_price, fill_price, shares)
@@ -169,7 +282,7 @@ class Equities:
         response = self.client.place_order(self.hash, order_dict)
         order_id = self.get_order_id(response)
         fill_price = self.get_fill_price(order_id, quantity)
-        print(f" [BOT] +{quantity} {symbol} @ {fill_price}")
+        self.log_buffer.append(f" [BOT] +{quantity} {symbol} @ {fill_price}")
         return order_id, fill_price
     
     def sell_market(self, symbol, quantity, type="SELL"):
@@ -193,21 +306,21 @@ class Equities:
         response = self.client.place_order(self.hash, order_dict)
         order_id = self.get_order_id(response)
         fill_price = self.get_fill_price(order_id, quantity)
-        print(f" [SOLD] -{quantity} {symbol} @ {fill_price}")
+        self.log_buffer.append(f" [SOLD] -{quantity} {symbol} @ {fill_price}")
         return order_id, fill_price
     
     def long_bracket(self, symbol, quantity, stop_price, target_price):
         order_dict = self.get_sell_order_dict(symbol, quantity, stop_price, target_price)
         response = self.client.place_order(self.hash, order_dict)
         order_id = self.get_order_id(response)
-        print(f" STP={stop_price} | LMT={target_price}")
+        self.log_buffer.append(f" STP={stop_price} | LMT={target_price}")
         return order_id
 
     def short_bracket(self, symbol, quantity, stop_price, target_price):
         order_dict = self.get_buy_order_dict(symbol, quantity, stop_price, target_price)
         response = self.client.place_order(self.hash, order_dict)
         order_id = self.get_order_id(response)
-        print(f" STP={stop_price} | LMT={target_price}")
+        self.log_buffer.append(f" STP={stop_price} | LMT={target_price}")
         return order_id
     
     def get_buy_order_dict(self, symbol, quantity, stop_price, target_price):
@@ -396,12 +509,12 @@ class EquityPairs:
         self.initialize(pairs, strategy_class)
 
         self.trade_manager = TradeManager(log_file="trade_logs_live_pt.json", live=True)
-        self.Row = Row()
+        self.Row = BidAskRow()
         self.log_buffer = []
 
     def run(self):
         def response_handler(response):
-            data = orjson.loads(response).get("data") or []
+            data = orjson.loads(response).get("data")
             if not data:
                 return
 
@@ -442,11 +555,14 @@ class EquityPairs:
             stop_time=datetime.time(16, 0, 0), 
             on_days=(0,1,2,3,4))
         self.await_market_open()
-        self.stream.send(self.stream.level_one_equities(self.symbols + ["VOO"], "0,1,2,3,4,5,34,35,37,38", command="ADD"))
+        self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
         # self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
         self.stream_duration()
 
         self.trade_manager.save_logs()
+    
+    # def run(self):
+    #     self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
 
     def interpret_signal(self, signal, strategy):
         name = strategy.__class__.__name__
@@ -603,7 +719,7 @@ class EquityPairs:
                 f"symbol={pair:5} | cash=${cash_allocation}"
             )
 
-class Row:
+class BidAskRow:
     __slots__ = ("timestamp", "bid", "ask", "last", "bid_size", "ask_size")
 
     def __init__(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
@@ -624,4 +740,30 @@ class Row:
     
     def __repr__(self):
         return (f"timestamp={self.timestamp}, bid={self.bid}, ask={self.ask}, "
-                f"last={self.last}, bid_size={self.bid_size}, ask_size={self.ask_size})")
+                f"last={self.last}, bid_size={self.bid_size}, ask_size={self.ask_size})"
+            )
+    
+class OHLCVRow:
+    __slots__ = ("timestamp", "open", "high", "low", "close", "volume")
+
+    def __init__(self, timestamp=None, open=None, high=None, low=None, close=None, volume=None):
+        self.timestamp = timestamp
+        self.open = open
+        self.high = high
+        self.low = low
+        self.close = close
+        self.volume = volume
+
+    def update(self, timestamp=None, open=None, high=None, low=None, close=None, volume=None):
+        self.timestamp = timestamp
+        self.open = open
+        self.high = high
+        self.low = low
+        self.close = close
+        self.volume = volume
+
+    def __repr__(self):
+        return (
+            f"timestamp={self.timestamp}, open={self.open}, high={self.high}, "
+            f"low={self.low}, close={self.close}, volume={self.volume}"
+        )
