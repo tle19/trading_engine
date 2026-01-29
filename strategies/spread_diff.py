@@ -5,7 +5,7 @@ from models import *
 from utils import *
 
 class SpreadDiff(StrategyPair):
-    def __init__(self, pair, ema_window=10, start_time=(15, 00), end_time=(20, 00),
+    def __init__(self, pair, ema_window=20, start_time=(15, 00), end_time=(20, 00),
                  take_profit=0.001, pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
         super().__init__(pair, start_time, end_time, take_profit, 
                          pnl_target, pnl_loss, trade_max)
@@ -14,7 +14,7 @@ class SpreadDiff(StrategyPair):
         self.ema1 = None
         self.ema2 = None
     
-    def generate_signal(self, symbol, row):
+    def generate_signal(self, row, symbol):
         self.update(symbol, row)
 
         if self.risk_manager._day_pause: 
@@ -25,8 +25,9 @@ class SpreadDiff(StrategyPair):
         signal = None
         if self.activated:
             self.compute_indicators()
-            signal = self.exit_trade()
-            if signal is None:
+            if self.s1["direction"]:
+                signal = self.exit_trade()
+            else:
                 signal = self.enter_trade()
         return signal
     

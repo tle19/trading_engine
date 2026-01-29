@@ -42,7 +42,7 @@ class StochasticIndicator(Strategy):
         if not self.model.initialize():
             self.model = None
 
-    def generate_signal(self, row):
+    def generate_signal(self, row, _=None):
         self.update(row)
         self.reset_data()
         self.reset_day()

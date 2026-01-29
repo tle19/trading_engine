@@ -47,7 +47,7 @@ class StrategyPair:
 
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
 
-    def generate_signal(self):
+    def generate_signal(self, row, symbol=None):
         raise NotImplementedError
     
     def enter_trade(self):

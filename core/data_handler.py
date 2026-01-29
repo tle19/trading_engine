@@ -141,66 +141,63 @@ class DataHandler:
             if not data:
                 return
             
-            content = data[0].get("content")
-            if not content:
-                return
-            for item in content:
-                symbol = item["key"]
+            for entry in data:
+                content = entry["content"]
+                for item in content:
+                    symbol = item["key"]
 
-                timestamp = pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone)
-                open = item.get("2")
-                high = item.get("3")
-                low = item.get("4")
-                close = item.get("5")
-                volume = item.get("6")
+                    timestamp = pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone)
+                    open = item.get("2")
+                    high = item.get("3")
+                    low = item.get("4")
+                    close = item.get("5")
+                    volume = item.get("6")
 
-                row = self.ohlcv_Row(timestamp, open, high, low, close, volume)
-                print(f"[{symbol}] {row}")
+                    row = self.ohlcv_Row(timestamp, open, high, low, close, volume)
+                    print(f"[{symbol}] {row}")
 
         def forex_handler(response):
             data = json.loads(response).get("data", [])
             if not data:
                 return
 
-            content = data[0].get("content")
-            if not content:
-                return
-            for item in content:
-                symbol = item["key"]
+            for entry in data:
+                content = entry["content"]
+                for item in content:
+                    symbol = item["key"]
 
-                timestamp = pd.to_datetime(item.get("8"), unit='ms', utc=True).tz_convert(self.timezone)
-                bid = item.get("1")
-                ask = item.get("2")
-                last = item.get("3")
-                bid_size = item.get("4")
-                ask_size = item.get("5")
-                volume = item.get("6")
+                    timestamp = pd.to_datetime(item.get("8"), unit='ms', utc=True).tz_convert(self.timezone)
+                    bid = item.get("1")
+                    ask = item.get("2")
+                    last = item.get("3")
+                    bid_size = item.get("4")
+                    ask_size = item.get("5")
+                    volume = item.get("6")
 
-                row = self.bidask_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
-                print(f"[{symbol}] {row}")
+                    row = self.bidask_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
+                    print(f"[{symbol}] {row}")
 
         def bid_ask_handler(response):
             data = json.loads(response).get("data", [])
             if not data:
                 return
             
-            content = data[0].get("content")
-            if not content:
-                return
-            for item in content:
-                symbol = item["key"]
+            for entry in data:
+                content = entry["content"]
+                for item in content:
+                    symbol = item["key"]
 
-                ts = item.get('34') or item.get('37') or item.get('38') or item.get('35')
-                timestamp = pd.to_datetime(ts, unit='ms', utc=True).tz_convert(self.timezone)
-                bid = item.get("1")
-                ask = item.get("2")
-                last = item.get("3")
-                bid_size = item.get("4")
-                ask_size = item.get("5")
-                volume = item.get("8")
+                    ts = item.get('34') or item.get('37') or item.get('38') or item.get('35')
+                    timestamp = pd.to_datetime(ts, unit='ms', utc=True).tz_convert(self.timezone)
+                    bid = item.get("1")
+                    ask = item.get("2")
+                    last = item.get("3")
+                    bid_size = item.get("4")
+                    ask_size = item.get("5")
+                    volume = item.get("8")
 
-                row = self.bidask_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
-                print(f"[{symbol}] {row}")   
+                    row = self.bidask_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
+                    print(f"[{symbol}] {row}")   
 
         if "/" in symbols[0]:
             self.stream.start(forex_handler)
@@ -209,7 +206,7 @@ class DataHandler:
             self.stream.stop()
         else:
             self.stream.start(equity_handler)
-            self.stream.send(self.stream.chart_equity(symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))
+            self.stream.send(self.stream.chart_equity(symbols, "0,1,2,3,4,5,6,7", command="SUBS"))
             time.sleep(duration)
             self.stream.stop()
         # else:

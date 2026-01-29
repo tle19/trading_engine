@@ -36,7 +36,7 @@ class EODReversion(Strategy):
         if not self.model.initialize():
             self.model = None
 
-    def generate_signal(self, row):
+    def generate_signal(self, row, _=None):
         self.update(row)
         self.backfill_data()
         self.reset_data()
