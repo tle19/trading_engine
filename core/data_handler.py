@@ -2,10 +2,10 @@ import os
 import json
 import time
 import pandas as pd
+from datetime import date, datetime, timedelta
 from collections import namedtuple
-from datetime import datetime, date, timedelta
-from zoneinfo import ZoneInfo
 
+from zoneinfo import ZoneInfo
 import schwabdev
 from polygon import RESTClient
 
@@ -27,25 +27,39 @@ class DataHandler:
     def historical_data(self, symbols=['SPY'], from_date='2024-01-01', to_date='2026-01-01',
                                 timespan='minute', multiplier=1, max_iter=10):
         start_time = time.perf_counter()
-        to_date = str(date.today())
+
+        now = datetime.now()
+        if now.hour >= 19:
+            to_date = date.today()
+        else:
+            to_date = date.today() - timedelta(days=1)
+        to_date = str(to_date)
+        
         for symbol in symbols:
             data_list = []
+            df = pd.DataFrame()
             current_from = from_date
+
+            try:
+                df = open_data(symbol, start_time="0:00", end_time="23:59")
+                last_ts = df['timestamp'].iloc[-1]
+                current_from = (last_ts + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+                print(f"[{symbol}] Existing data found: fetching from {current_from} → {to_date}")
+            except FileNotFoundError:
+                print(f"[{symbol}] No existing data: fetching from {current_from} → {to_date}")
 
             if "/" in symbol:
                 base, quote = symbol.split("/")
-                polygon_symbol = f"C:{base}{quote}"
+                symbol = f"C:{base}{quote}"
             elif symbol.upper().endswith("USD") and not symbol.startswith(("C:", "X:")):
-                polygon_symbol = f"X:{symbol.upper()}"
+                symbol = f"X:{symbol.upper()}"
             else:
-                polygon_symbol = symbol  # equity or already formatted
-            
+                pass  # equity or already formatted
+
             for _ in range(max_iter):
-                print(current_from)
-                print("     |")
-                print("     v")
+                print(f"   batch starting {current_from} → ...")
                 aggs = self.polygon_client.get_aggs(
-                    polygon_symbol,
+                    symbol,
                     multiplier,
                     timespan,
                     current_from,
@@ -77,20 +91,16 @@ class DataHandler:
                 if current_from > pd.to_datetime(to_date).strftime("%Y-%m-%d"):
                     break
                 
-                time.sleep(13) # Polygon.io rate limit (5 calls/minute)
+                time.sleep(12.5) # Polygon.io rate limit (5 calls/minute)
             
-            df = pd.DataFrame(data_list)
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
-            df['timestamp'] = df['timestamp'].dt.tz_convert(self.timezone)
-
-            try:
-                existing_df = open_data(symbol, start_time="0:00", end_time="23:59")
-                df = pd.concat([existing_df, df], ignore_index=True)
+            if data_list:
+                new_df = pd.DataFrame(data_list)
+                new_df['timestamp'] = pd.to_datetime(new_df['timestamp'], unit='ms', utc=True)
+                new_df['timestamp'] = new_df['timestamp'].dt.tz_convert(self.timezone)
+                df = pd.concat([df, new_df], ignore_index=True)
                 df.drop_duplicates(subset='timestamp', inplace=True)
                 df.sort_values('timestamp', inplace=True)
-                df = df.reset_index(drop=True)
-            except FileNotFoundError:
-                pass
+                df.reset_index(drop=True, inplace=True)
 
             save_data(df, symbol)
 
@@ -99,6 +109,7 @@ class DataHandler:
 
     def schwab_data(self, symbols=['SPY'], periodType="month", period=6, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
+        start_time = time.perf_counter()
         endDate = str(date.today())
 
         for symbol in symbols:
@@ -120,6 +131,9 @@ class DataHandler:
             df.rename(columns={"datetime": "timestamp"}, inplace=True)
 
             save_data(df, symbol)
+
+        elapsed_time = time.perf_counter() - start_time
+        print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
 
     def stream_data(self, symbols, duration=300):
         def equity_handler(response):

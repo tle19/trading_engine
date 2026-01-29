@@ -12,6 +12,13 @@ import schwabdev
 from metrics import *
 from utils import *
 
+class DataFeedController:
+    def __init__(self, symbols, strategies, timezone, stream):
+        self.symbols = symbols
+        self.strategies = strategies
+        self.timezone = timezone
+        self.stream = stream
+        
 class Equities:
     def __init__(self, symbols, strategy_class, margin=1.0):
         config = load_config()
@@ -429,17 +436,15 @@ class EquityPairs:
             # s = time.perf_counter()
             # sys.stdout.write(f"{1000*(time.perf_counter() - s):.3f}\n")
 
-        self.stream.start(response_handler)
-        # self.stream.start_auto(
-        #     receiver=response_handler, 
-        #     start_time=datetime.time(9, 30, 0), 
-        #     stop_time=datetime.time(16, 0, 0), 
-        #     on_days=(0,1,2,3,4))
-        # self.await_market_open()
+        self.stream.start_auto(
+            receiver=response_handler, 
+            start_time=datetime.time(9, 30, 0), 
+            stop_time=datetime.time(16, 0, 0), 
+            on_days=(0,1,2,3,4))
+        self.await_market_open()
         self.stream.send(self.stream.level_one_equities(self.symbols + ["VOO"], "0,1,2,3,4,5,34,35,37,38", command="ADD"))
         # self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
-        # self.stream_duration()
-        time.sleep(300)
+        self.stream_duration()
 
         self.trade_manager.save_logs()
 

@@ -32,15 +32,13 @@ def main():
     if strategy_class is None:
         raise ValueError(f"Unknown Strategy: {args.strategy}")
     if args.symbol is None and args.pair is None:
-        raise ValueError(f"You must provide a symbol/pair, e.g., --symbol SPY or --pair SPY-QQQ")
+        raise ValueError(f"You must provide a symbol/pair, e.g., --symbol SPY and/or --pair SPY-QQQ")
     if args.symbol == "EVERYTHING":
         args.symbol = SYMBOLS
     
     if args.live:
         # dh = DataHandler()
         # dh.historical_data(symbols)
-        # bt = Backtest(args.symbol, strategy_class, margin=args.margin)
-        # bt.run(end_date=str(date.today()), display_stats=False, display_plot=False)
         if args.pair:
             ep = EquityPairs(args.pair, strategy_class, margin=args.margin)
             ep.run()
@@ -49,7 +47,7 @@ def main():
             eq.run()
     elif args.backtest:
         bt = Backtest(args.symbol, strategy_class, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage)
-        bt.run(train=args.train, grid=args.grid)
+        bt.run(end_date=str(date.today()), train=args.train, grid=args.grid)
     elif args.fetch:
         dh = DataHandler()
         if args.schwab:
