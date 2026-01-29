@@ -112,12 +112,12 @@ class DataFeedController:
 
         for strategy_cl, items in strategy_dict.items():
             if issubclass(strategy_cl, Strategy):
-                eq = Equities(items, strategy_cl, margin=margin)
+                eq = Equities(items, strategy_cl, margin=margin, log_buffer=self.log_buffer)
                 self.feeds.append(eq)
                 for symbol in items:
                     self.strategy_dict[symbol] = eq
             elif issubclass(strategy_cl, StrategyPair):
-                ep = EquityPairs(items, strategy_cl, margin=margin)
+                ep = EquityPairs(items, strategy_cl, margin=margin, log_buffer=self.log_buffer)
                 self.feeds.append(ep)
                 for pair in items:
                     symbol1, symbol2 = pair.split("-")
@@ -126,7 +126,7 @@ class DataFeedController:
                 
 
 class Equities:
-    def __init__(self, symbols, strategy_class, margin=1.0):
+    def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None):
         config = load_config()
 
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])
@@ -144,6 +144,8 @@ class Equities:
         self.trade_manager = TradeManager(log_file="trade_logs_live_eq.json", live=True)
         self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
 
+        self.log_buffer = log_buffer if log_buffer is not None else []
+
     def run(self):
         def response_handler(response):
             data = json.loads(response).get("data", [])
@@ -155,8 +157,6 @@ class Equities:
                 return
             for item in content:
                 symbol = item["key"]
-                if symbol not in self.symbols:
-                    continue
                 
                 timestamp = pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone)
                 open = item.get("2")
@@ -493,7 +493,7 @@ class Equities:
 
 
 class EquityPairs:
-    def __init__(self, pairs, strategy_class, margin=1.0):
+    def __init__(self, pairs, strategy_class, margin=1.0, log_buffer=None):
         config = load_config()
 
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])
@@ -510,7 +510,7 @@ class EquityPairs:
 
         self.trade_manager = TradeManager(log_file="trade_logs_live_pt.json", live=True)
         self.Row = BidAskRow()
-        self.log_buffer = []
+        self.log_buffer = log_buffer if log_buffer is not None else []
 
     def run(self):
         def response_handler(response):
@@ -524,8 +524,6 @@ class EquityPairs:
 
             for item in content:
                 symbol = item["key"]
-                if symbol not in self.symbols:
-                    continue
 
                 self.Row.update(
                     item.get('34') or item.get('37') or item.get('38') or item.get('35'),
@@ -556,13 +554,13 @@ class EquityPairs:
             on_days=(0,1,2,3,4))
         self.await_market_open()
         self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
-        # self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
         self.stream_duration()
 
         self.trade_manager.save_logs()
     
     # def run(self):
     #     self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
+    #     self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4", command="ADD"))
 
     def interpret_signal(self, signal, strategy):
         name = strategy.__class__.__name__
