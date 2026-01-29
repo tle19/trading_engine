@@ -6,15 +6,13 @@ EXIT = 0
 HOLD = None
 
 class PairStrategy:
-    def __init__(self, pair, start_time, end_time, take_profit=0.001, position_size=1.0,
+    def __init__(self, pair, start_time, end_time, take_profit=0.001,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
         self.pair = pair
         self.symbol1, self.symbol2 = pair.split("-")
-        self.take_profit = take_profit
-        self.position_size = position_size
-
         self.start_time = start_time[0] * 60 + start_time[1]
         self.end_time = end_time[0] * 60 + end_time[1]
+        self.take_profit = take_profit
 
         self.data = {
             self.symbol1: {
@@ -25,10 +23,8 @@ class PairStrategy:
                 "bid_size": None,
                 "ask_size": None,
                 "entry_price": None,
-                "exit_price": None,
                 "direction": 0,
                 "shares": 0,
-                "position_size": 1.0,
                 "activated": False
             },
             self.symbol2: {
@@ -39,10 +35,8 @@ class PairStrategy:
                 "bid_size": None,
                 "ask_size": None,
                 "entry_price": None,
-                "exit_price": None,
                 "direction": 0,
                 "shares": 0,
-                "position_size": 1.0,
                 "activated": False
             }
         }
@@ -52,7 +46,6 @@ class PairStrategy:
         self.activated = False
 
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
-        self.cash = self.risk_manager.curr_cash / 2
 
     def generate_signal(self):
         raise NotImplementedError
@@ -82,6 +75,7 @@ class PairStrategy:
                     return
             s["activated"] = True
             if self.s1["activated"] and self.s2["activated"]:
+                self.compute_share_split()
                 self.activated = True
 
     def trade_window(self):
@@ -90,19 +84,15 @@ class PairStrategy:
     
     def buy_pair(self):
         if self.s1["direction"] == 0:
-            shares1 = int(self.cash / self.s1["last"])
-            shares2 = int(self.cash / self.s2["last"])
-            self.s1["direction"], self.s1["shares"] = 1, shares1
-            self.s2["direction"], self.s2["shares"] = -1, shares2
+            self.s1["direction"] = 1
+            self.s2["direction"] = -1
             return LONG
         return HOLD
         
     def sell_pair(self):
         if self.s1["direction"] == 0:
-            shares1 = int(self.cash / self.s1["last"])
-            shares2 = int(self.cash / self.s2["last"])
-            self.s1["direction"], self.s1["shares"] = -1, shares1
-            self.s2["direction"], self.s2["shares"] = 1, shares2
+            self.s1["direction"] = -1
+            self.s2["direction"] = 1
             return SHORT
         return HOLD
           
@@ -111,6 +101,12 @@ class PairStrategy:
             return EXIT
         return HOLD
     
+    def compute_share_split(self, buffer=0.01):
+        cash = self.risk_manager.curr_cash / 2
+        self.s1["shares"] = max(1, int(cash * (1 - buffer) / self.s1["last"]))
+        self.s2["shares"] = max(1, int(cash * (1 - buffer) / self.s2["last"]))
+        # change for partial shares/small arb
+        
     def compute_ema(self, prev_ema, new_value, window=10):
         if prev_ema is None:
             return new_value

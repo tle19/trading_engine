@@ -4,8 +4,9 @@ import datetime
 import sys
 import pandas as pd
 from collections import namedtuple
-from zoneinfo import ZoneInfo
 
+from zoneinfo import ZoneInfo
+import orjson
 import schwabdev
 
 from metrics import *
@@ -42,7 +43,7 @@ class Equities:
             for item in content:
                 symbol = item["key"]
                 if symbol not in self.symbols:
-                    return
+                    continue
                 
                 timestamp = pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone)
                 open = item.get("2")
@@ -371,7 +372,6 @@ class Equities:
 
 
 
-
 class EquityPairs:
     def __init__(self, pairs, strategy_class, margin=1.0):
         config = load_config()
@@ -389,12 +389,12 @@ class EquityPairs:
         self.initialize(pairs, strategy_class)
 
         self.trade_manager = TradeManager(log_file="trade_logs_live_pt.json", live=True)
-        self.Row = Row
+        self.Row = Row()
         self.log_buffer = []
 
     def run(self):
         def response_handler(response):
-            data = json.loads(response).get("data", [])
+            data = orjson.loads(response).get("data") or []
             if not data:
                 return
 
@@ -405,9 +405,9 @@ class EquityPairs:
             for item in content:
                 symbol = item["key"]
                 if symbol not in self.symbols:
-                    return
+                    continue
 
-                row = self.Row(
+                self.Row.update(
                     item.get('34') or item.get('37') or item.get('38') or item.get('35'),
                     item.get("1"),
                     item.get("2"),
@@ -415,12 +415,12 @@ class EquityPairs:
                     item.get("4"),
                     item.get("5")
                 )
-                self.log_buffer.append(f"[{symbol}] {row}")
+                self.log_buffer.append(f"[{symbol}] {self.Row}")
 
                 strategy = self.strategies[symbol]
-                signal = strategy.generate_signal(symbol, row)
-                self.interpret_signal(signal, strategy, strategy.pair)
-
+                signal = strategy.generate_signal(symbol, self.Row)
+                self.interpret_signal(signal, strategy)
+            
             if self.log_buffer:
                 sys.stdout.write("\n".join(self.log_buffer) + "\n")
                 self.log_buffer.clear()
@@ -429,91 +429,89 @@ class EquityPairs:
             # s = time.perf_counter()
             # sys.stdout.write(f"{1000*(time.perf_counter() - s):.3f}\n")
 
-        # self.stream.start(response_handler)
-        self.stream.start_auto(
-            receiver=response_handler, 
-            start_time=datetime.time(9, 30, 0), 
-            stop_time=datetime.time(16, 0, 0), 
-            on_days=(0,1,2,3,4))
-        self.await_market_open()
-        self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
+        self.stream.start(response_handler)
+        # self.stream.start_auto(
+        #     receiver=response_handler, 
+        #     start_time=datetime.time(9, 30, 0), 
+        #     stop_time=datetime.time(16, 0, 0), 
+        #     on_days=(0,1,2,3,4))
+        # self.await_market_open()
+        self.stream.send(self.stream.level_one_equities(self.symbols + ["VOO"], "0,1,2,3,4,5,34,35,37,38", command="ADD"))
         # self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
-        self.stream_duration()
-        # time.sleep(300)
+        # self.stream_duration()
+        time.sleep(300)
 
         self.trade_manager.save_logs()
 
-    def interpret_signal(self, signal, strategy, pair):
+    def interpret_signal(self, signal, strategy):
         name = strategy.__class__.__name__
-        symbol1, symbol2 = pair.split("-")
+        symbol1, symbol2 = strategy.symbol1, strategy.symbol2
         s1, s2 = strategy.s1, strategy.s2
         
         # --- Enter Long/Short ---
         if signal == 1:
-            fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"])
+            fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
             s1["entry_price"], s2["entry_price"] = fill_price1, fill_price2
-            self.trade_manager.log_entry(name, pair+":1", symbol1, s1["direction"], s1["position_size"], s1["shares"], s1["ts"], s1["ask"], fill_price1, None, s1["target_price"])
-            self.trade_manager.log_entry(name, pair+":2", symbol2, s2["direction"], s2["position_size"], s2["shares"], s2["ts"], s2["bid"], fill_price2, None, s2["target_price"])
+            self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["ask"], fill_price1, None, s1["target_price"])
+            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["bid"], fill_price2, None, s2["target_price"])
 
         # --- Enter Short/Long ---
         elif signal == -1:
-            fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"])
+            fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
             s1["entry_price"], s2["entry_price"] = fill_price1, fill_price2
-            self.trade_manager.log_entry(name, pair+":1", symbol1, s1["direction"], s1["position_size"], s1["shares"], s1["ts"], s1["bid"], fill_price1, None, s1["target_price"])
-            self.trade_manager.log_entry(name, pair+":2", symbol2, s2["direction"], s2["position_size"], s2["shares"], s2["ts"], s2["ask"], fill_price2, None, s2["target_price"])
+            self.trade_manager.log_entry(name, symbol1, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["bid"], fill_price1, None, None)
+            self.trade_manager.log_entry(name, symbol2, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["ask"], fill_price2, None, None)
                 
         # --- Exit Position --- 
         elif signal == 0:
             if s1["direction"] == 1:
                 fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"])
-                self.trade_manager.update_exit(pair+":1", s1["ts"], s1["bid"], fill_price1)
-                self.trade_manager.update_exit(pair+":2", s2["ts"], s2["ask"], fill_price2)
+                self.trade_manager.update_exit(symbol1, s1["ts"], s1["bid"], fill_price1)
+                self.trade_manager.update_exit(symbol2, s2["ts"], s2["ask"], fill_price2)
             elif s1["direction"] == -1:
                 fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"])
-                self.trade_manager.update_exit(pair+":1", s1["ts"], s1["ask"], fill_price1)
-                self.trade_manager.update_exit(pair+":2", s2["ts"], s2["bid"], fill_price2)
+                self.trade_manager.update_exit(symbol1, s1["ts"], s1["ask"], fill_price1)
+                self.trade_manager.update_exit(symbol2, s2["ts"], s2["bid"], fill_price2)
 
             self.update_pnl(strategy, s1["direction"], s1["entry_price"], fill_price1, s1["shares"])
             self.update_pnl(strategy, s2["direction"], s2["entry_price"], fill_price2, s2["shares"])
-            s1["exit_price"], s2["exit_price"] = fill_price1, fill_price2
-            s1["direction"], s1["shares"] = 0, 0
-            s2["direction"], s2["shares"] = 0, 0
+            s1["direction"], s2["direction"]  = 0, 0
 
     def update_pnl(self, strategy, direction, entry_price, exit_price, shares):
         pnl = direction * (exit_price - entry_price) * shares
         self.cash += pnl
         strategy.risk_manager.update_trade(pnl)
 
-    def buy_pair(self, signal, symbol1, symbol2, shares):
+    def buy_pair(self, signal, symbol1, symbol2, shares1, shares2):
         if signal:
-            response1 = self.market_order(symbol1, shares, type="BUY")
-            response2 = self.market_order(symbol2, shares, type="SELL_SHORT")
+            response1 = self.market_order(symbol1, shares1, type="BUY")
+            response2 = self.market_order(symbol2, shares2, type="SELL_SHORT")
         else:
-            response1 = self.market_order(symbol1, shares, type="BUY_TO_COVER")
-            response2 = self.market_order(symbol2, shares, type="SELL")
+            response1 = self.market_order(symbol1, shares1, type="BUY_TO_COVER")
+            response2 = self.market_order(symbol2, shares2, type="SELL")
 
         order_id1 = self.get_order_id(response1)
         order_id2 = self.get_order_id(response2)
-        fill_price1 = self.get_fill_price(order_id1, shares)
-        fill_price2 = self.get_fill_price(order_id2, shares)
-        self.log_buffer.append(f" [BOT] +{shares} {symbol1} @ {fill_price1}")
-        self.log_buffer.append(f" [SOLD] -{shares} {symbol2} @ {fill_price2}")
+        fill_price1 = self.get_fill_price(order_id1, shares1)
+        fill_price2 = self.get_fill_price(order_id2, shares2)
+        self.log_buffer.append(f" [BOT] +{shares1} {symbol1} @ {fill_price1}")
+        self.log_buffer.append(f" [SOLD] -{shares2} {symbol2} @ {fill_price2}")
         return fill_price1, fill_price2
 
-    def sell_pair(self, signal, symbol1, symbol2, shares):
+    def sell_pair(self, signal, symbol1, symbol2, shares1, shares2):
         if signal:
-            response1 = self.market_order(symbol1, shares, type="SELL_SHORT")
-            response2 = self.market_order(symbol2, shares, type="BUY")
+            response1 = self.market_order(symbol1, shares1, type="SELL_SHORT")
+            response2 = self.market_order(symbol2, shares2, type="BUY")
         else:
-            response1 = self.market_order(symbol1, shares, type="SELL")
-            response2 = self.market_order(symbol2, shares, type="BUY_TO_COVER")
+            response1 = self.market_order(symbol1, shares1, type="SELL")
+            response2 = self.market_order(symbol2, shares2, type="BUY_TO_COVER")
         
         order_id1 = self.get_order_id(response1)
         order_id2 = self.get_order_id(response2)
-        fill_price1 = self.get_fill_price(order_id1, shares)
-        fill_price2 = self.get_fill_price(order_id2, shares)
-        self.log_buffer.append(f" [SOLD] -{shares} {symbol1} @ {fill_price1}")
-        self.log_buffer.append(f" [BOT] +{shares} {symbol2} @ {fill_price2}")
+        fill_price1 = self.get_fill_price(order_id1, shares1)
+        fill_price2 = self.get_fill_price(order_id2, shares2)
+        self.log_buffer.append(f" [SOLD] -{shares1} {symbol1} @ {fill_price1}")
+        self.log_buffer.append(f" [BOT] +{shares2} {symbol2} @ {fill_price2}")
         return fill_price1, fill_price2
 
     def market_order(self, symbol, quantity, type="BUY"):
@@ -604,6 +602,14 @@ class Row:
     __slots__ = ("timestamp", "bid", "ask", "last", "bid_size", "ask_size")
 
     def __init__(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
+        self.timestamp = timestamp
+        self.bid = bid
+        self.ask = ask
+        self.last = last
+        self.bid_size = bid_size
+        self.ask_size = ask_size
+
+    def update(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
         self.timestamp = timestamp
         self.bid = bid
         self.ask = ask

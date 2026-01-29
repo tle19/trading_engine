@@ -21,16 +21,15 @@ class TradeManager:
         self.intraday_equity[ts] = equity
 
     def log_entry(self, name, leg, symbol, direction, position_size, shares, entry_time, entry_price, fill_price, stop_price, target_price, features=None):
-        fill_price = entry_price if fill_price is None else fill_price
         trade = {
             "strategy": name,
             "symbol": symbol,
             "direction": direction,
             "position_size": position_size,
             "shares": shares,
-            "entry_time": entry_time.isoformat(),
+            "entry_time": entry_time if isinstance(entry_time, (int, float)) else entry_time.isoformat(),
             "entry_price": entry_price,
-            "entry_fill": round(fill_price, 2),
+            "entry_fill": entry_price if fill_price is None else round(fill_price, 2),
             "stop_price": stop_price,
             "target_price": target_price,
             "exit_time": None,
@@ -44,10 +43,9 @@ class TradeManager:
     
     def update_exit(self, leg, exit_time, exit_price, fill_price):
         trade = self.open_trades.pop(leg)
-        fill_price = exit_price if fill_price is None else fill_price
-        trade["exit_time"] = exit_time.isoformat()
+        trade["exit_time"] = exit_time if isinstance(exit_time, (int, float)) else exit_time.isoformat()
         trade["exit_price"] = exit_price
-        trade["exit_fill"] = round(fill_price, 2)
+        trade["exit_fill"] = exit_price if fill_price is None else round(fill_price, 2)
 
         trade["pnl"] = round(trade["direction"] * (fill_price - trade["entry_fill"]) * trade["shares"], 2)
         trade["pnl_pct"] = round(trade["pnl"] / (trade["entry_fill"] * trade["shares"]), 10)
