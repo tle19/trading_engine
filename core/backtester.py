@@ -211,7 +211,7 @@ class Backtest:
                 combined[ts] += eq
         return combined
     
-    def grid_search(self, symbol, df, train, target_metric="Net Profit", top_n=5):
+    def grid_search(self, symbol, df, train, optimize_period=100, rebalance_period=50, target_metric="Net Profit", top_n=5):
         param_grid = self.strategy.param_grid()
         combos = list(product(*param_grid.values()))
         total = len(combos)

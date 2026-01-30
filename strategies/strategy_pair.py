@@ -46,6 +46,7 @@ class StrategyPair:
         self.s1 = self.data[self.symbol1]
         self.s2 = self.data[self.symbol2]
         self.activated = False
+        self.latency = 0  # network latency in milliseconds
 
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
 

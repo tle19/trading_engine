@@ -113,8 +113,8 @@ class DataFeedController:
                     self.strategy_dict[symbol1] = ep
                     self.strategy_dict[symbol2] = ep
 
-class InstrumentExecutor:
-    def __init__(self, symbols: list, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live.json"):
+class Instrument:
+    def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live.json"):
         config = load_config()
         self.client = client or schwabdev.Client(config['app_key'], config['app_secret'])
         self.hash = self.client.linked_accounts().json()[0].get('hashValue')
@@ -354,15 +354,15 @@ class InstrumentExecutor:
         return day_trading_power
 
 
-class Equities(InstrumentExecutor):
+class Equities(Instrument):
     def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live_eq.json"):
         super().__init__(symbols, strategy_class, margin, log_buffer, client, stream, log_file)
         self.initialize(symbols, strategy_class)
     
     def initialize(self, symbols, strategy_class):
+        self.strategies = {}
         self.entry_ids = {}
         self.exit_ids = {}
-        self.strategies = {}
 
         for symbol in symbols:
             strat = strategy_class(symbol)
@@ -445,10 +445,9 @@ class Equities(InstrumentExecutor):
                     position_manager.remove_leg(leg)
 
 
-class EquityPairs(InstrumentExecutor):
+class EquityPairs(Instrument):
     def __init__(self, pairs, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live_pt.json"):
         super().__init__(pairs, strategy_class, margin, log_buffer, client, stream, log_file)
-
         self.initialize(pairs, strategy_class)
  
     def initialize(self, pairs, strategy_class):

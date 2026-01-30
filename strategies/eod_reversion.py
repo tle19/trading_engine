@@ -7,19 +7,21 @@ from models import *
 from utils import *
 
 class EODReversion(Strategy):
-    def __init__(self, symbol, orb_window=1, htf_window=10, atr_diff=0.2, adx_diff=5,
+    def __init__(self, symbol, orb_window=1, fast_window=10, slow_window=20, atr_diff=0.2, adx_diff=5,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False, force_close=True,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=1, drawdown_max=0.20):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
                          pnl_target, pnl_loss, trade_max, drawdown_max)
         self.orb_window = orb_window
-        self.htf_window = htf_window
+        self.fast_window = fast_window
+        self.slow_window = slow_window
         self.atr_diff = atr_diff
         self.adx_diff = adx_diff
 
         self.upper_support = None
         self.lower_support = None
-        self.ema = None
+        self.fast_ema = None
+        self.slow_ema = None
 
         self.weighted_pressure = []
         self.rolling_atr = []
@@ -63,18 +65,14 @@ class EODReversion(Strategy):
         signal = None
         # self.position_size = self.risk_manager.position_size
         self.atr_cond = np.mean(self.rolling_atr) - self.prev_day_atr_mean < self.atr_diff
-        self.adx_cond = np.mean(self.rolling_adx) - self.prev_day_adx_mean < self.adx_diff
+        # self.adx_cond = np.mean(self.rolling_adx) - self.prev_day_adx_mean < self.adx_diff
 
         if self.atr_cond:
             if self.close < self.lower_support:
-                if self.pressure < 0 and self.close < self.ema:
-                    self.prev_day_atr_mean = np.mean(self.rolling_atr)
-                    self.prev_day_adx_mean = np.mean(self.rolling_adx)
+                if self.pressure < 0 and self.fast_ema >= self.slow_ema:
                     signal, _ = self.buy()
             if self.close > self.upper_support:
-                if self.pressure > 0 and self.close > self.ema: 
-                    self.prev_day_atr_mean = np.mean(self.rolling_atr)
-                    self.prev_day_adx_mean = np.mean(self.rolling_adx)
+                if self.pressure > 0 and self.fast_ema <= self.slow_ema:
                     signal, _ = self.sell()
         return signal
     
@@ -90,33 +88,39 @@ class EODReversion(Strategy):
     #     return self.exit()
     
     def compute_indicators(self):
-        self.ema = self.compute_ema(self.ema, self.prices[-1], self.htf_window)
+        self.fast_ema = self.compute_ema(self.fast_ema, self.prices[-1], self.fast_window)
+        self.slow_ema = self.compute_ema(self.slow_ema, self.prices[-1], self.slow_window)
         self.weighted_pressure.append((self.close - self.open) * self.volume)
         self.rolling_atr.append(self.compute_atr(self.highs, self.lows, self.closes))
-        self.rolling_adx.append(self.compute_adx(self.highs, self.lows, self.closes))
+        # self.rolling_adx.append(self.compute_adx(self.highs, self.lows, self.closes))
+        self.rolling_adx.append(1)
         self.pressure = sum(self.weighted_pressure)
 
     def reset_indicators(self):
         if self.trade_window((9, 30), (9, 30)):
             self.upper_support = None
             self.lower_support = None
-            self.ema = None
+            self.fast_ema = None
+            self.slow_ema = None
+
+            if self.d_closes:
+                self.prev_day_close = self.d_closes[-1]
+                self.regime_ema = self.compute_ma(self.d_closes, window=50)
+                self.prev_day_adx_mean = np.mean(self.rolling_adx)
+                self.prev_day_atr_mean = np.mean(self.rolling_atr)
+                self.adx = self.compute_adx(self.d_highs, self.d_lows, self.d_closes)
+                self.atr = self.compute_atr(self.d_highs, self.d_lows, self.d_closes)
 
             self.weighted_pressure = []
             self.rolling_atr = []
             self.rolling_adx = []
 
-            if self.d_closes:
-                self.prev_day_close = self.d_closes[-1]
-                self.regime_ema = self.compute_ma(self.d_closes, window=50)
-                self.adx = self.compute_adx(self.d_highs, self.d_lows, self.d_closes)
-                self.atr = self.compute_atr(self.d_highs, self.d_lows, self.d_closes)
-
     def minimum_computations(self):
         if not self.activated:
             required_data = max(
                 self.orb_window,
-                self.htf_window
+                self.fast_window,
+                self.slow_window,
             ) + 1
             self.upper_support, self.lower_support = self.donchian_channel(self.orb_window)
             self.activated = len(self.prices) > required_data
@@ -142,27 +146,27 @@ class EODReversion(Strategy):
         self.model.prepare_features(df)
         proba = self.model.get_proba()
 
-        if self.pressure < 0 and self.close < self.lower_support and self.close < self.ema and self.atr_cond:
+        if self.pressure < 0 and self.close < self.lower_support and self.fast_ema >= self.slow_ema and self.atr_cond:
             if proba > threshold:
                 self.position_size = 1.0
             else:
                 self.position_size = 0.75
             signal, leg = self.buy() 
-        elif self.pressure > 0 and self.close > self.upper_support and self.close > self.ema and self.atr_cond:
+        elif self.pressure > 0 and self.close > self.upper_support and self.fast_ema <= self.slow_ema and self.atr_cond:
             if proba > threshold:
                 self.position_size = 1.0
             else:
                 self.position_size = 0.75
             signal, leg = self.sell() 
 
-        # if self.pressure < 0 and self.close < self.lower_support and self.close < self.ema and self.atr_cond:
+        # if self.pressure < 0 and self.close < self.lower_support and self.fast_ema > self.slow_ema and self.atr_cond:
         #     if proba > threshold:
         #         signal, leg = self.buy() 
         #         confidence = proba
         #     else:
         #         signal, leg = self.sell() 
         #         confidence = 1 - proba
-        # elif self.pressure > 0 and self.close > self.upper_support and self.close > self.ema and self.atr_cond:
+        # elif self.pressure > 0 and self.close > self.upper_support and self.fast_ema < self.slow_ema and self.atr_cond:
         #     if proba > threshold:
         #         signal, leg = self.sell()
         #         confidence = proba
@@ -201,8 +205,9 @@ class EODReversion(Strategy):
     def param_grid(self):
         params = {
             "orb_window": [1], # 1, 2, 3, 4, 5, 10, 15, 30, 45, 60
-            "htf_window": [10], # 3, 5, 10, 15, 20, 25, 30
-            "atr_diff": [0.05, 0.10, 0.125, 0.15, 0.175, 0.20, 0.225, 0.25, 0.30], # 0.05, 0.10, 0.15, 0.20, 0.25, 0.30
+            "fast_window": [3, 5, 8, 10], # 5, 8, 10
+            "slow_window": [10, 15, 20, 25, 30], # 10, 15, 20, 25
+            "atr_diff": [0.20], # 0.05, 0.10, 0.15, 0.20, 0.25, 0.30
             "stop_loss": [0.01], # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
             "take_profit": [0.01], # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
             "drawdown_max": [0.20]
