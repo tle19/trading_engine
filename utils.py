@@ -71,15 +71,3 @@ def train_test_split(df, n_days=540, datetime_column="entry_time", target_column
     y_test  = test_df[target_column]
 
     return X_train, X_test, y_train, y_test
-
-def ms_to_str(ms):
-    sec, frac = divmod(ms, 1000)
-    t = time.localtime(sec)
-    return time.strftime("%H:%M:%S", t) + f".{frac:03d}"
-    
-    sys.stdout.write(f"[{symbol}] {row}\n")
-    sys.stdout.write(
-        f"NOW: {ms_to_str(now_ms)} | "
-        f"API: {ms_to_str(row.timestamp)} | "
-        f"LATENCY: {now_ms - row.timestamp} ms\n"
-    )

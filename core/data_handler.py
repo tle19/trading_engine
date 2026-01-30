@@ -61,7 +61,7 @@ class DataHandler:
                     to_date,
                     limit=50000
                 )
-
+                
                 rows = list(aggs)
                 if not rows:
                     break
