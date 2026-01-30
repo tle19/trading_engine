@@ -10,6 +10,7 @@ import orjson
 import schwabdev
 
 from strategies import Strategy, StrategyPair
+from core import OHLCVRow, BidAskRow
 from metrics import *
 from utils import *
 
@@ -18,13 +19,8 @@ class DataFeedController:
         config = load_config()
 
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])
-        self.hash = self.client.linked_accounts().json()[0].get('hashValue')
         self.stream = schwabdev.Stream(self.client)
         
-        self.cash = self.get_cash_balance() * margin
-        day_trading_power = self.get_day_trading_power()
-        if day_trading_power < self.cash:
-            raise ValueError(f"Insufficient day trading power: available ${day_trading_power}")
         self.timezone = ZoneInfo("America/New_York")
         self.initialize(strategy_dict, margin)
 
@@ -65,7 +61,7 @@ class DataFeedController:
                     feed = self.strategy_dict[symbol]
                     strategy = feed.strategies[symbol]
                     signal = strategy.generate_signal(row, symbol)
-                    feed.interpret_signal(signal, strategy, symbol)
+                    feed.interpret_signal(signal, strategy)
             
             if self.log_buffer:
                 sys.stdout.write("\n".join(self.log_buffer) + "\n")
@@ -74,26 +70,14 @@ class DataFeedController:
         self.stream.start_auto(
             receiver=response_handler, 
             start_time=datetime.time(9, 30, 0), 
-            stop_time=datetime.time(20, 0, 0), 
+            stop_time=datetime.time(16, 0, 0), 
             on_days=(0,1,2,3,4))
-        # self.stream.start(response_handler)
-        # self.await_market_open()
+        self.await_market_open()
         for feed in self.feeds:
             feed.subscribe_symbols()
-        # self.stream_duration()
-        time.sleep(500)
-
-    def get_cash_balance(self):
-        details = self.client.account_details(self.hash)
-        details_json = details.json()
-        cash_balance = details_json["securitiesAccount"]["currentBalances"]["cashBalance"]
-        return cash_balance
-    
-    def get_day_trading_power(self):
-        details = self.client.account_details(self.hash)
-        details_json = details.json()
-        day_trading_power = details_json["securitiesAccount"]["currentBalances"]["dayTradingBuyingPower"]
-        return day_trading_power
+        self.stream_duration()
+        for feed in self.feeds:
+            feed.save_logs()
     
     def await_market_open(self):
         print("[WAIT] Market open pending")
@@ -113,12 +97,12 @@ class DataFeedController:
 
         for strategy_cl, items in strategy_dict.items():
             if issubclass(strategy_cl, Strategy):
-                eq = Equities(items, strategy_cl, margin=margin, log_buffer=self.log_buffer, stream=self.stream)
+                eq = Equities(items, strategy_cl, margin=margin, log_buffer=self.log_buffer, client=self.client, stream=self.stream)
                 self.feeds.append(eq)
                 for symbol in items:
                     self.strategy_dict[symbol] = eq
             elif issubclass(strategy_cl, StrategyPair):
-                ep = EquityPairs(items, strategy_cl, margin=margin, log_buffer=self.log_buffer, stream=self.stream)
+                ep = EquityPairs(items, strategy_cl, margin=margin, log_buffer=self.log_buffer, client=self.client, stream=self.stream)
                 self.feeds.append(ep)
                 for pair in items:
                     symbol1, symbol2 = pair.split("-")
@@ -127,12 +111,12 @@ class DataFeedController:
                 
 
 class Equities:
-    def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, stream=None):
+    def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None):
         config = load_config()
 
-        self.client = schwabdev.Client(config['app_key'], config['app_secret'])
+        self.client = client or schwabdev.Client(config['app_key'], config['app_secret'])
         self.hash = self.client.linked_accounts().json()[0].get('hashValue')
-        self.stream = stream if stream else schwabdev.Stream(self.client)
+        self.stream = stream or schwabdev.Stream(self.client)
 
         self.cash = self.get_cash_balance() * margin
         day_trading_power = self.get_day_trading_power()
@@ -143,9 +127,9 @@ class Equities:
         self.initialize(symbols, strategy_class)
 
         self.trade_manager = TradeManager(log_file="trade_logs_live_eq.json", live=True)
-        self.Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
-
         self.log_buffer = log_buffer if log_buffer is not None else []
+
+        self.Row = OHLCVRow()
 
     def run(self):
         def response_handler(response):
@@ -157,20 +141,20 @@ class Equities:
                 content = entry["content"]
                 for item in content:
                     symbol = item["key"]
-                    
-                    timestamp = pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone)
-                    open = item.get("2")
-                    high = item.get("3")
-                    low = item.get("4")
-                    close = item.get("5")
-                    volume = item.get("6")
 
-                    row = self.Row(timestamp, open, high, low, close, volume)
+                    row = self.Row.update(
+                        pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone),
+                        item.get("2"),
+                        item.get("3"),
+                        item.get("4"),
+                        item.get("5"),
+                        item.get("6")
+                    )
                     self.log_buffer.append(f"[{symbol}] {row}")
 
                     strategy = self.strategies[symbol]
                     signal = strategy.generate_signal(row)
-                    self.interpret_signal(signal, strategy, symbol)
+                    self.interpret_signal(signal, strategy)
 
             if self.log_buffer:
                 sys.stdout.write("\n".join(self.log_buffer) + "\n")
@@ -182,17 +166,20 @@ class Equities:
             stop_time=datetime.time(16, 0, 0), 
             on_days=(0,1,2,3,4))
         self.await_market_open()
-        self.stream.send(self.stream.chart_equity(self.symbols, "0,1,2,3,4,5,6,7", command="ADD"))
+        self.stream.send(self.stream.chart_equity(self.symbols, "0,1,2,3,4,5,6,7", command="SUBS"))
         self.stream_duration()
 
-        self.trade_manager.save_logs()
+        self.save_logs()
 
     def subscribe_symbols(self):
         self.stream.send(self.stream.chart_equity(self.symbols, "0,1,2,3,4,5,6,7", command="ADD"))
-        # self.trade_manager.save_logs()
+    
+    def save_logs(self):
+        self.trade_manager.save_logs()
 
-    def interpret_signal(self, signal, strategy, symbol):
+    def interpret_signal(self, signal, strategy):
         name = strategy.__class__.__name__
+        symbol = strategy.symbol
         position_manager = strategy.position_manager
         direction = position_manager.direction()
         if direction:
@@ -494,12 +481,12 @@ class Equities:
 
 
 class EquityPairs:
-    def __init__(self, pairs, strategy_class, margin=1.0, log_buffer=None, stream=None):
+    def __init__(self, pairs, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None):
         config = load_config()
 
-        self.client = schwabdev.Client(config['app_key'], config['app_secret'])
+        self.client = client or schwabdev.Client(config['app_key'], config['app_secret'])
         self.hash = self.client.linked_accounts().json()[0].get('hashValue')
-        self.stream = stream if stream else schwabdev.Stream(self.client)
+        self.stream = stream or schwabdev.Stream(self.client)
 
         self.cash = self.get_cash_balance() * margin
         day_trading_power = self.get_day_trading_power()
@@ -510,8 +497,9 @@ class EquityPairs:
         self.initialize(pairs, strategy_class)
 
         self.trade_manager = TradeManager(log_file="trade_logs_live_pt.json", live=True)
-        self.Row = BidAskRow()
         self.log_buffer = log_buffer if log_buffer is not None else []
+
+        self.Row = BidAskRow()
 
     def run(self):
         def response_handler(response):
@@ -524,7 +512,7 @@ class EquityPairs:
                 for item in content:
                     symbol = item["key"]
 
-                    self.Row.update(
+                    row = self.Row.update(
                         item.get('34') or item.get('37') or item.get('38') or item.get('35'),
                         item.get("1"),
                         item.get("2"),
@@ -532,10 +520,10 @@ class EquityPairs:
                         item.get("4"),
                         item.get("5")
                     )
-                    self.log_buffer.append(f"[{symbol}] {self.Row}")
+                    self.log_buffer.append(f"[{symbol}] {row}")
 
                     strategy = self.strategies[symbol]
-                    signal = strategy.generate_signal(self.Row, symbol)
+                    signal = strategy.generate_signal(row, symbol)
                     self.interpret_signal(signal, strategy)
             
             if self.log_buffer:
@@ -552,16 +540,18 @@ class EquityPairs:
             stop_time=datetime.time(16, 0, 0), 
             on_days=(0,1,2,3,4))
         self.await_market_open()
-        self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
+        self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="SUBS"))
         self.stream_duration()
 
-        self.trade_manager.save_logs()
+        self.save_logs()
     
     def subscribe_symbols(self):
         self.stream.send(self.stream.level_one_equities(self.symbols, "0,1,2,3,4,5,34,35,37,38", command="ADD"))
-        # stream.send(stream.nasdaq_book(self.symbols, "0,1,2,3,4", command="ADD"))
+        
+    def save_logs(self):
+        self.trade_manager.save_logs()
 
-    def interpret_signal(self, signal, strategy, _=None):
+    def interpret_signal(self, signal, strategy):
         name = strategy.__class__.__name__
         symbol1, symbol2 = strategy.symbol1, strategy.symbol2
         s1, s2 = strategy.s1, strategy.s2
@@ -715,54 +705,3 @@ class EquityPairs:
                 f"[INIT] {strat.__class__.__name__:10} | "
                 f"symbol={pair:5} | cash=${cash_allocation}"
             )
-
-class BidAskRow:
-    __slots__ = ("timestamp", "bid", "ask", "last", "bid_size", "ask_size")
-
-    def __init__(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
-        self.timestamp = timestamp
-        self.bid = bid
-        self.ask = ask
-        self.last = last
-        self.bid_size = bid_size
-        self.ask_size = ask_size
-
-    def update(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
-        self.timestamp = timestamp
-        self.bid = bid
-        self.ask = ask
-        self.last = last
-        self.bid_size = bid_size
-        self.ask_size = ask_size
-        return self
-    
-    def __repr__(self):
-        return (f"timestamp={self.timestamp}, bid={self.bid}, ask={self.ask}, "
-                f"last={self.last}, bid_size={self.bid_size}, ask_size={self.ask_size})"
-            )
-    
-class OHLCVRow:
-    __slots__ = ("timestamp", "open", "high", "low", "close", "volume")
-
-    def __init__(self, timestamp=None, open=None, high=None, low=None, close=None, volume=None):
-        self.timestamp = timestamp
-        self.open = open
-        self.high = high
-        self.low = low
-        self.close = close
-        self.volume = volume
-
-    def update(self, timestamp=None, open=None, high=None, low=None, close=None, volume=None):
-        self.timestamp = timestamp
-        self.open = open
-        self.high = high
-        self.low = low
-        self.close = close
-        self.volume = volume
-        return self
-
-    def __repr__(self):
-        return (
-            f"timestamp={self.timestamp}, open={self.open}, high={self.high}, "
-            f"low={self.low}, close={self.close}, volume={self.volume}"
-        )

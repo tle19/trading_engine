@@ -21,8 +21,8 @@ class DataHandler:
         self.stream = schwabdev.Stream(self.client)
 
         self.timezone = ZoneInfo("America/New_York")
-        self.ohlcv_Row = namedtuple("Row", ["timestamp", "open", "high", "low", "close", "volume"])
-        self.bidask_Row = namedtuple("Row", ["timestamp", "bid", "ask", "last", "bid_size", "ask_size", "volume"])
+        self.ohlcv_Row = OHLCVRow()
+        self.bidask_Row = BidAskRow()
 
     def historical_data(self, symbols=['SPY'], from_date='2024-01-01', to_date='2026-01-01',
                                 timespan='minute', multiplier=1, max_iter=10):
@@ -43,7 +43,7 @@ class DataHandler:
             try:
                 df = open_data(symbol, start_time="0:00", end_time="23:59")
                 last_ts = df['timestamp'].iloc[-1]
-                current_from = (last_ts + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+                current_from = (last_ts).strftime("%Y-%m-%d")
                 print(f"[{symbol}] Existing data found: fetching from {current_from} → {to_date}")
             except FileNotFoundError:
                 print(f"[{symbol}] No existing data: fetching from {current_from} → {to_date}")
@@ -57,7 +57,6 @@ class DataHandler:
                 pass  # equity or already formatted
 
             for _ in range(max_iter):
-                print(f"   batch starting {current_from} → ...")
                 aggs = self.polygon_client.get_aggs(
                     symbol,
                     multiplier,
@@ -73,7 +72,8 @@ class DataHandler:
 
                 last_ts = pd.to_datetime(rows[-1].timestamp, unit='ms', utc=True)
                 last_date = last_ts.date()
-
+                print(f"     {current_from} → {last_date}")
+                
                 for agg in rows:
                     ts_date = pd.to_datetime(agg.timestamp, unit='ms', utc=True).date()
                     if ts_date == last_date:
@@ -136,84 +136,58 @@ class DataHandler:
         print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
 
     def stream_data(self, symbols, duration=300):
-        def equity_handler(response):
+        def response_handler(response):
             data = json.loads(response).get("data", [])
             if not data:
                 return
             
             for entry in data:
+                service = entry["service"]
                 content = entry["content"]
                 for item in content:
                     symbol = item["key"]
+                    if service == "CHART_EQUITY":
+                        row = self.ohlcv_Row.update(
+                            pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone),
+                            item.get("2"),
+                            item.get("3"),
+                            item.get("4"),
+                            item.get("5"),
+                            item.get("6")
+                        )
+                    elif service == "LEVELONE_EQUITIES":
+                        row = self.bidask_Row.update(
+                            item.get('34') or item.get('37') or item.get('38') or item.get('35'),
+                            item.get("1"),
+                            item.get("2"),
+                            item.get("3"),
+                            item.get("4"),
+                            item.get("5")
+                        )
+                    elif service == "LEVELONE_FOREX":
+                        row = self.bidask_Row.update(
+                            item.get('8'),
+                            item.get("1"),
+                            item.get("2"),
+                            item.get("3"),
+                            item.get("4"),
+                            item.get("5")
+                        )
+                    elif service == "NASDAQ_BOOK":
+                        row = self.bidask_Row
 
-                    timestamp = pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone)
-                    open = item.get("2")
-                    high = item.get("3")
-                    low = item.get("4")
-                    close = item.get("5")
-                    volume = item.get("6")
-
-                    row = self.ohlcv_Row(timestamp, open, high, low, close, volume)
                     print(f"[{symbol}] {row}")
 
-        def forex_handler(response):
-            data = json.loads(response).get("data", [])
-            if not data:
-                return
-
-            for entry in data:
-                content = entry["content"]
-                for item in content:
-                    symbol = item["key"]
-
-                    timestamp = pd.to_datetime(item.get("8"), unit='ms', utc=True).tz_convert(self.timezone)
-                    bid = item.get("1")
-                    ask = item.get("2")
-                    last = item.get("3")
-                    bid_size = item.get("4")
-                    ask_size = item.get("5")
-                    volume = item.get("6")
-
-                    row = self.bidask_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
-                    print(f"[{symbol}] {row}")
-
-        def bid_ask_handler(response):
-            data = json.loads(response).get("data", [])
-            if not data:
-                return
-            
-            for entry in data:
-                content = entry["content"]
-                for item in content:
-                    symbol = item["key"]
-
-                    ts = item.get('34') or item.get('37') or item.get('38') or item.get('35')
-                    timestamp = pd.to_datetime(ts, unit='ms', utc=True).tz_convert(self.timezone)
-                    bid = item.get("1")
-                    ask = item.get("2")
-                    last = item.get("3")
-                    bid_size = item.get("4")
-                    ask_size = item.get("5")
-                    volume = item.get("8")
-
-                    row = self.bidask_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
-                    print(f"[{symbol}] {row}")   
-
+        self.stream.start(response_handler)
         if "/" in symbols[0]:
-            self.stream.start(forex_handler)
             self.stream.send(self.stream.level_one_forex(symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))  
-            time.sleep(duration)
-            self.stream.stop()
-        else:
-            self.stream.start(equity_handler)
+        elif True:
             self.stream.send(self.stream.chart_equity(symbols, "0,1,2,3,4,5,6,7", command="SUBS"))
-            time.sleep(duration)
-            self.stream.stop()
-        # else:
-        #     self.stream.start(bid_ask_handler)
-        #     self.stream.send(self.stream.level_one_equities(symbols, "0,1,2,3,4,5,6,7,8,34,35,37,38", command="SUBS"))
-        #     time.sleep(duration)
-        #     self.stream.stop()
+        else:
+            self.stream.send(self.stream.level_one_equities(symbols, "0,1,2,3,4,5,34,35,37,38", command="SUBS"))
+            # stream.send(stream.nasdaq_book(self.symbols, "0,1,2,3,4", command="ADD"))
+        time.sleep(duration)
+        self.stream.stop()
     
     def get_quote(self, symbols):
         response = self.client.quotes(symbols)
@@ -234,3 +208,54 @@ class DataHandler:
 
             row = self.bidask_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
             print(f"[{symbol}] {row}")
+
+class BidAskRow:
+    __slots__ = ("timestamp", "bid", "ask", "last", "bid_size", "ask_size")
+
+    def __init__(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
+        self.timestamp = timestamp
+        self.bid = bid
+        self.ask = ask
+        self.last = last
+        self.bid_size = bid_size
+        self.ask_size = ask_size
+
+    def update(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
+        self.timestamp = timestamp
+        self.bid = bid
+        self.ask = ask
+        self.last = last
+        self.bid_size = bid_size
+        self.ask_size = ask_size
+        return self
+    
+    def __repr__(self):
+        return (f"timestamp={self.timestamp}, bid={self.bid}, ask={self.ask}, "
+                f"last={self.last}, bid_size={self.bid_size}, ask_size={self.ask_size})"
+            )
+    
+class OHLCVRow:
+    __slots__ = ("timestamp", "open", "high", "low", "close", "volume")
+
+    def __init__(self, timestamp=None, open=None, high=None, low=None, close=None, volume=None):
+        self.timestamp = timestamp
+        self.open = open
+        self.high = high
+        self.low = low
+        self.close = close
+        self.volume = volume
+
+    def update(self, timestamp=None, open=None, high=None, low=None, close=None, volume=None):
+        self.timestamp = timestamp
+        self.open = open
+        self.high = high
+        self.low = low
+        self.close = close
+        self.volume = volume
+        return self
+
+    def __repr__(self):
+        return (
+            f"timestamp={self.timestamp}, open={self.open}, high={self.high}, "
+            f"low={self.low}, close={self.close}, volume={self.volume}"
+        )

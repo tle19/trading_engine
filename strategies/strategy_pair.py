@@ -9,6 +9,8 @@ class StrategyPair:
     def __init__(self, pair, start_time, end_time, take_profit=0.001,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
         self.pair = pair
+        if "-" not in pair:
+            raise ValueError(f"Invalid pair format: '{pair}'. Expected format 'SYMBOL1-SYMBOL2'.")
         self.symbol1, self.symbol2 = pair.split("-")
         self.start_time = start_time[0] * 60 + start_time[1]
         self.end_time = end_time[0] * 60 + end_time[1]

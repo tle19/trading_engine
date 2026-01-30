@@ -39,21 +39,29 @@ def main():
         args.symbol = SYMBOLS
 
     strategy_dict = {}
+    symbols = []
     if colon_used:
         for item in args.strategy:
             name, sym_str = item.split(":", 1)
             symbols_or_pairs = sym_str.split(",") if sym_str else []
             cls = strategy_map[name]
             strategy_dict[cls] = symbols_or_pairs
+            for entry in symbols_or_pairs:
+                if "-" in entry:  
+                    a, b = entry.split("-")
+                    symbols.extend([a, b])
+                else:
+                    symbols.append(entry)
         args.strategy = list(strategy_dict)[0] 
         args.symbol = strategy_dict[args.strategy][0]
         args.pair = strategy_dict[args.strategy][0]
     else:
         args.strategy = strategy_map[args.strategy[0]]
 
+    dh = DataHandler()
+
     if args.live:
-        # dh = DataHandler()
-        # dh.historical_data(symbols)
+        dh.historical_data(symbols)
         if strategy_dict:
             dfc = DataFeedController(strategy_dict, margin=args.margin)
             dfc.run()
@@ -63,21 +71,17 @@ def main():
         elif args.pair:
             ep = EquityPairs(args.pair, args.strategy, margin=args.margin) # single strategy
             ep.run()
-        
     elif args.backtest:
         bt = Backtest(args.symbol, args.strategy, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage) # single strategy
         bt.run(end_date=str(date.today()), train=args.train, grid=args.grid)
     elif args.fetch:
-        dh = DataHandler()
         if args.schwab:
             dh.schwab_data(args.symbol)
         else:
             dh.historical_data(args.symbol)
     elif args.stream:
-        dh = DataHandler()
         dh.stream_data(args.symbol)
     elif args.quote:
-        dh = DataHandler()
         dh.get_quote(args.symbol)
     else:
         raise ValueError(
