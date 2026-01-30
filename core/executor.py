@@ -69,17 +69,17 @@ class DataFeedController:
             # sys.stdout.write(f"  QUOTE → API TIME: {timestamp - self.bidask_Row.timestamp} ms\n")
             # sys.stdout.write(f"  COMPUTATION TIME: {int(time.time() * 1000) - timestamp} ms\n")
 
-        self.stream.start(response_handler)
-        # self.stream.start_auto(
-        #     receiver=response_handler, 
-        #     start_time=datetime.time(9, 30, 0), 
-        #     stop_time=datetime.time(16, 0, 0), 
-        #     on_days=(0,1,2,3,4))
-        # self.await_market_open()
+        # self.stream.start(response_handler)
+        self.stream.start_auto(
+            receiver=response_handler, 
+            start_time=datetime.time(9, 30, 0), 
+            stop_time=datetime.time(16, 0, 0), 
+            on_days=(0,1,2,3,4))
+        self.await_market_open()
         for feed in self.feeds:
             feed.subscribe_symbols()
-        # self.stream_duration()
-        time.sleep(500)
+        self.stream_duration()
+        # time.sleep(500)
         for feed in self.feeds:
             feed.trade_manager.save_logs()
     
