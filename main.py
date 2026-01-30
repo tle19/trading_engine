@@ -1,5 +1,5 @@
 import argparse
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from symbols import SYMBOLS
 from core import *
@@ -28,9 +28,9 @@ def main():
     parser.add_argument("--slippage", type=float, default=0.1)
     args = parser.parse_args()
     
-    if not args.strategy:
+    if not args.strategy and not args.fetch and not args.stream and not args.quote:
         raise ValueError(f"You must provide a strategy, e.g., --strategy eod_reversion or eod_reversion:AAPL or spread_diff:SPY-QQQ")
-    colon_used = any(":" in s for s in args.strategy)
+    colon_used = any(":" in s for s in args.strategy) if args.strategy else None
     if colon_used and (args.symbol or args.pair):
         raise ValueError("Cannot mix colon syntax with --symbol or --pair arguments")
     if not colon_used and not args.symbol and not args.pair:
@@ -55,13 +55,24 @@ def main():
         args.strategy = list(strategy_dict)[0] 
         args.symbol = strategy_dict[args.strategy][0]
         args.pair = strategy_dict[args.strategy][0]
-    else:
+    elif args.strategy:
         args.strategy = strategy_map[args.strategy[0]]
+        symbols = args.symbol or args.pair
 
     dh = DataHandler()
+    timezone = ZoneInfo("America/New_York")
 
     if args.live:
+        now = datetime.now(timezone)
+        data_filled = (now + timedelta(days=1)).replace(hour=1, minute=0, second=0, microsecond=0)
+        if now < data_filled:
+            wait_seconds = int((data_filled - now).total_seconds())
+            hours, rem = divmod(wait_seconds, 3600)
+            minutes, seconds = divmod(rem, 60)
+            print(f"[WAIT] Data not ready. Time remaining: {hours}h {minutes}m {seconds}s")
+            time.sleep(wait_seconds)
         dh.historical_data(symbols)
+
         if strategy_dict:
             dfc = DataFeedController(strategy_dict, margin=args.margin)
             dfc.run()

@@ -3,11 +3,10 @@ import json
 import time
 import pandas as pd
 from datetime import date, datetime, timedelta
-from collections import namedtuple
 
 from zoneinfo import ZoneInfo
-import schwabdev
 from polygon import RESTClient
+import schwabdev
 
 from utils import *
 
@@ -21,6 +20,7 @@ class DataHandler:
         self.stream = schwabdev.Stream(self.client)
 
         self.timezone = ZoneInfo("America/New_York")
+        
         self.ohlcv_Row = OHLCVRow()
         self.bidask_Row = BidAskRow()
 
@@ -28,12 +28,8 @@ class DataHandler:
                                 timespan='minute', multiplier=1, max_iter=10):
         start_time = time.perf_counter()
 
-        now = datetime.now()
-        if now.hour >= 19:
-            to_date = date.today()
-        else:
-            to_date = date.today() - timedelta(days=1)
-        to_date = str(to_date)
+        now = datetime.now(self.timezone)
+        to_date = str((now - timedelta(days=1)).date())
         
         for symbol in symbols:
             data_list = []
@@ -56,7 +52,7 @@ class DataHandler:
             else:
                 pass  # equity or already formatted
 
-            for _ in range(max_iter):
+            for i in range(max_iter):
                 aggs = self.polygon_client.get_aggs(
                     symbol,
                     multiplier,
@@ -69,10 +65,10 @@ class DataHandler:
                 rows = list(aggs)
                 if not rows:
                     break
-
+                
                 last_ts = pd.to_datetime(rows[-1].timestamp, unit='ms', utc=True)
                 last_date = last_ts.date()
-                print(f"     {current_from} → {last_date}")
+                print(f"{' ' * (len(symbol) + 3)}Batch {i} | {current_from} → {last_date - timedelta(days=1)}")
                 
                 for agg in rows:
                     ts_date = pd.to_datetime(agg.timestamp, unit='ms', utc=True).date()

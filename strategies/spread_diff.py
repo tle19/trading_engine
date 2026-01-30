@@ -25,10 +25,10 @@ class SpreadDiff(StrategyPair):
         signal = None
         if self.activated:
             self.compute_indicators()
-            if self.s1["direction"]:
-                signal = self.exit_trade()
-            else:
+            if not self.s1["direction"]:
                 signal = self.enter_trade()
+            else:
+                signal = self.exit_trade()
         return signal
     
     def enter_trade(self):

@@ -1,9 +1,7 @@
-import json
+import sys
 import time
 import datetime
-import sys
 import pandas as pd
-from collections import namedtuple
 
 from zoneinfo import ZoneInfo
 import orjson
@@ -133,7 +131,7 @@ class Equities:
 
     def run(self):
         def response_handler(response):
-            data = json.loads(response).get("data", [])
+            data = orjson.loads(response).get("data", [])
             if not data:
                 return
 
