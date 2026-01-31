@@ -1,6 +1,9 @@
+import json
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
+
 
 from symbols import SYMBOLS
 from core import *
@@ -62,22 +65,35 @@ def find_proba(df):
             if df.loc["timestamp"] == 15.59:
                 break
 
-ema_window = 50
-lookback = 15
-df = open_data("GOOG", start_date="2024-01-01", end_date="2026-01-01", start_time="10:00", end_time="15:59")
-df["ema"] = df["close"].ewm(span=ema_window, adjust=False).mean()
-df["straddle_up"] = (df["close"] > df["ema"]) & (df["open"] < df["ema"])
-df["straddle_down"] = (df["close"] < df["ema"]) & (df["open"] > df["ema"])
-df["ema_max_last5_pct"] = (df["high"].rolling(lookback, min_periods=1).max() - df["ema"]) / df["ema"]
-df["ema_min_last5_pct"] = (df["low"].rolling(lookback, min_periods=1).min() - df["ema"]) / df["ema"]
-df["ema_straddle_target"] = np.where(df["straddle_up"], df["ema_min_last5_pct"],
-    np.where(df["straddle_down"], df["ema_max_last5_pct"], np.nan)
-)
+# ema_window = 50
+# lookback = 15
+# df = open_data("GOOG", start_date="2024-01-01", end_date="2026-01-01", start_time="10:00", end_time="15:59")
+# df["ema"] = df["close"].ewm(span=ema_window, adjust=False).mean()
+# df["straddle_up"] = (df["close"] > df["ema"]) & (df["open"] < df["ema"])
+# df["straddle_down"] = (df["close"] < df["ema"]) & (df["open"] > df["ema"])
+# df["ema_max_last5_pct"] = (df["high"].rolling(lookback, min_periods=1).max() - df["ema"]) / df["ema"]
+# df["ema_min_last5_pct"] = (df["low"].rolling(lookback, min_periods=1).min() - df["ema"]) / df["ema"]
+# df["ema_straddle_target"] = np.where(df["straddle_up"], df["ema_min_last5_pct"],
+#     np.where(df["straddle_down"], df["ema_max_last5_pct"], np.nan)
+# )
 
-col = "ema_straddle_target"
-x = df[col].dropna()
-mu = x.mean()
-sigma = x.std()
-df["entry_cond"] = (df[col] >= mu - 2*sigma) | (df[col] <= mu + 2*sigma)
+# col = "ema_straddle_target"
+# x = df[col].dropna()
+# mu = x.mean()
+# sigma = x.std()
+# df["entry_cond"] = (df[col] >= mu - 2*sigma) | (df[col] <= mu + 2*sigma)
 
-plot_dist(df, "ema_straddle_target")
+# plot_dist(df, "ema_straddle_target")
+
+with open("trade_logs.json", "r") as f:
+    data = json.load(f)
+trade_history = data.get("trade_history", [])
+df = pd.json_normalize(trade_history, sep="_")
+df["abs_atr_change"] = abs(df["features_curr_day_atr_mean"] - df["features_prev_day_atr_mean"])
+plt.figure(figsize=(8,6))
+sns.scatterplot(x="abs_atr_change", y="pnl_pct", data=df)
+plt.xlabel("Absolute ATR Change (curr - prev)")
+plt.ylabel("PnL %")
+plt.title("Distribution of ATR Change vs PnL %")
+plt.grid(True)
+plt.show()

@@ -63,19 +63,21 @@ class EODReversion(Strategy):
     
     def enter_trade(self):
         signal = None
-        # self.position_size = self.risk_manager.position_size
+
         self.atr_cond = np.mean(self.rolling_atr) - self.prev_day_atr_mean < self.atr_diff
         # self.adx_cond = np.mean(self.rolling_adx) - self.prev_day_adx_mean < self.adx_diff
 
-        if self.atr_cond:
+        if self.atr_cond and not self.position_manager.in_trade():
             if self.close < self.lower_support:
-                if self.pressure < 0 and self.close < self.fast_ema:
-                    self.prev_day_atr_mean = np.mean(self.rolling_atr)
+                if self.pressure < 0 and self.close < self.fast_ema: # and self.compute_ma(self.weighted_pressure, 3) > self.compute_ma(self.weighted_pressure, 5)
                     signal, _ = self.buy()
-            if self.close > self.upper_support:
-                if self.pressure > 0 and self.close > self.fast_ema:
                     self.prev_day_atr_mean = np.mean(self.rolling_atr)
+                    # self.prev_day_adx_mean = np.mean(self.rolling_adx)
+            if self.close > self.upper_support:
+                if self.pressure > 0 and self.close > self.fast_ema: # and self.compute_ma(self.weighted_pressure, 3) < self.compute_ma(self.weighted_pressure, 3)
                     signal, _ = self.sell()
+                    self.prev_day_atr_mean = np.mean(self.rolling_atr)
+                    # self.prev_day_adx_mean = np.mean(self.rolling_adx)
         return signal
     
     # def exit_trade(self):
