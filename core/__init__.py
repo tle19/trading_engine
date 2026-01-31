@@ -5,7 +5,8 @@ from .executor import *
 __all__ = [
     "DataHandler",
     "OHLCVRow",
-    "BidAskRow",
+    "Level1Row",
+    "Level2Row",
     "Backtest",
     "DataFeedController",
     "Equities",

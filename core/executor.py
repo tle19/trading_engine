@@ -8,7 +8,7 @@ import orjson
 import schwabdev
 
 from strategies import Strategy, StrategyPair
-from core import OHLCVRow, BidAskRow
+from core import OHLCVRow, Level1Row, Level2Row
 from metrics import *
 from utils import *
 
@@ -22,8 +22,9 @@ class DataFeedController:
         self.timezone = ZoneInfo("America/New_York")
         self.initialize(strategy_dict, margin)
 
-        self.ohlcv_Row = OHLCVRow()
-        self.bidask_Row = BidAskRow()
+        self.ohlcv_row = OHLCVRow()
+        self.level1_row = Level1Row()
+        self.level2_row = Level2Row()
 
     def run(self):
         def response_handler(response):
@@ -37,7 +38,7 @@ class DataFeedController:
                 for item in content:
                     symbol = item["key"]
                     if service == "CHART_EQUITY":
-                        row = self.ohlcv_Row.update(
+                        row = self.ohlcv_row.update(
                             pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone),
                             item.get("2"),
                             item.get("3"),
@@ -46,7 +47,7 @@ class DataFeedController:
                             item.get("6")
                         )
                     elif service == "LEVELONE_EQUITIES":
-                        row = self.bidask_Row.update(
+                        row = self.level1_row.update(
                             item.get('34') or item.get('37') or item.get('38') or item.get('35'),
                             item.get("1"),
                             item.get("2"),
@@ -66,7 +67,7 @@ class DataFeedController:
                 self.log_buffer.clear()
 
             # timestamp = entry["timestamp"]
-            # sys.stdout.write(f"  QUOTE → API TIME: {timestamp - self.bidask_Row.timestamp} ms\n")
+            # sys.stdout.write(f"  QUOTE → API TIME: {timestamp - self.level1_row.timestamp} ms\n")
             # sys.stdout.write(f"  COMPUTATION TIME: {int(time.time() * 1000) - timestamp} ms\n")
 
         # self.stream.start(response_handler)
@@ -134,8 +135,9 @@ class Instrument:
         self.log_buffer = log_buffer if log_buffer is not None else []
         self.trade_manager = TradeManager(log_file=log_file, live=True)
 
-        self.ohlcv_Row = OHLCVRow()
-        self.bidask_Row = BidAskRow() 
+        self.ohlcv_row = OHLCVRow()
+        self.level1_row = Level1Row()
+        self.level2_row = Level2Row()
  
     def initialize(self, symbols, strategy_class):
         raise NotImplementedError

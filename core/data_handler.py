@@ -21,8 +21,9 @@ class DataHandler:
 
         self.timezone = ZoneInfo("America/New_York")
         
-        self.ohlcv_Row = OHLCVRow()
-        self.bidask_Row = BidAskRow()
+        self.ohlcv_row = OHLCVRow()
+        self.level1_row = Level1Row()
+        self.level2_row = Level2Row()
 
     def historical_data(self, symbols=['SPY'], from_date='2024-01-01', to_date='2026-01-01',
                                 timespan='minute', multiplier=1, max_iter=10):
@@ -143,7 +144,7 @@ class DataHandler:
                 for item in content:
                     symbol = item["key"]
                     if service == "CHART_EQUITY":
-                        row = self.ohlcv_Row.update(
+                        row = self.ohlcv_row.update(
                             pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone),
                             item.get("2"),
                             item.get("3"),
@@ -152,7 +153,7 @@ class DataHandler:
                             item.get("6")
                         )
                     elif service == "LEVELONE_EQUITIES":
-                        row = self.bidask_Row.update(
+                        row = self.level1_row.update(
                             item.get('34') or item.get('37') or item.get('38') or item.get('35'),
                             item.get("1"),
                             item.get("2"),
@@ -161,7 +162,7 @@ class DataHandler:
                             item.get("5")
                         )
                     elif service == "LEVELONE_FOREX":
-                        row = self.bidask_Row.update(
+                        row = self.level1_row.update(
                             item.get('8'),
                             item.get("1"),
                             item.get("2"),
@@ -169,8 +170,12 @@ class DataHandler:
                             item.get("4"),
                             item.get("5")
                         )
-                    elif service == "NASDAQ_BOOK":
-                        row = self.bidask_Row
+                    elif service == "NASDAQ_BOOK" or service == "NYSE_BOOK":
+                        row = self.level2_row.update(
+                            item.get("1"),
+                            item.get("2"),
+                            item.get("3")
+                        )
 
                     print(f"[{symbol}] {row}")
 
@@ -194,42 +199,17 @@ class DataHandler:
         for symbol in symbols:
             quote = data.get(symbol, {}).get("quote", {})
 
-            timestamp = pd.to_datetime(quote['quoteTime'], unit='ms', utc=True).tz_convert(timezone)
-            bid = quote['bidPrice']
-            ask = quote['askPrice']
-            last = quote['lastPrice']
-            bid_size = quote['bidSize']
-            ask_size = quote['askSize']
-            volume = quote['totalVolume']
+            row = self.level1_row.update(
+                pd.to_datetime(quote['quoteTime'], unit='ms', utc=True).tz_convert(self.timezone),
+                quote['bidPrice'],
+                quote['askPrice'],
+                quote['lastPrice'],
+                quote['bidSize'],
+                quote['askSize']
+            )
 
-            row = self.bidask_Row(timestamp, bid, ask, last, bid_size, ask_size, volume)
             print(f"[{symbol}] {row}")
 
-class BidAskRow:
-    __slots__ = ("timestamp", "bid", "ask", "last", "bid_size", "ask_size")
-
-    def __init__(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
-        self.timestamp = timestamp
-        self.bid = bid
-        self.ask = ask
-        self.last = last
-        self.bid_size = bid_size
-        self.ask_size = ask_size
-
-    def update(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
-        self.timestamp = timestamp
-        self.bid = bid
-        self.ask = ask
-        self.last = last
-        self.bid_size = bid_size
-        self.ask_size = ask_size
-        return self
-    
-    def __repr__(self):
-        return (f"timestamp={self.timestamp}, bid={self.bid}, ask={self.ask}, "
-                f"last={self.last}, bid_size={self.bid_size}, ask_size={self.ask_size})"
-            )
-    
 class OHLCVRow:
     __slots__ = ("timestamp", "open", "high", "low", "close", "volume")
 
@@ -255,3 +235,45 @@ class OHLCVRow:
             f"timestamp={self.timestamp}, open={self.open}, high={self.high}, "
             f"low={self.low}, close={self.close}, volume={self.volume}"
         )
+
+class Level1Row:
+    __slots__ = ("timestamp", "bid", "ask", "last", "bid_size", "ask_size")
+
+    def __init__(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
+        self.timestamp = timestamp
+        self.bid = bid
+        self.ask = ask
+        self.last = last
+        self.bid_size = bid_size
+        self.ask_size = ask_size
+
+    def update(self, timestamp=None, bid=None, ask=None, last=None, bid_size=None, ask_size=None):
+        self.timestamp = timestamp
+        self.bid = bid
+        self.ask = ask
+        self.last = last
+        self.bid_size = bid_size
+        self.ask_size = ask_size
+        return self
+    
+    def __repr__(self):
+        return (f"timestamp={self.timestamp}, bid={self.bid}, ask={self.ask}, "
+                f"last={self.last}, bid_size={self.bid_size}, ask_size={self.ask_size})"
+            )
+
+class Level2Row:
+    __slots__ = ("timestamp", "bid_side", "ask_side")
+
+    def __init__(self, timestamp=None, bid_side=None, ask_side=None):
+        self.timestamp = timestamp
+        self.bid_side = bid_side or []
+        self.ask_side = ask_side or []
+
+    def update(self, timestamp=None, bid_side=None, ask_side=None):
+        self.timestamp = timestamp
+        self.bid_side = bid_side or []
+        self.ask_side = ask_side or []
+        return self
+
+    def __repr__(self):
+        return (f"timestamp={self.timestamp}, bid_side={self.bid_side}, ask_side={self.ask_side}")
