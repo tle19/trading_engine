@@ -6,8 +6,8 @@ EXIT = 0
 HOLD = None
 
 class StrategyPair:
-    def __init__(self, pair, start_time, end_time, take_profit=0.001,
-                 pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
+    def __init__(self, pair, start_time, end_time, take_profit=0.0001,
+                 pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         self.pair = pair
         if "-" not in pair:
             raise ValueError(f"Invalid pair format: '{pair}'. Expected format 'SYMBOL1-SYMBOL2'.")
