@@ -162,8 +162,8 @@ class Instrument:
         fill_price1 = self.get_fill_price(order_id1, shares1)
         fill_price2 = self.get_fill_price(order_id2, shares2)
 
-        self.log_buffer.append(f" [BOT] +{shares1} {symbol1} @ {fill_price1}")
-        self.log_buffer.append(f" [SOLD] -{shares2} {symbol2} @ {fill_price2}")
+        self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[BOT] +{shares1} {symbol1} @ {fill_price1}")
+        self.log_buffer.append(f"{' ' * (len(symbol2) + 3)}[SOLD] -{shares2} {symbol2} @ {fill_price2}")
         return fill_price1, fill_price2
 
     def sell_pair(self, signal, symbol1, symbol2, shares1, shares2):
@@ -176,8 +176,8 @@ class Instrument:
         fill_price1 = self.get_fill_price(order_id1, shares1)
         fill_price2 = self.get_fill_price(order_id2, shares2)
 
-        self.log_buffer.append(f" [SOLD] -{shares1} {symbol1} @ {fill_price1}")
-        self.log_buffer.append(f" [BOT] +{shares2} {symbol2} @ {fill_price2}")
+        self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[SOLD] -{shares1} {symbol1} @ {fill_price1}")
+        self.log_buffer.append(f"{' ' * (len(symbol2) + 3)}[BOT] +{shares2} {symbol2} @ {fill_price2}")
         return fill_price1, fill_price2
         
     def buy(self, signal, symbol, shares):
@@ -187,7 +187,7 @@ class Instrument:
         order_id = self.get_order_id(response)
         fill_price = self.get_fill_price(order_id, shares)
 
-        self.log_buffer.append(f" [BOT] +{shares} {symbol} @ {fill_price}")
+        self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[BOT] +{shares} {symbol} @ {fill_price}")
         return order_id, fill_price
 
     def sell(self, signal, symbol, shares):
@@ -197,19 +197,19 @@ class Instrument:
         order_id = self.get_order_id(response)
         fill_price = self.get_fill_price(order_id, shares)
 
-        self.log_buffer.append(f" [SOLD] -{shares} {symbol} @ {fill_price}")
+        self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[SOLD] -{shares} {symbol} @ {fill_price}")
         return order_id, fill_price
     
     def buy_oco(self, symbol, quantity, stop_price, target_price):
         response = self.oco_order(symbol, quantity, stop_price, target_price, "BUY_TO_COVER")
         order_id = self.get_order_id(response)
-        self.log_buffer.append(f" STP={stop_price} | LMT={target_price}")  
+        self.log_buffer.append(f"{' ' * (len(symbol) + 4)}STP={stop_price} | LMT={target_price}")  
         return order_id
 
     def sell_oco(self, symbol, quantity, stop_price, target_price):
         response = self.oco_order(symbol, quantity, stop_price, target_price, "SELL")
         order_id = self.get_order_id(response)
-        self.log_buffer.append(f" STP={stop_price} | LMT={target_price}")  
+        self.log_buffer.append(f"{' ' * (len(symbol) + 4)}STP={stop_price} | LMT={target_price}")  
         return order_id
     
     def market_order(self, symbol, quantity, instruction="BUY"):
