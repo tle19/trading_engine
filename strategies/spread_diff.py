@@ -5,7 +5,7 @@ from models import *
 from utils import *
 
 class SpreadDiff(StrategyPair):
-    def __init__(self, pair, ema_window=20, start_time=(15, 00), end_time=(20, 00),
+    def __init__(self, pair, ema_window=5, start_time=(15, 00), end_time=(20, 00),
                  take_profit=0.00005, pnl_target=0.01, pnl_loss=-0.01, trade_max=50):
         super().__init__(pair, start_time, end_time, take_profit, 
                          pnl_target, pnl_loss, trade_max)
@@ -51,8 +51,8 @@ class SpreadDiff(StrategyPair):
         # if self.latency > ms:
         #     return
 
-        # exit1 = self.s1["bid"] if self.s1["direction"] > 0 else self.s1["ask"]
-        # exit2 = self.s2["bid"] if self.s2["direction"] > 0 else self.s2["ask"]
+        # exit1 = self.s1["ask"] if self.s1["direction"] > 0 else self.s1["bid"]
+        # exit2 = self.s2["ask"] if self.s2["direction"] > 0 else self.s2["bid"]
         # pnl1 = self.s1["direction"] * (exit1 - self.s1["entry_price"]) * self.s1["shares"]
         # pnl2 = self.s2["direction"] * (exit2 - self.s2["entry_price"]) * self.s2["shares"]
 

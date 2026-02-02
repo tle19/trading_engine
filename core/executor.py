@@ -503,3 +503,4 @@ class EquityPairs(Instrument):
             self.update_pnl(strategy, s1["direction"], s1["entry_price"], fill_price1, s1["shares"])
             self.update_pnl(strategy, s2["direction"], s2["entry_price"], fill_price2, s2["shares"])
             s1["direction"], s2["direction"]  = 0, 0
+            s1["entry_price"], s2["entry_price"]  = None, None
