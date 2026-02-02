@@ -88,7 +88,7 @@ class DataHandler:
                 if current_from > pd.to_datetime(to_date).strftime("%Y-%m-%d"):
                     break
                 
-                time.sleep(12.5) # Polygon.io rate limit (5 calls/minute)
+                time.sleep(13) # Polygon.io rate limit (5 calls/minute)
             
             if data_list:
                 new_df = pd.DataFrame(data_list)
