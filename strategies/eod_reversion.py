@@ -1,3 +1,5 @@
+import os
+from datetime import datetime
 from collections import deque
 import pandas as pd
 import numpy as np
@@ -58,17 +60,18 @@ class EODReversion(Strategy):
     def enter_trade(self):
         signal = None
 
-        self.atr_cond = np.mean(self.rolling_atr) - self.prev_day_atr_mean < self.atr_diff
+        atr_mean = np.mean(self.rolling_atr)
+        self.atr_cond = atr_mean - self.prev_day_atr_mean < self.atr_diff
 
-        if self.atr_cond and not self.position_manager.in_trade():
+        if self.atr_cond:
             if self.close < self.lower_support:
                 if self.pressure < 0 and self.fast_ema < self.slow_ema and self.close > self.open:  # and self.slow_ema > self.htf_ema
-                    signal, _ = self.buy()
-                    self.prev_day_atr_mean = np.mean(self.rolling_atr)
+                    signal, _ = self.buy() # or certain % move
             if self.close > self.upper_support:
                 if self.pressure > 0 and self.fast_ema > self.slow_ema and self.close < self.open:  # and self.slow_ema < self.htf_ema
-                    signal, _ = self.sell()
-                    self.prev_day_atr_mean = np.mean(self.rolling_atr)
+                    signal, _ = self.sell() # or certain % move
+        if self.features:
+            self.prev_day_atr_mean = atr_mean
         return signal
     
     def compute_indicators(self):
@@ -78,7 +81,7 @@ class EODReversion(Strategy):
         self.weighted_pressure.append((self.close - self.open) / self.open * self.volume)
         self.pressure = sum(self.weighted_pressure)
         self.rolling_atr.append(self.compute_atr(self.highs, self.lows, self.closes))
-
+        
     def reset_indicators(self, reset_time=(9, 30)):
         if self.trade_window(reset_time, reset_time):
             self.upper_support = None
@@ -103,15 +106,23 @@ class EODReversion(Strategy):
 
     def backfill_data(self):
         if not self.back_filled:
-            df = open_data(self.symbol, start_time="9:30", end_time="15:00")
-            df = df[df['timestamp'] < self.ts]
-            last_trading_day = df['timestamp'].dt.date.max()
-            df = df[df['timestamp'].dt.date == last_trading_day]
-            if not df.empty:
-                atr = self.compute_atr(df['high'], df['low'], df['close'])
-                self.prev_day_atr_mean = np.mean(atr)
+            if os.path.exists("trade_logs.json"):
+                with open("trade_logs.json", "r") as f: 
+                    data = json.load(f)
+                    trade_history = data.get("trade_history", [])
+                    aapl_trades = [t for t in trade_history if t["symbol"] == "AAPL"]
+                    aapl_trades.sort(key=lambda t: datetime.fromisoformat(t["exit_time"]), reverse=True)
+                    self.prev_day_atr_mean = aapl_trades[0]["features"]["curr_day_atr_mean"]
             else:
-                self.prev_day_atr_mean = 0.25
+                df = open_data(self.symbol, start_time="9:30", end_time="15:00")
+                df = df[df['timestamp'] < self.ts]
+                last_trading_day = df['timestamp'].dt.date.max()
+                df = df[df['timestamp'].dt.date == last_trading_day]
+                if not df.empty:
+                    atr = self.compute_atr(df['high'], df['low'], df['close'])
+                    self.prev_day_atr_mean = np.mean(atr)
+                else:
+                    self.prev_day_atr_mean = 0.25
             self.back_filled = True
     
     def predict_trade(self, threshold=0.4):
