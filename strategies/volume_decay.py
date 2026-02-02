@@ -31,7 +31,7 @@ class VolumeDecay(Strategy):
         self.minimum_computations()
 
         vol = self.compute_volume_oscillator(self.volumes, self.fast_window, self.slow_window)
-        rsi = self.compute_rsi(self.prices, self.rsi_period)
+        rsi = self.compute_rsi(self.closes, self.rsi_period)
         
         if self.rolling_rsi and self.rolling_vol:
             rsi_ma = sum(self.rolling_rsi) / len(self.rolling_rsi)
@@ -113,5 +113,5 @@ class VolumeDecay(Strategy):
                 self.slow_window,
                 self.rsi_period,
             ) + 1
-            self.activated = len(self.prices) > required_data
+            self.activated = len(self.closes) > required_data
         

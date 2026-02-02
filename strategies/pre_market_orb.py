@@ -61,8 +61,8 @@ class P(Strategy):
         return signal
     
     def compute_indicators(self):
-        self.fast_ema = self.compute_ema(self.fast_ema, self.price, self.fast_window)
-        self.slow_ema = self.compute_ema(self.slow_ema, self.price, self.slow_window)
+        self.fast_ema = self.compute_ema(self.fast_ema, self.close, self.fast_window)
+        self.slow_ema = self.compute_ema(self.slow_ema, self.close, self.slow_window)
         self.rolling_atr.append(self.compute_atr(self.highs, self.lows, self.closes))
         if self.trade_window((9, 28), (9, 29)):
             self.pre_market_high, self.pre_market_low = self.donchian_channel(period=330)
@@ -93,7 +93,7 @@ class P(Strategy):
         self.features = {
             "direction": direction,
             "entry_time": self.ts.isoformat(),
-            "entry_price": self.price,
+            "entry_price": self.close,
             "stop_price": stop_price,
             "target_price": target_price,
             "session_open": self.opens[0],

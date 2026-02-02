@@ -176,7 +176,7 @@ class StochasticIndicator(Strategy):
         self.features = {
             "direction": direction,
             "entry_time": self.ts.isoformat(),
-            "entry_price": self.price,
+            "entry_price": self.close,
             "stop_price": stop_price,
             "target_price": target_price,
             "session_open": self.opens[0],

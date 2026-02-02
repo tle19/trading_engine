@@ -83,9 +83,9 @@ class EODReversion(Strategy):
         return signal
         
     def compute_indicators(self):
-        self.fast_ema = self.compute_ema(self.fast_ema, self.price, self.fast_window)
-        self.slow_ema = self.compute_ema(self.slow_ema, self.price, self.slow_window)
-        self.htf_ema = self.compute_ema(self.htf_ema, self.price, self.htf_window)
+        self.fast_ema = self.compute_ema(self.fast_ema, self.close, self.fast_window)
+        self.slow_ema = self.compute_ema(self.slow_ema, self.close, self.slow_window)
+        self.htf_ema = self.compute_ema(self.htf_ema, self.close, self.htf_window)
         self.weighted_pressure.append((self.close - self.open) / self.open * self.volume)
         self.pressure = sum(self.weighted_pressure)
         self.rolling_atr.append(self.compute_atr(self.highs, self.lows, self.closes))
@@ -157,7 +157,7 @@ class EODReversion(Strategy):
         self.features = {
             "direction": direction,
             "entry_time": self.ts.isoformat(),
-            "entry_price": self.price,
+            "entry_price": self.close,
             "stop_price": stop_price,
             "target_price": target_price,
             "session_open": self.opens[0],

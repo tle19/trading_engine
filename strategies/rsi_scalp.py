@@ -61,8 +61,8 @@ class RSIScalp(Strategy):
     #     return self.exit()
         
     def compute_indicators(self):
-        self.ema = self.compute_ema(self.ema, self.price, self.htf_window)
-        rsi = self.compute_rsi(self.prices, self.rsi_period)
+        self.ema = self.compute_ema(self.ema, self.close, self.htf_window)
+        rsi = self.compute_rsi(self.closes, self.rsi_period)
         
         return rsi
 
@@ -77,13 +77,13 @@ class RSIScalp(Strategy):
                 self.rsi_period,
                 self.htf_window
             ) + 1
-            self.activated = len(self.prices) > required_data
+            self.activated = len(self.closes) > required_data
 
     def add_features(self, direction, stop_price, target_price):
         self.features = {
             "direction": direction,
             "entry_time": self.ts.isoformat(),
-            "entry_price": self.price,
+            "entry_price": self.close,
             "stop_price": stop_price,
             "target_price": target_price,
             "session_open": self.opens[0],

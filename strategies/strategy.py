@@ -86,7 +86,6 @@ class Strategy:
             self.close = row.close
             self.volume = row.volume
 
-        self.price = self.close
         self.opens.append(self.open)
         self.highs.append(self.high)
         self.lows.append(self.low)
@@ -121,7 +120,7 @@ class Strategy:
     def buy(self):
         direction = self.position_manager.direction()
         if direction in (1, 0):
-            entry_price = round(self.price, 2)
+            entry_price = round(self.close, 2)
             stop_price = round(entry_price * (1 - self.stop_loss), 2)
             target_price = round(entry_price * (1 + self.take_profit), 2)
 
@@ -149,7 +148,7 @@ class Strategy:
     def sell(self):
         direction = self.position_manager.direction()
         if direction in (-1, 0):
-            entry_price = round(self.price, 2)
+            entry_price = round(self.close, 2)
             stop_price = round(entry_price * (1 + self.stop_loss), 2)
             target_price = round(entry_price * (1 - self.take_profit), 2)
 
@@ -186,17 +185,17 @@ class Strategy:
                 return None
             
             trailing_ratio = self.compute_trailing_ratio(leg.stop_price)
-            adjustment = trailing_ratio * abs(leg.stop_price - self.price)
+            adjustment = trailing_ratio * abs(leg.stop_price - self.close)
 
-            if leg.direction == 1 and self.price > leg.entry_price:
+            if leg.direction == 1 and self.close > leg.entry_price:
                 leg.stop_price = round(leg.stop_price + adjustment, 2)
 
-            elif leg.direction == -1 and self.price < leg.entry_price:
+            elif leg.direction == -1 and self.close < leg.entry_price:
                 leg.stop_price = round(leg.stop_price - adjustment, 2)
 
     def compute_trailing_ratio(self, price):
         min_distance = self.compute_min_distance()
-        distance = abs(price - self.price)
+        distance = abs(price - self.close)
 
         max_ratio = 1 - (min_distance / distance)
         trailing_ratio = min(self.trailing_ratio, max_ratio)
@@ -210,8 +209,8 @@ class Strategy:
     
     def in_safe_range(self, leg):
         min_distance = self.compute_min_distance()
-        stop_distance = abs(leg.stop_price - self.price)
-        target_distance = abs(leg.target_price - self.price)
+        stop_distance = abs(leg.stop_price - self.close)
+        target_distance = abs(leg.target_price - self.close)
 
         if min_distance is None:
             return False
@@ -232,8 +231,8 @@ class Strategy:
         spread = self.compute_ma(self.highs, window) - self.compute_ma(self.lows, window)
         return spread
        
-    def compute_rsi(self, prices, period=14):
-        p = np.asarray(prices, dtype=float)
+    def compute_rsi(self, data, period=14):
+        p = np.asarray(data, dtype=float)
         if len(p) < 2:
             return 50.0
 
@@ -257,20 +256,20 @@ class Strategy:
         rs = avg_gain / avg_loss
         return 100.0 - 100.0 / (1.0 + rs)
     
-    def compute_stochastic(self, high, low, close, k_period=14, k_smooth=3, d_period=3):
-        n = len(close)
+    def compute_stochastic(self, highs, lows, closes, k_period=14, k_smooth=3, d_period=3):
+        n = len(closes)
         if n == 0:
             return 50.0, 50.0
 
         def compute_k(end_idx):
             start_idx = max(0, end_idx - k_period)
-            window_h = high[start_idx:end_idx]
-            window_l = low[start_idx:end_idx]
+            window_h = highs[start_idx:end_idx]
+            window_l = lows[start_idx:end_idx]
             if len(window_h) == 0:
                 return 50.0
             h = max(window_h)
             l = min(window_l)
-            return 50.0 if h == l else 100.0 * (close[end_idx - 1] - l) / (h - l)
+            return 50.0 if h == l else 100.0 * (closes[end_idx - 1] - l) / (h - l)
 
         k_values = [compute_k(n - i) for i in range(k_smooth)]
         k = sum(k_values) / len(k_values) if k_values else 50.0
@@ -282,8 +281,8 @@ class Strategy:
         return k, d
     
     def compute_macd(self, fast_window=12, slow_window=26, signal_window=9):
-        self.fast_ema = self.compute_ema(self.fast_ema, self.price, fast_window)
-        self.slow_ema = self.compute_ema(self.slow_ema, self.price, slow_window)
+        self.fast_ema = self.compute_ema(self.fast_ema, self.close, fast_window)
+        self.slow_ema = self.compute_ema(self.slow_ema, self.close, slow_window)
 
         macd = self.fast_ema - self.slow_ema
         self.signal_ema = self.compute_ema(self.signal_ema, macd, signal_window)
@@ -369,7 +368,7 @@ class Strategy:
     
     def compute_swing(self, mode="high", lookback=10): # fix swing
         arr = self.highs[-lookback:] if mode == "high" else self.lows[-lookback:]
-        c = self.price
+        c = self.close
         n = len(arr)
 
         if n < 3:

@@ -57,8 +57,8 @@ class MACDIndicator(Strategy):
         hist_low, _, self.fast_ema_low, self.slow_ema_low, self.signal_ema_low = self.compute_macd(self.fast_ema_low, self.slow_ema_low, self.signal_ema_low, self.fast_window_low, self.slow_window_low, self.signal_window_low)
         hist_med, _, self.fast_ema_med, self.slow_ema_med, self.signal_ema_med = self.compute_macd(self.fast_ema_med, self.slow_ema_med, self.signal_ema_med, self.fast_window_med, self.slow_window_med, self.signal_window_med)
         hist_high, _, self.fast_ema_high, self.slow_ema_high, self.signal_ema_high = self.compute_macd(self.fast_ema_high, self.slow_ema_high, self.signal_ema_high, self.fast_window_high, self.slow_window_high, self.signal_window_high)
-        self.ema = self.compute_ema(self.ema, self.price, self.htf_window)
-        adx = self.compute_adx(self.highs, self.lows, self.prices)
+        self.ema = self.compute_ema(self.ema, self.close, self.htf_window)
+        adx = self.compute_adx(self.highs, self.lows, self.closes)
 
         self.rolling_adx.append(adx)
         self.rolling_ema.append(self.ema)
@@ -172,7 +172,7 @@ class MACDIndicator(Strategy):
                 self.signal_window_high,
                 self.htf_window
             ) + 1
-            self.activated = len(self.prices) > required_data
+            self.activated = len(self.closes) > required_data
 
     def condition_check(self, hist_low, hist_med, hist_high):
         if (hist_high > 0 and self.prev_hist_high < 0) or (hist_high < 0 and self.prev_hist_high > 0):
@@ -209,7 +209,7 @@ class MACDIndicator(Strategy):
                     self.cond_3 = hist_high < self.prev_hist_high
 
     def compute_macd(self, fast_ema, slow_ema, signal_ema, fast_window, slow_window, signal_window):
-        price = self.price
+        price = self.close
 
         fast_ema = self.compute_ema(fast_ema, price, fast_window)
         slow_ema = self.compute_ema(slow_ema, price, slow_window)

@@ -58,16 +58,16 @@ class ORBIndicator(Strategy):
             signal, pos_leg = self.buy()
             if pos_leg is not None:
                 self.stop_price = round(self.lows[-3] * (1 - 0.0001), 2)
-                diff = self.price - self.stop_price
-                self.profit_price = round(self.price + (diff * self.take_profit * 100), 2)
+                diff = self.close - self.stop_price
+                self.profit_price = round(self.close + (diff * self.take_profit * 100), 2)
                 self.cond_1 = False
                 self.cond_2 = False
         elif self.cond_1 and self.cond_2 and self.close < self.lower_support:
             signal, pos_leg = self.sell()
             if pos_leg is not None:
                 self.stop_price = round(self.highs[-3] * (1 + 0.0001), 2)
-                diff = self.stop_price - self.price
-                self.profit_price = round(self.price - (diff * self.take_profit * 100), 2)
+                diff = self.stop_price - self.close
+                self.profit_price = round(self.close - (diff * self.take_profit * 100), 2)
                 self.cond_1 = False
                 self.cond_2 = False
         return signal
@@ -83,4 +83,4 @@ class ORBIndicator(Strategy):
     def minimum_computations(self):
         if not self.activated:
             self.upper_support, self.lower_support = self.donchian_channel(self.orb_window)
-            self.activated = len(self.prices) >= self.orb_window
+            self.activated = len(self.closes) >= self.orb_window

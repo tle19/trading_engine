@@ -81,8 +81,8 @@ class SMACrossover(Strategy):
             return self.exit()
         
     def compute_indicators(self):
-        arr = np.array(self.prices)
-        self.ema = self.compute_ema(self.ema, self.prices[-1], self.fast_window)
+        arr = np.array(self.closes)
+        self.ema = self.compute_ema(self.ema, self.close, self.fast_window)
         slow_ma = self.compute_ma(arr, self.slow_window)
         htf_ma = self.compute_ma(arr, self.htf_window)
         
@@ -117,7 +117,7 @@ class SMACrossover(Strategy):
                 self.slow_window,
                 self.htf_window
             ) + 1
-            self.activated = len(self.prices) > required_data
+            self.activated = len(self.closes) > required_data
 
     def predict_trade(self, threshold=0.4):
         df = pd.DataFrame(self.features)
@@ -143,7 +143,7 @@ class SMACrossover(Strategy):
         self.features = {
             "direction": direction,
             "entry_time": self.ts.isoformat(),
-            "entry_price": self.price,
+            "entry_price": self.close,
             "stop_price": stop_price,
             "target_price": target_price,
             "session_open": self.opens[0],

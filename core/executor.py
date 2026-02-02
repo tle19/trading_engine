@@ -69,7 +69,6 @@ class DataFeedController:
             # sys.stdout.write(f"  QUOTE → API TIME: {timestamp - self.level1_row.timestamp} ms\n")
             # sys.stdout.write(f"  COMPUTATION TIME: {int(time.time() * 1000) - timestamp} ms\n")
 
-        # self.stream.start(response_handler)
         self.stream.start_auto(
             receiver=response_handler, 
             start_time=datetime.time(9, 30, 0), 
@@ -79,7 +78,6 @@ class DataFeedController:
         for feed in self.feeds:
             feed.subscribe_symbols()
         self.stream_duration()
-        # time.sleep(500)
         for feed in self.feeds:
             feed.trade_manager.save_logs()
     
@@ -298,17 +296,17 @@ class Instrument:
         response = self.client.place_order(self.hash, order)
         return response
 
-    def replace_order(self, symbol, direction, quantity, stop_loss, take_profit, order_id):
-        self.cancel_order(order_id)
-        if direction == 1:
-            return self.long_bracket(symbol, quantity, stop_loss, take_profit)
-        elif direction == -1:
-            return self.short_bracket(symbol, quantity, stop_loss, take_profit)
-
     def cancel_order(self, order_id, polling_rate=0.05):
         response = self.client.cancel_order(self.hash, order_id)
         time.sleep(polling_rate)
         return response.status_code # 200 == success; 500 == failed
+    
+    def replace_order(self, symbol, direction, quantity, stop_price, target_price, order_id):
+        self.cancel_order(order_id)
+        if direction == 1:
+            return self.sell_oco(self, symbol, quantity, stop_price, target_price)
+        elif direction == -1:
+            return self.buy_oco(self, symbol, quantity, stop_price, target_price)
     
     def get_order_id(self, response):
         order_id = response.headers.get('location', '/').split('/')[-1]
@@ -335,8 +333,6 @@ class Instrument:
                 if total_qty == quantity:
                     fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / total_qty
                     return round(fill_price, 2)
-                
-                # TODO: handle partial fills if desired
             
             if time.time() - start > timeout:
                 return None
@@ -354,6 +350,8 @@ class Instrument:
         day_trading_power = details_json["securitiesAccount"]["currentBalances"]["dayTradingBuyingPower"]
         return day_trading_power
 
+    def get_shares_owned(self):
+        raise NotImplementedError
 
 class Equities(Instrument):
     def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live_eq.json"):
@@ -423,15 +421,17 @@ class Equities(Instrument):
                     shares = leg.shares
 
                     fill_price = self.get_fill_price(self.exit_ids[leg], shares, instruction="oco", timeout=1)
-                    # implement partial fill check
+
                     
                     if fill_price is None:
                         self.cancel_order(self.exit_ids[leg])
+                        # TODO: handle partial fills
+                        # shares_remaining = shares - self.get_shares_owned(symbol)
                         if direction == 1:
                             _, fill_price = self.sell(signal, symbol, shares)
                         elif direction == -1:
                             _, fill_price = self.buy(signal, symbol, shares)
-                        exit_price = strategy.price
+                        exit_price = strategy.close
                     else:
                         if direction == 1:
                             self.log_buffer.append(f" [SOLD] -{shares} {symbol} @ {fill_price}")
