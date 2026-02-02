@@ -6,8 +6,8 @@ from strategies import Strategy
 from models import *
 from utils import *
 
-class EODReversion2(Strategy):
-    def __init__(self, symbol, orb_window=1, fast_window=2, slow_window=10, htf_window=20, atr_diff=0.2,
+class P(Strategy):
+    def __init__(self, symbol, orb_window=1, fast_window=5, slow_window=10, atr_diff=0.2,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False, force_close=True,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=1):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
@@ -15,7 +15,6 @@ class EODReversion2(Strategy):
         self.orb_window = orb_window
         self.fast_window = fast_window
         self.slow_window = slow_window
-        self.htf_window = htf_window
         self.atr_diff = atr_diff
 
         self.upper_support = None
@@ -26,8 +25,6 @@ class EODReversion2(Strategy):
         self.slow_ema = None
         self.htf_ema = None
         
-        self.weighted_pressure = []
-        self.rolling_atr = []
         self.prev_day_atr_mean = 0.0
 
     def generate_signal(self, row, _=None):
@@ -59,19 +56,6 @@ class EODReversion2(Strategy):
         atr_mean = np.mean(self.rolling_atr)
         self.atr_cond = atr_mean - self.prev_day_atr_mean < self.atr_diff
 
-        if self.atr_cond and not self.position_manager.in_trade():
-            if self.close < self.pre_market_low:
-                if self.pressure < 0 and self.fast_ema < self.slow_ema and self.close > self.open:  # and self.slow_ema > self.htf_ema
-                    signal, _ = self.buy()
-            elif self.close > self.pre_market_high:
-                if self.pressure > 0 and self.fast_ema > self.slow_ema and self.close < self.open:  # and self.slow_ema < self.htf_ema
-                    signal, _ = self.sell()
-            # elif self.close < self.lower_support:
-            #     if self.pressure < 0 and self.slow_ema > self.htf_ema and self.close > self.open:
-            #         signal, _ = self.buy()
-            # elif self.close > self.upper_support:
-            #     if self.pressure > 0 and self.slow_ema < self.htf_ema and self.close < self.open:
-            #         signal, _ = self.sell()
         if self.features:
             self.prev_day_atr_mean = atr_mean
         return signal
@@ -79,10 +63,7 @@ class EODReversion2(Strategy):
     def compute_indicators(self):
         self.fast_ema = self.compute_ema(self.fast_ema, self.price, self.fast_window)
         self.slow_ema = self.compute_ema(self.slow_ema, self.price, self.slow_window)
-        # self.htf_ema = self.compute_ema(self.htf_ema, self.price, self.htf_window)
         self.rolling_atr.append(self.compute_atr(self.highs, self.lows, self.closes))
-        self.weighted_pressure.append((self.close - self.open) / self.open * self.volume)
-        self.pressure = sum(self.weighted_pressure)
         if self.trade_window((9, 28), (9, 29)):
             self.pre_market_high, self.pre_market_low = self.donchian_channel(period=330)
 
@@ -94,7 +75,6 @@ class EODReversion2(Strategy):
             self.pre_market_resistance = None
             self.fast_ema = None
             self.slow_ema = None
-            self.htf_ema = None
 
             self.weighted_pressure = []
             self.rolling_atr = []
@@ -104,24 +84,10 @@ class EODReversion2(Strategy):
             required_data = max(
                 self.orb_window,
                 self.fast_window,
-                self.slow_window,
-                self.htf_window
+                self.slow_window
             ) + 1
             self.upper_support, self.lower_support = self.donchian_channel(self.orb_window)
             self.activated = len(self.closes) > required_data
-
-    def backfill_data(self):
-        if not self.back_filled:
-            df = open_data(self.symbol, start_time="9:30", end_time="15:00")
-            df = df[df['timestamp'] < self.ts]
-            last_trading_day = df['timestamp'].dt.date.max()
-            df = df[df['timestamp'].dt.date == last_trading_day]
-            if not df.empty:
-                atr = self.compute_atr(df['high'], df['low'], df['close'])
-                self.prev_day_atr_mean = np.mean(atr)
-            else:
-                self.prev_day_atr_mean = 0.25
-            self.back_filled = True
             
     def add_features(self, direction, stop_price, target_price):
         self.features = {

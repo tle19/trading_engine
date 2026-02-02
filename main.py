@@ -58,6 +58,7 @@ def main():
         args.strategy = strategy_map[args.strategy[0]]
         strategy_dict[args.strategy] = symbols
 
+    bt = Backtest(args.symbols, args.strategy, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage) # single strategy
     dh = DataHandler()
 
     if args.live:
@@ -72,12 +73,12 @@ def main():
             print(f"[WAIT] Data not ready. Time remaining: {hours}h {minutes}m {seconds}s")
             time.sleep(wait_seconds)
         dh.historical_data(symbols)
+        bt.run(end_date=str(date.today()), display_stats=False, display_plot=False)
 
         dfc = DataFeedController(strategy_dict, margin=args.margin)
         dfc.run()
     elif args.backtest:
-        bt = Backtest(args.symbols, args.strategy, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage) # single strategy
-        bt.run(end_date=str(date.today()), train=args.train, grid=args.grid)
+        bt.run(end_date=str(date.today()), grid=args.grid, train=args.train)
     elif args.fetch:
         if args.schwab:
             dh.schwab_data(args.symbols)

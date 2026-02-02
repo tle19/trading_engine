@@ -324,7 +324,7 @@ class Instrument:
         start = time.time()
         while True:
             order_details = self.get_order_details(order_id)
-            if instruction == "oco" and order_details:
+            if instruction == "oco":
                 order_details = next(
                     (c for c in order_details.get('childOrderStrategies', []) if c.get('status') == 'FILLED'),
                     None

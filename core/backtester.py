@@ -237,7 +237,7 @@ class Backtest:
         self.trade_manager = best_trade_manager
         top_results = sorted(results, key=lambda x: x["STATS"][target_metric], reverse=True)[:top_n]
 
-        print("\nTOP RESULTS:")
+        print("{symbol} TOP RESULTS:\n")
         for r in top_results:
             print(f"{target_metric}: {r['STATS'][target_metric]:.4f} | Params: {r['PARAMS']}")
 

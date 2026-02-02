@@ -85,15 +85,26 @@ def find_proba(df):
 
 # plot_dist(df, "ema_straddle_target")
 
-with open("trade_logs.json", "r") as f:
-    data = json.load(f)
-trade_history = data.get("trade_history", [])
-df = pd.json_normalize(trade_history, sep="_")
-df["abs_atr_change"] = abs(df["features_curr_day_atr_mean"] - df["features_prev_day_atr_mean"])
-plt.figure(figsize=(8,6))
-sns.scatterplot(x="abs_atr_change", y="pnl_pct", data=df)
-plt.xlabel("Absolute ATR Change (curr - prev)")
-plt.ylabel("PnL %")
-plt.title("Distribution of ATR Change vs PnL %")
-plt.grid(True)
-plt.show()
+# with open("trade_logs.json", "r") as f:
+#     data = json.load(f)
+# trade_history = data.get("trade_history", [])
+# df = pd.json_normalize(trade_history, sep="_")
+# df["abs_atr_change"] = abs(df["features_curr_day_atr_mean"] - df["features_prev_day_atr_mean"])
+# plt.figure(figsize=(8,6))
+# sns.scatterplot(x="abs_atr_change", y="pnl_pct", data=df)
+# plt.xlabel("Absolute ATR Change (curr - prev)")
+# plt.ylabel("PnL %")
+# plt.title("Distribution of ATR Change vs PnL %")
+# plt.grid(True)
+# plt.show()
+
+# df = open_data("AAPL", start_date="2024-01-01", end_date="2026-01-01", start_time="9:30", end_time="15:30")
+# df = resample_data(df)
+# df['high_open_pct'] = (df['high'] - df['open']) / df['open'] * 100
+# df['low_open_pct'] = (df['low'] - df['open']) / df['open'] * 100
+# mean_high_open = np.mean(df['high_open_pct'])
+# mean_low_open = np.mean(df['low_open_pct'])
+# std_high_open = np.std(df['high_open_pct'])
+# std_low_open = np.std(df['low_open_pct'])
+# print("High-Open % -> Mean:", mean_high_open, "Std:", std_high_open)
+# print("Low-Open %  -> Mean:", mean_low_open, "Std:", std_low_open)

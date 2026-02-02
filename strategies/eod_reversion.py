@@ -9,7 +9,7 @@ from models import *
 from utils import *
 
 class EODReversion(Strategy):
-    def __init__(self, symbol, orb_window=1, fast_window=2, slow_window=10, htf_window=15, atr_diff=0.2,
+    def __init__(self, symbol, orb_window=1, fast_window=2, slow_window=10, htf_window=20, atr_diff=0.2,
                  stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False, force_close=True,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=1):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
@@ -62,22 +62,30 @@ class EODReversion(Strategy):
 
         atr_mean = np.mean(self.rolling_atr)
         self.atr_cond = atr_mean - self.prev_day_atr_mean < self.atr_diff
-
+        
         if self.atr_cond:
             if self.close < self.lower_support:
-                if self.pressure < 0 and self.fast_ema < self.slow_ema and self.close > self.open:  # and self.slow_ema > self.htf_ema
-                    signal, _ = self.buy() # or certain % move
+                if self.pressure < 0:
+                    if self.fast_ema < self.slow_ema and self.close > self.open:
+                        signal, _ = self.buy()
+                elif (self.opens[0] - min(self.lows)) / self.opens[0] > 0.02:
+                    if self.slow_ema > self.htf_ema:
+                        signal, _ = self.buy()
             if self.close > self.upper_support:
-                if self.pressure > 0 and self.fast_ema > self.slow_ema and self.close < self.open:  # and self.slow_ema < self.htf_ema
-                    signal, _ = self.sell() # or certain % move
+                if self.pressure > 0:
+                    if self.fast_ema > self.slow_ema and self.close < self.open:
+                        signal, _ = self.sell()
+                elif (max(self.highs) - self.opens[0]) / self.opens[0] > 0.02:
+                    if self.slow_ema < self.htf_ema:
+                        signal, _ = self.sell()
         if self.features:
             self.prev_day_atr_mean = atr_mean
         return signal
-    
+        
     def compute_indicators(self):
         self.fast_ema = self.compute_ema(self.fast_ema, self.price, self.fast_window)
         self.slow_ema = self.compute_ema(self.slow_ema, self.price, self.slow_window)
-        # self.htf_ema = self.compute_ema(self.htf_ema, self.price, self.htf_window)
+        self.htf_ema = self.compute_ema(self.htf_ema, self.price, self.htf_window)
         self.weighted_pressure.append((self.close - self.open) / self.open * self.volume)
         self.pressure = sum(self.weighted_pressure)
         self.rolling_atr.append(self.compute_atr(self.highs, self.lows, self.closes))
