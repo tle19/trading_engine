@@ -20,6 +20,8 @@ class Backtest:
 
         self.commission = commission
         self.slippage = slippage  # execution time + bid/ask spread
+        self.cash_allocation = round(self.cash / len(self.symbols), 2)
+
         self.spread_window = deque(maxlen=5)
         self.slip_up = 0
         self.slip_dn = 0
@@ -35,9 +37,8 @@ class Backtest:
         self.trade_history = []
         self.intraday_equity = []
         for symbol in self.symbols:
-            df = open_data(symbol, start_date, end_date, start_time="9:30", end_time="15:59")
+            df = open_data(symbol, start_date, end_date, start_time="4:00", end_time="15:59")
             self.initialize(symbol, self.strategy_class)
-            self.train_wait = True
             
             if grid:
                 self.grid_search(symbol, df, train)
@@ -78,6 +79,7 @@ class Backtest:
             signal = self.strategy.generate_signal(row)
             self.dynamic_slippage(signal)
             self.interpret_signal(signal, symbol)
+            self.update_equity()
 
         self.stats.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
         self.stats.summary(display=display_stats)
@@ -102,14 +104,14 @@ class Backtest:
             fill_price = entry_price * self.slip_up
             leg.entry_price = fill_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, self.strategy.features)
-            # print(f"[{self.ts}] | ENTRY (L): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
+            # print(f"[{self.ts}] | ENTRY (L): {fill_price}, STOP: {stop_price}, TARGET: {target_price}")
 
         # --- Enter Short ---
         elif signal == -1:
             fill_price = entry_price * self.slip_dn
             leg.entry_price = fill_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, self.strategy.features)
-            # print(f"[{self.ts}] | ENTRY (S): {fill_price}, STOP: {stop_price}, PROFIT: {target_price}")
+            # print(f"[{self.ts}] | ENTRY (S): {fill_price}, STOP: {stop_price}, TARGET: {target_price}")
 
         # --- Adjust Stops / Targets ---
         elif signal == 9:
@@ -154,17 +156,16 @@ class Backtest:
                             exit_price = self.close
                         pnl = (entry_price - fill_price) * shares
                     
-                    self.cash_allocation += pnl
+                    self.cash += pnl
                     self.trade_manager.update_exit(leg, self.ts, exit_price, fill_price)
                     self.risk_manager.update_trade(pnl)
                     self.position_manager.remove_leg(leg)
                     # print(f"[{self.ts}] | EXIT: {fill_price}, PnL: {pnl}")
 
-        self.update_equity()
-
     def initialize(self, symbol, strategy_class, **params):
         self.strategy = strategy_class(symbol, **params)
-        self.cash_allocation = round(self.cash / len(self.symbols), 2)
+        self.train_wait = True
+        self.cash = self.cash_allocation
         self.strategy.risk_manager.start_cash = self.cash_allocation
         
         self.risk_manager = self.strategy.risk_manager
@@ -183,7 +184,7 @@ class Backtest:
             self.slip_dn = 1 - slippage
 
     def update_equity(self):
-        current_equity = self.cash_allocation
+        current_equity = self.cash
         
         for leg in self.position_manager.legs:
             if leg.direction == 1:

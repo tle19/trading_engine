@@ -11,6 +11,7 @@ from .spread_diff import SpreadDiff
 from .ema_swing import EMASwing
 from .rsi_swing import RSISwing
 from .eod_reversion import EODReversion
+from .eod_reversion2 import EODReversion2
 
 __all__ = [
     "Strategy",
@@ -26,6 +27,7 @@ __all__ = [
     "EMASwing",
     "RSISwing",
     "EODReversion",
+    "EODReversion2",
     "strategy_map"
 ]
 
@@ -39,6 +41,7 @@ strategy_map = {
     "spread_diff": SpreadDiff,
     "ema_swing": EMASwing,
     "rsi_swing": RSISwing,
-    "eod_reversion": EODReversion
+    "eod_reversion": EODReversion,
+    "eod_reversion2": EODReversion2
 }
 

@@ -11,7 +11,7 @@ HOLD = None
 class Strategy:
     def __init__(self, symbol, stop_loss=0.01, take_profit=0.02, 
                  position_size=1.0, trailing_ratio=0.15, pyramid=False, force_close=True,
-                 pnl_target=0.01, pnl_loss=-0.01, trade_max=5, drawdown_max=0.25):
+                 pnl_target=0.01, pnl_loss=-0.01, trade_max=5):
         self.symbol = symbol
         self.stop_loss = stop_loss
         self.take_profit = take_profit
@@ -27,7 +27,6 @@ class Strategy:
         self.close = None
         self.volume = None
 
-        self.prices = []
         self.opens = []
         self.highs = []
         self.lows = []
@@ -46,7 +45,7 @@ class Strategy:
         self.features = {}
 
         self.position_manager = PositionManager(pyramid)
-        self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max, drawdown_max=drawdown_max)
+        self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
 
     def generate_signal(self, row, symbol=None):
         raise NotImplementedError
@@ -60,7 +59,7 @@ class Strategy:
     def compute_indicators(self):
         raise NotImplementedError
     
-    def reset_indicators(self):
+    def reset_indicators(self, reset_time=(9, 30)):
         raise NotImplementedError
         
     def minimum_computations(self):
@@ -87,8 +86,7 @@ class Strategy:
             self.close = row.close
             self.volume = row.volume
 
-        self.price = self.close  # (self.close + self.open + self.high) / 3
-        self.prices.append(self.price)
+        self.price = self.close
         self.opens.append(self.open)
         self.highs.append(self.high)
         self.lows.append(self.low)
@@ -103,17 +101,16 @@ class Strategy:
             self.d_closes.append(self.closes[-1])
             self.d_volumes.append(sum(self.volumes))
                    
-    def reset_data(self):
-        if self.trade_window((9, 30), (9, 30)):
-            self.prices = [self.price]
+    def reset_data(self, reset_time=(9, 30)):
+        if self.trade_window(reset_time, reset_time):
             self.opens = [self.open]
             self.closes = [self.close]
             self.highs = [self.high]
             self.lows = [self.low]
             self.volumes = [self.volume]
     
-    def reset_day(self):
-        if self.trade_window((9, 30), (9, 30)):
+    def reset_day(self, reset_time=(9, 30)):
+        if self.trade_window(reset_time, reset_time):
             self.position_manager.reset()
             self.risk_manager.reset()
             self.activated = False

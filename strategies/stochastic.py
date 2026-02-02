@@ -83,7 +83,7 @@ class StochasticIndicator(Strategy):
 
     def compute_indicators(self):
         self.k, self.d = self.compute_stochastic(self.highs, self.lows, self.closes, self.k_period, self.k_smooth, self.d_period)
-        self.rsi = self.compute_rsi(self.prices, self.rsi_period)
+        self.rsi = self.compute_rsi(self.closes, self.rsi_period)
         self.hist, _, _ = self.compute_macd(self.fast_window, self.slow_window, self.signal_window)
         vol = self.compute_volume_oscillator(self.volumes, self.vol_fast_window, self.vol_slow_window)
 
@@ -121,7 +121,7 @@ class StochasticIndicator(Strategy):
                 self.vol_fast_window,
                 self.vol_slow_window
             ) + 1
-            self.activated = len(self.prices) > required_data
+            self.activated = len(self.closes) > required_data
     
     def compute_signal_direction(self, k, d):
         if k and d:

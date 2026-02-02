@@ -86,8 +86,8 @@ class SMACrossover(Strategy):
         
         return slow_ma, htf_ma
 
-    def reset_indicators(self):
-        if self.trade_window((9, 30), (9, 30)):
+    def reset_indicators(self, reset_time=(9, 30)):
+        if self.trade_window(reset_time, reset_time):
             self.ema = None
             
             if self.d_closes:
@@ -122,13 +122,13 @@ class SMACrossover(Strategy):
         self.model.prepare_features(df)
         proba = self.model.get_proba()
 
-        if self.stoch_signal == 1:
+        if self.signal == 1:
             if proba > threshold:
                 self.position_size = 1.0
             else:
                 self.position_size = 0.5
             signal, leg = self.buy() 
-        elif self.stoch_signal == -1:
+        elif self.signal == -1:
             if proba > threshold:
                 self.position_size = 1.0
             else:
