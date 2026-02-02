@@ -145,7 +145,7 @@ class DataHandler:
                     symbol = item["key"]
                     if service == "CHART_EQUITY":
                         row = self.ohlcv_row.update(
-                            pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone),
+                            datetime.fromtimestamp(item.get("7") / 1000, tz=self.timezone),
                             item.get("2"),
                             item.get("3"),
                             item.get("4"),
@@ -200,7 +200,7 @@ class DataHandler:
             quote = data.get(symbol, {}).get("quote", {})
 
             row = self.level1_row.update(
-                pd.to_datetime(quote['quoteTime'], unit='ms', utc=True).tz_convert(self.timezone),
+                datetime.fromtimestamp(quote['quoteTime'] / 1000, tz=self.timezone),
                 quote['bidPrice'],
                 quote['askPrice'],
                 quote['lastPrice'],

@@ -1,7 +1,6 @@
 import sys
 import time
 import datetime
-import pandas as pd
 
 from zoneinfo import ZoneInfo
 import orjson
@@ -39,7 +38,7 @@ class DataFeedController:
                     symbol = item["key"]
                     if service == "CHART_EQUITY":
                         row = self.ohlcv_row.update(
-                            pd.to_datetime(item.get("7"), unit='ms', utc=True).tz_convert(self.timezone),
+                            datetime.fromtimestamp(item.get("7") / 1000, tz=self.timezone),
                             item.get("2"),
                             item.get("3"),
                             item.get("4"),

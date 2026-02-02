@@ -28,7 +28,7 @@ class Plotting:
             return
 
         equity = np.array(intraday_equity)
-        dates = pd.date_range(self.start_date, self.end_date, periods=len(equity), tz=self.start_date.tz)
+        dates = pd.date_range(self.start_date, self.end_date, periods=len(equity))
 
         max_points = 20000
         if len(equity) > max_points:
