@@ -10,7 +10,7 @@ from utils import *
 
 class EODReversion(Strategy):
     def __init__(self, symbol, orb_window=1, fast_window=2, slow_window=10, htf_window=20, atr_diff=0.2,
-                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False, force_close=True,
+                 stop_loss=0.0075, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False, force_close=True,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=1):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
                          pnl_target, pnl_loss, trade_max)
@@ -175,10 +175,10 @@ class EODReversion(Strategy):
     def param_grid(self):
         params = {
             "orb_window": [1], # 1, 2, 3, 4, 5, 10, 15, 30, 45, 60
-            "fast_window": [2, 3, 4, 5], # 5, 8, 10
-            "slow_window": [6, 7, 8, 9, 10, 12, 15], # 10, 15, 20, 25
+            "fast_window": [2], # 5, 8, 10
+            "slow_window": [10], # 10, 15, 20, 25
             "atr_diff": [0.20], # 0.05, 0.10, 0.15, 0.20, 0.25, 0.30
-            "stop_loss": [0.01], # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
-            "take_profit": [0.01] # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
+            "stop_loss": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015], # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
+            "take_profit": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015] # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
         }
         return params
