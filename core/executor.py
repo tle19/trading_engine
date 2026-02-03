@@ -27,6 +27,8 @@ class DataFeedController:
 
     def run(self):
         def response_handler(response):
+            # system_receive_time = int(time.time() * 1000) # Latency Timing
+
             data = orjson.loads(response).get("data")
             if not data:
                 return
@@ -34,11 +36,12 @@ class DataFeedController:
             for entry in data:
                 service = entry["service"]
                 content = entry["content"]
+                # timestamp = entry["timestamp"] # Latency Timing
                 for item in content:
                     symbol = item["key"]
                     if service == "CHART_EQUITY":
                         row = self.ohlcv_row.update(
-                            datetime.fromtimestamp(item.get("7") / 1000, tz=self.timezone),
+                            datetime.datetime.fromtimestamp(item.get("7") / 1000, tz=self.timezone),
                             item.get("2"),
                             item.get("3"),
                             item.get("4"),
@@ -55,19 +58,24 @@ class DataFeedController:
                             item.get("5")
                         )
                     self.log_buffer.append(f"[{symbol}] {row}")
-
+                    
                     feed = self.strategy_dict[symbol]
                     strategy = feed.strategies[symbol]
                     signal = strategy.generate_signal(row, symbol)
                     feed.interpret_signal(signal, strategy)
 
+                    # Latency Timing
+                    # if isinstance(row.timestamp, datetime.datetime):
+                    #     ts = int(row.timestamp.timestamp() * 1000)
+                    # else:
+                    #     ts = row.timestamp
+                    # self.log_buffer.append(f"  QUOTE → API TIME: {timestamp - ts} ms")
+                    # self.log_buffer.append(f"  API → SYSTEM TIME: {system_receive_time - timestamp} ms")
+                    # self.log_buffer.append(f"  COMPUTATION TIME: {round((time.time() * 1000) - system_receive_time, 4)} ms")
+
             if self.log_buffer:
                 sys.stdout.write("\n".join(self.log_buffer) + "\n")
                 self.log_buffer.clear()
-
-            # timestamp = entry["timestamp"]
-            # sys.stdout.write(f"  QUOTE → API TIME: {timestamp - self.level1_row.timestamp} ms\n")
-            # sys.stdout.write(f"  COMPUTATION TIME: {int(time.time() * 1000) - timestamp} ms\n")
 
         self.stream.start_auto(
             receiver=response_handler, 
