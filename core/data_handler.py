@@ -2,7 +2,7 @@ import os
 import json
 import time
 import pandas as pd
-from datetime import date, datetime, timedelta
+import datetime
 
 from zoneinfo import ZoneInfo
 from polygon import RESTClient
@@ -29,8 +29,8 @@ class DataHandler:
                                 timespan='minute', multiplier=1, max_iter=10):
         start_time = time.perf_counter()
 
-        now = datetime.now(self.timezone)
-        to_date = str((now - timedelta(days=1)).date())
+        now = datetime.datetime.now(self.timezone)
+        to_date = str((now - datetime.timedelta(days=1)).date())
         
         for symbol in symbols:
             data_list = []
@@ -54,6 +54,8 @@ class DataHandler:
                 pass  # equity or already formatted
 
             for i in range(max_iter):
+                time.sleep(13) # Polygon.io rate limit (5 calls/minute)
+
                 aggs = self.polygon_client.get_aggs(
                     symbol,
                     multiplier,
@@ -69,11 +71,11 @@ class DataHandler:
                 
                 last_ts = pd.to_datetime(rows[-1].timestamp, unit='ms', utc=True)
                 last_date = last_ts.date()
-                print(f"{' ' * (len(symbol) + 3)}Batch {i} | {current_from} → {last_date - timedelta(days=1)}")
+                print(f"{' ' * (len(symbol) + 3)}Batch {i} | {current_from} → {last_date}")
                 
                 for agg in rows:
                     ts_date = pd.to_datetime(agg.timestamp, unit='ms', utc=True).date()
-                    if ts_date == last_date:
+                    if ts_date >= last_date:
                         break
                     data_list.append({
                         'timestamp': agg.timestamp,
@@ -85,10 +87,8 @@ class DataHandler:
                     })
 
                 current_from = last_ts.strftime("%Y-%m-%d")
-                if current_from > pd.to_datetime(to_date).strftime("%Y-%m-%d"):
+                if current_from >= pd.to_datetime(to_date).strftime("%Y-%m-%d"):
                     break
-                
-                time.sleep(13) # Polygon.io rate limit (5 calls/minute)
             
             if data_list:
                 new_df = pd.DataFrame(data_list)
@@ -107,7 +107,7 @@ class DataHandler:
     def schwab_data(self, symbols=['SPY'], periodType="month", period=6, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
         start_time = time.perf_counter()
-        endDate = str(date.today())
+        endDate = str(datetime.date.today())
 
         for symbol in symbols:
             raw_data = self.client.price_history(
@@ -134,6 +134,7 @@ class DataHandler:
 
     def stream_data(self, symbols, duration=300):
         def response_handler(response):
+            # system_receive_time = int(time() * 1000) # Latency Timing
             data = json.loads(response).get("data", [])
             if not data:
                 return
@@ -141,11 +142,12 @@ class DataHandler:
             for entry in data:
                 service = entry["service"]
                 content = entry["content"]
+                # timestamp = entry["timestamp"] # Latency Timing
                 for item in content:
                     symbol = item["key"]
                     if service == "CHART_EQUITY":
                         row = self.ohlcv_row.update(
-                            datetime.fromtimestamp(item.get("7") / 1000, tz=self.timezone),
+                            datetime.datetime.fromtimestamp(item.get("7") / 1000, tz=self.timezone),
                             item.get("2"),
                             item.get("3"),
                             item.get("4"),
@@ -179,6 +181,15 @@ class DataHandler:
 
                     print(f"[{symbol}] {row}")
 
+                    # Latency Timing
+                    # if isinstance(row.timestamp, datetime):
+                    #     ts = int(row.timestamp.timestamp() * 1000)
+                    # else:
+                    #     ts = row.timestamp
+                    # print(f"  QUOTE → API TIME: {timestamp - ts} ms")
+                    # print(f"  API → SYSTEM TIME: {system_receive_time - timestamp} ms")
+                    # print(f"  COMPUTATION TIME: {round((time() * 1000) - system_receive_time, 4)} ms")
+
         self.stream.start(response_handler)
         if "/" in symbols[0]:
             self.stream.send(self.stream.level_one_forex(symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))  
@@ -200,7 +211,7 @@ class DataHandler:
             quote = data.get(symbol, {}).get("quote", {})
 
             row = self.level1_row.update(
-                datetime.fromtimestamp(quote['quoteTime'] / 1000, tz=self.timezone),
+                datetime.datetime.fromtimestamp(quote['quoteTime'] / 1000, tz=self.timezone),
                 quote['bidPrice'],
                 quote['askPrice'],
                 quote['lastPrice'],
