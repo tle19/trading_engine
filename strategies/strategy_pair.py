@@ -6,14 +6,14 @@ EXIT = 0
 HOLD = None
 
 class StrategyPair:
-    def __init__(self, pair, start_time=(14, 30), end_time=(21, 00), take_profit=0.0001,
-                 pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
+    def __init__(self, pair, start_time=(14, 30), end_time=(21, 00), 
+                 take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         self.pair = pair
         if "-" not in pair:
             raise ValueError(f"Invalid pair format: '{pair}'. Expected format 'SYMBOL1-SYMBOL2'.")
         self.symbol1, self.symbol2 = pair.split("-")
         self.start_time = (start_time[0] * 3600 + start_time[1] * 60) * 1000
-        self.end_time   = (end_time[0] * 3600 + end_time[1] * 60) * 1000
+        self.end_time = (end_time[0] * 3600 + end_time[1] * 60) * 1000
         # Summer (EDT) start_time=(13, 30), end_time=(20, 00)
         # Winter (EST) start_time=(14, 30), end_time=(21, 00)
         self.take_profit = take_profit
@@ -48,6 +48,8 @@ class StrategyPair:
         self.s1 = self.data[self.symbol1]
         self.s2 = self.data[self.symbol2]
         self.activated = False
+        self.ticks = 0
+        
         self.latency = 0  # network latency in milliseconds
 
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
@@ -98,6 +100,7 @@ class StrategyPair:
         if self.s1["direction"] == 0:
             self.s1["direction"] = 1
             self.s2["direction"] = -1
+            self.ticks = 0
             return LONG
         return HOLD
         
@@ -105,6 +108,7 @@ class StrategyPair:
         if self.s1["direction"] == 0:
             self.s1["direction"] = -1
             self.s2["direction"] = 1
+            self.ticks = 0
             return SHORT
         return HOLD
           

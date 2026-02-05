@@ -16,6 +16,7 @@ class SpreadDiff(StrategyPair):
     
     def generate_signal(self, row, symbol):
         self.update(symbol, row)
+        self.ticks += 1
 
         if self.risk_manager._day_pause: 
             return None
@@ -25,7 +26,7 @@ class SpreadDiff(StrategyPair):
         signal = None
         if self.activated:
             self.compute_indicators()
-            if self.s1["direction"]:
+            if self.s1["direction"] and self.ticks > 30:
                 signal = self.exit_trade()
             else:
                 signal = self.enter_trade()
@@ -48,13 +49,13 @@ class SpreadDiff(StrategyPair):
         # if self.latency > ms:
         #     return
 
-        # exit1 = self.s1["ask"] if self.s1["direction"] > 0 else self.s1["bid"]
-        # exit2 = self.s2["ask"] if self.s2["direction"] > 0 else self.s2["bid"]
-        # pnl1 = self.s1["direction"] * (exit1 - self.s1["entry_price"]) * self.s1["shares"]
-        # pnl2 = self.s2["direction"] * (exit2 - self.s2["entry_price"]) * self.s2["shares"]
+        exit1 = self.s1["ask"] if self.s1["direction"] > 0 else self.s1["bid"]
+        exit2 = self.s2["ask"] if self.s2["direction"] > 0 else self.s2["bid"]
+        pnl1 = self.s1["direction"] * (exit1 - self.s1["entry_price"]) * self.s1["shares"]
+        pnl2 = self.s2["direction"] * (exit2 - self.s2["entry_price"]) * self.s2["shares"]
 
-        pnl1 = self.s1["direction"] * (self.mid1 - self.s1["entry_price"]) * self.s1["shares"]
-        pnl2 = self.s2["direction"] * (self.mid2 - self.s2["entry_price"]) * self.s2["shares"]
+        # pnl1 = self.s1["direction"] * (self.mid1 - self.s1["entry_price"]) * self.s1["shares"]
+        # pnl2 = self.s2["direction"] * (self.mid2 - self.s2["entry_price"]) * self.s2["shares"]
         position_value = self.s1["shares"] * self.s1["entry_price"] + self.s2["shares"] * self.s2["entry_price"]
         if (pnl1 + pnl2) / position_value > self.take_profit:
             return self.exit()
