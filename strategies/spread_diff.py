@@ -5,7 +5,7 @@ from models import *
 from utils import *
 
 class SpreadDiff(StrategyPair):
-    def __init__(self, pair, ema_window=2, start_time=(15, 00), end_time=(20, 00),
+    def __init__(self, pair, ema_window=20, start_time=(15, 00), end_time=(20, 00),
                  take_profit=0.00005, pnl_target=0.01, pnl_loss=-0.01, trade_max=50):
         super().__init__(pair, start_time, end_time, take_profit, 
                          pnl_target, pnl_loss, trade_max)
@@ -13,9 +13,6 @@ class SpreadDiff(StrategyPair):
 
         self.ema1 = None
         self.ema2 = None
-
-        self.s1["shares"] = 1 # testing
-        self.s2["shares"] = 1 # testing
     
     def generate_signal(self, row, symbol):
         self.update(symbol, row)
@@ -38,7 +35,7 @@ class SpreadDiff(StrategyPair):
         signal = None
         if self.mid1 < self.ema1 and self.mid2 > self.ema2:
             signal = self.buy_pair()
-        if self.mid1 > self.ema1 and self.mid2 < self.ema2:
+        elif self.mid1 > self.ema1 and self.mid2 < self.ema2:
             signal = self.sell_pair()
         return signal
         

@@ -2,7 +2,7 @@ import time
 import numpy as np
 from collections import deque
 from itertools import product
-from datetime import datetime
+import datetime
 
 from core import *
 from metrics import *
@@ -59,7 +59,7 @@ class Backtest:
         self.trade_manager.save_logs()
 
         elapsed_time = time.perf_counter() - start_time
-        print(f"Elapsed Backtest Time: {elapsed_time:.6f} seconds")
+        print(f"Elapsed Backtest Time: {elapsed_time:.3f} seconds")
 
         plotting = Plotting("AGGREGATE")
         plotting.update_data(self.intraday_equity)
@@ -195,7 +195,7 @@ class Backtest:
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
 
     def sort_trade_history(self, trade_history):
-        trade_history.sort(key=lambda x: datetime.fromisoformat(x["exit_time"]))
+        trade_history.sort(key=lambda x: datetime.datetime.fromisoformat(x["exit_time"]))
         return trade_history
 
     def combine_equity_dicts(self, dicts):

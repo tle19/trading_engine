@@ -1,19 +1,21 @@
 from .risk import RiskManager
-
+import datetime
 LONG = 1
 SHORT = -1
 EXIT = 0
 HOLD = None
 
 class StrategyPair:
-    def __init__(self, pair, start_time, end_time, take_profit=0.0001,
+    def __init__(self, pair, start_time=(14, 30), end_time=(21, 00), take_profit=0.0001,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         self.pair = pair
         if "-" not in pair:
             raise ValueError(f"Invalid pair format: '{pair}'. Expected format 'SYMBOL1-SYMBOL2'.")
         self.symbol1, self.symbol2 = pair.split("-")
-        self.start_time = start_time[0] * 60 + start_time[1]
-        self.end_time = end_time[0] * 60 + end_time[1]
+        self.start_time = (start_time[0] * 3600 + start_time[1] * 60) * 1000
+        self.end_time   = (end_time[0] * 3600 + end_time[1] * 60) * 1000
+        # Summer (EDT) start_time=(13, 30), end_time=(20, 00)
+        # Winter (EST) start_time=(14, 30), end_time=(21, 00)
         self.take_profit = take_profit
 
         self.data = {
@@ -84,11 +86,13 @@ class StrategyPair:
             s["activated"] = True
             if self.s1["activated"] and self.s2["activated"]:
                 self.compute_share_split()
+                self.s1["shares"] = 1 # testing
+                self.s2["shares"] = 1 # testing
                 self.activated = True
 
     def trade_window(self):
         ts = self.s1["ts"] or self.s2["ts"]
-        return self.start_time <= (ts // 1000 // 60) <= self.end_time
+        return self.start_time <= (ts % (24 * 3600 * 1000)) <= self.end_time
     
     def buy_pair(self):
         if self.s1["direction"] == 0:

@@ -102,7 +102,7 @@ class DataHandler:
             save_data(df, symbol)
 
         elapsed_time = time.perf_counter() - start_time
-        print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
+        print(f"Elapsed Data Fetch Time: {elapsed_time:.3f} seconds")
 
     def schwab_data(self, symbols=['SPY'], periodType="month", period=6, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):

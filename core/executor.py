@@ -168,7 +168,7 @@ class Instrument:
         fill_price2 = self.get_fill_price(order_id2, shares2)
 
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[BOT] +{shares1} {symbol1} @ {fill_price1}")
-        self.log_buffer.append(f"{' ' * (len(symbol2) + 3)}[SOLD] -{shares2} {symbol2} @ {fill_price2}")
+        self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[SOLD] -{shares2} {symbol2} @ {fill_price2}")
         return fill_price1, fill_price2
 
     def sell_pair(self, signal, symbol1, symbol2, shares1, shares2):
@@ -182,7 +182,7 @@ class Instrument:
         fill_price2 = self.get_fill_price(order_id2, shares2)
 
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[SOLD] -{shares1} {symbol1} @ {fill_price1}")
-        self.log_buffer.append(f"{' ' * (len(symbol2) + 3)}[BOT] +{shares2} {symbol2} @ {fill_price2}")
+        self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[BOT] +{shares2} {symbol2} @ {fill_price2}")
         return fill_price1, fill_price2
         
     def buy(self, signal, symbol, shares):
@@ -442,9 +442,9 @@ class Equities(Instrument):
                         exit_price = strategy.close
                     else:
                         if direction == 1:
-                            self.log_buffer.append(f" [SOLD] -{shares} {symbol} @ {fill_price}")
+                            self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[SOLD] -{shares} {symbol} @ {fill_price}")
                         elif direction == -1:
-                            self.log_buffer.append(f" [BOT] +{shares} {symbol} @ {fill_price}")
+                            self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[BOT] +{shares} {symbol} @ {fill_price}")
                         exit_price = min([stop_price, target_price], key=lambda x: abs(fill_price - x))
                 
                     self.update_pnl(strategy, direction, entry_price, fill_price, shares)
@@ -486,8 +486,8 @@ class EquityPairs(Instrument):
         if signal == 1:
             fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
             s1["entry_price"], s2["entry_price"] = fill_price1, fill_price2
-            self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["ask"], fill_price1, None, s1["target_price"])
-            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["bid"], fill_price2, None, s2["target_price"])
+            self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["ask"], fill_price1, None, None)
+            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["bid"], fill_price2, None, None)
 
         # --- Enter Short/Long ---
         elif signal == -1:
@@ -499,11 +499,11 @@ class EquityPairs(Instrument):
         # --- Exit Position --- 
         elif signal == 0:
             if s1["direction"] == 1:
-                fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"])
+                fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
                 self.trade_manager.update_exit(symbol1, s1["ts"], s1["bid"], fill_price1)
                 self.trade_manager.update_exit(symbol2, s2["ts"], s2["ask"], fill_price2)
             elif s1["direction"] == -1:
-                fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"])
+                fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
                 self.trade_manager.update_exit(symbol1, s1["ts"], s1["ask"], fill_price1)
                 self.trade_manager.update_exit(symbol2, s2["ts"], s2["bid"], fill_price2)
 
