@@ -5,7 +5,7 @@ from models import *
 from utils import *
 
 class SpreadDiff(StrategyPair):
-    def __init__(self, pair, ema_window=20, start_time=(15, 00), end_time=(20, 00),
+    def __init__(self, pair, ema_window=5, start_time=(15, 00), end_time=(20, 00),
                  take_profit=0.00005, pnl_target=0.01, pnl_loss=-0.01, trade_max=50):
         super().__init__(pair, start_time, end_time, take_profit, 
                          pnl_target, pnl_loss, trade_max)
@@ -26,10 +26,11 @@ class SpreadDiff(StrategyPair):
         signal = None
         if self.activated:
             self.compute_indicators()
-            if self.s1["direction"] and self.ticks > 30:
-                signal = self.exit_trade()
-            else:
-                signal = self.enter_trade()
+            if self.received and self.ticks > 30:
+                if self.s1["direction"]:
+                    signal = self.exit_trade()
+                else:
+                    signal = self.enter_trade()
         return signal
     
     def enter_trade(self):
@@ -40,22 +41,20 @@ class SpreadDiff(StrategyPair):
             signal = self.sell_pair()
         return signal
         
-    def exit_trade(self, pips=0.10, ms=500):
+    def exit_trade(self, pips=0.10, ms=300):
         spread1 = (self.s1["ask"] - self.s1["bid"])
         spread2 = (self.s2["ask"] - self.s2["bid"])
 
         if spread1 > pips and spread2 > pips:
             return
-        # if self.latency > ms:
-        #     return
+        if self.s1["latency"] > ms and self.s2["latency"] > ms:
+            return
 
         exit1 = self.s1["ask"] if self.s1["direction"] > 0 else self.s1["bid"]
         exit2 = self.s2["ask"] if self.s2["direction"] > 0 else self.s2["bid"]
         pnl1 = self.s1["direction"] * (exit1 - self.s1["entry_price"]) * self.s1["shares"]
         pnl2 = self.s2["direction"] * (exit2 - self.s2["entry_price"]) * self.s2["shares"]
 
-        # pnl1 = self.s1["direction"] * (self.mid1 - self.s1["entry_price"]) * self.s1["shares"]
-        # pnl2 = self.s2["direction"] * (self.mid2 - self.s2["entry_price"]) * self.s2["shares"]
         position_value = self.s1["shares"] * self.s1["entry_price"] + self.s2["shares"] * self.s2["entry_price"]
         if (pnl1 + pnl2) / position_value > self.take_profit:
             return self.exit()

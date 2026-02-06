@@ -29,7 +29,9 @@ class StrategyPair:
                 "entry_price": None,
                 "direction": 0,
                 "shares": 0,
-                "activated": False
+                "updated": False,
+                "activated": False,
+                "latency": 0
             },
             self.symbol2: {
                 "ts": None,
@@ -41,13 +43,17 @@ class StrategyPair:
                 "entry_price": None,
                 "direction": 0,
                 "shares": 0,
-                "activated": False
+                "updated": False,
+                "activated": False,
+                "latency": 0
             }
         }
         
         self.s1 = self.data[self.symbol1]
         self.s2 = self.data[self.symbol2]
         self.activated = False
+        self.received = False
+        self.last_processed = 0
         self.ticks = 0
         
         self.latency = 0  # network latency in milliseconds
@@ -73,13 +79,14 @@ class StrategyPair:
                 self.s1["entry_price"] = self.s1["ask"] if self.s1["direction"] > 0 else self.s1["bid"]
             if self.s2["entry_price"] is None:  
                 self.s2["entry_price"] = self.s2["ask"] if self.s2["direction"] > 0 else self.s1["bid"]
-        
+
         if row.timestamp is not None: s["ts"] = row.timestamp
         if row.bid is not None: s["bid"] = row.bid
         if row.ask is not None: s["ask"] = row.ask
         if row.last is not None: s["last"] = row.last
         if row.bid_size is not None: s["bid_size"] = row.bid_size
         if row.ask_size is not None: s["ask_size"] = row.ask_size
+        s["latency"] = self.latency
                 
         if not self.activated:
             for attr in ("bid", "ask", "last", "bid_size", "ask_size"):
@@ -87,10 +94,12 @@ class StrategyPair:
                     return
             s["activated"] = True
             if self.s1["activated"] and self.s2["activated"]:
-                self.compute_share_split()
-                self.s1["shares"] = 1 # testing
-                self.s2["shares"] = 1 # testing
                 self.activated = True
+        else:
+            self.received = False
+            if self.s1["ts"] > self.last_processed and self.s2["ts"] > self.last_processed:
+                self.last_processed = max(self.s1["ts"], self.s2["ts"])
+                self.received = True 
 
     def trade_window(self):
         ts = self.s1["ts"] or self.s2["ts"]
@@ -98,6 +107,9 @@ class StrategyPair:
     
     def buy_pair(self):
         if self.s1["direction"] == 0:
+            # self.compute_share_split()
+            self.s1["shares"] = 1 # testing
+            self.s2["shares"] = 1 # testing
             self.s1["direction"] = 1
             self.s2["direction"] = -1
             self.ticks = 0
@@ -106,6 +118,9 @@ class StrategyPair:
         
     def sell_pair(self):
         if self.s1["direction"] == 0:
+            # self.compute_share_split()
+            self.s1["shares"] = 1 # testing
+            self.s2["shares"] = 1 # testing
             self.s1["direction"] = -1
             self.s2["direction"] = 1
             self.ticks = 0
@@ -114,6 +129,7 @@ class StrategyPair:
           
     def exit(self):
         if self.s1["direction"]:
+            self.ticks = 0
             return EXIT
         return HOLD
     

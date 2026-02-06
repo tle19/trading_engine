@@ -47,7 +47,7 @@ class TradeManager:
         trade["exit_price"] = exit_price
         trade["exit_fill"] = exit_price if fill_price is None else round(fill_price, 2)
 
-        trade["pnl"] = round(trade["direction"] * (fill_price - trade["entry_fill"]) * trade["shares"], 2)
+        trade["pnl"] = round(trade["direction"] * (trade["exit_fill"] - trade["entry_fill"]) * trade["shares"], 2)
         trade["pnl_pct"] = round(trade["pnl"] / (trade["entry_fill"] * trade["shares"]), 10)
 
         self.trade_history.append(trade)

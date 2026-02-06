@@ -182,7 +182,7 @@ class DataHandler:
                     print(f"[{symbol}] {row}")
 
                     # Latency Timing
-                    # if isinstance(row.timestamp, datetime):
+                    # if service == "CHART_EQUITY":
                     #     ts = int(row.timestamp.timestamp() * 1000)
                     # else:
                     #     ts = row.timestamp

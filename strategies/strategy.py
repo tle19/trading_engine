@@ -44,6 +44,8 @@ class Strategy:
         self.model = None
         self.features = {}
 
+        self.latency = 0  # network latency in milliseconds
+
         self.position_manager = PositionManager(pyramid)
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
 

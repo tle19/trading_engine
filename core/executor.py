@@ -36,7 +36,7 @@ class DataFeedController:
             for entry in data:
                 service = entry["service"]
                 content = entry["content"]
-                # timestamp = entry["timestamp"] # Latency Timing
+                timestamp = entry["timestamp"]
                 for item in content:
                     symbol = item["key"]
                     if service == "CHART_EQUITY":
@@ -58,20 +58,17 @@ class DataFeedController:
                             item.get("5")
                         )
                     self.log_buffer.append(f"[{symbol}] {row}")
+
+                    if service == "CHART_EQUITY":
+                        ts = int(row.timestamp.timestamp() * 1000)
+                    else:
+                        ts = row.timestamp
                     
                     feed = self.strategy_dict[symbol]
                     strategy = feed.strategies[symbol]
+                    strategy.latency = timestamp - ts
                     signal = strategy.generate_signal(row, symbol)
                     feed.interpret_signal(signal, strategy)
-
-                    # Latency Timing
-                    # if isinstance(row.timestamp, datetime.datetime):
-                    #     ts = int(row.timestamp.timestamp() * 1000)
-                    # else:
-                    #     ts = row.timestamp
-                    # self.log_buffer.append(f"  QUOTE → API TIME: {timestamp - ts} ms")
-                    # self.log_buffer.append(f"  API → SYSTEM TIME: {system_receive_time - timestamp} ms")
-                    # self.log_buffer.append(f"  COMPUTATION TIME: {round((time.time() * 1000) - system_receive_time, 4)} ms")
 
             if self.log_buffer:
                 sys.stdout.write("\n".join(self.log_buffer) + "\n")
@@ -493,8 +490,8 @@ class EquityPairs(Instrument):
         elif signal == -1:
             fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
             s1["entry_price"], s2["entry_price"] = fill_price1, fill_price2
-            self.trade_manager.log_entry(name, symbol1, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["bid"], fill_price1, None, None)
-            self.trade_manager.log_entry(name, symbol2, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["ask"], fill_price2, None, None)
+            self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["bid"], fill_price1, None, None)
+            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["bid"], fill_price2, None, None)
                 
         # --- Exit Position --- 
         elif signal == 0:
