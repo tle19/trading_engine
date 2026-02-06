@@ -108,8 +108,8 @@ class StrategyPair:
     def buy_pair(self):
         if self.s1["direction"] == 0:
             # self.compute_share_split()
-            self.s1["shares"] = 1 # testing
-            self.s2["shares"] = 1 # testing
+            self.s1["shares"] = 10 # testing
+            self.s2["shares"] = 10 # testing
             self.s1["direction"] = 1
             self.s2["direction"] = -1
             self.ticks = 0
@@ -119,8 +119,8 @@ class StrategyPair:
     def sell_pair(self):
         if self.s1["direction"] == 0:
             # self.compute_share_split()
-            self.s1["shares"] = 1 # testing
-            self.s2["shares"] = 1 # testing
+            self.s1["shares"] = 10 # testing
+            self.s2["shares"] = 10 # testing
             self.s1["direction"] = -1
             self.s2["direction"] = 1
             self.ticks = 0
