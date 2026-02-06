@@ -1,10 +1,8 @@
-import numpy as np
-
 from strategies import StrategyPair
 from models import *
 from utils import *
 
-class SpreadDiff(StrategyPair):
+class SpreadScalp(StrategyPair):
     def __init__(self, pair, ema_window=5, start_time=(15, 00), end_time=(20, 00),
                  take_profit=0.00005, pnl_target=0.01, pnl_loss=-0.01, trade_max=50):
         super().__init__(pair, start_time, end_time, take_profit, 
@@ -41,13 +39,8 @@ class SpreadDiff(StrategyPair):
             signal = self.sell_pair()
         return signal
         
-    def exit_trade(self, pips=0.10, ms=300):
-        spread1 = (self.s1["ask"] - self.s1["bid"])
-        spread2 = (self.s2["ask"] - self.s2["bid"])
-
-        if spread1 > pips and spread2 > pips:
-            return
-        if self.s1["latency"] > ms and self.s2["latency"] > ms:
+    def exit_trade(self, ms=500):
+        if self.s1["latency"] > ms or self.s2["latency"] > ms:
             return
 
         exit1 = self.s1["ask"] if self.s1["direction"] > 0 else self.s1["bid"]
