@@ -443,7 +443,9 @@ class Equities(Instrument):
                         elif direction == -1:
                             self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[BOT] +{shares} {symbol} @ {fill_price}")
                         exit_price = min([stop_price, target_price], key=lambda x: abs(fill_price - x))
-                
+                    
+                    if fill_price is None:
+                        fill_price = exit_price
                     self.update_pnl(strategy, direction, entry_price, fill_price, shares)
                     self.trade_manager.update_exit(leg, strategy.ts, exit_price, fill_price)
                     self.entry_ids.pop(leg)
@@ -497,14 +499,21 @@ class EquityPairs(Instrument):
         elif signal == 0:
             if s1["direction"] == 1:
                 fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
+                exit_price1 = s1["bid"] if fill_price1 is None else fill_price1
+                exit_price2 = s2["ask"] if fill_price2 is None else fill_price2
                 self.trade_manager.update_exit(symbol1, s1["ts"], s1["bid"], fill_price1)
                 self.trade_manager.update_exit(symbol2, s2["ts"], s2["ask"], fill_price2)
             elif s1["direction"] == -1:
                 fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
+                exit_price1 = s1["ask"] if fill_price1 is None else fill_price1
+                exit_price2 = s2["bid"] if fill_price2 is None else fill_price2
                 self.trade_manager.update_exit(symbol1, s1["ts"], s1["ask"], fill_price1)
                 self.trade_manager.update_exit(symbol2, s2["ts"], s2["bid"], fill_price2)
 
+            if fill_price1 is None:
+                fill_price1 = exit_price1         
+            if fill_price2 is None:
+                fill_price2 = exit_price2
             self.update_pnl(strategy, s1["direction"], s1["entry_price"], fill_price1, s1["shares"])
             self.update_pnl(strategy, s2["direction"], s2["entry_price"], fill_price2, s2["shares"])
-            s1["direction"], s2["direction"]  = 0, 0
-            s1["entry_price"], s2["entry_price"]  = None, None
+            strategy.flatten()

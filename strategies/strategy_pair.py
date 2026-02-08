@@ -101,6 +101,8 @@ class StrategyPair:
                 self.last_processed = max(self.s1["ts"], self.s2["ts"])
                 self.received = True 
 
+        self.ticks += 1
+
     def trade_window(self):
         ts = self.s1["ts"] or self.s2["ts"]
         return self.start_time <= (ts % (24 * 3600 * 1000)) <= self.end_time
@@ -132,6 +134,12 @@ class StrategyPair:
             self.ticks = 0
             return EXIT
         return HOLD
+    
+    def flatten(self):
+        self.s1["direction"] = 0 
+        self.s2["direction"] = 0
+        self.s1["entry_price"] = None
+        self.s2["entry_price"] = None
     
     def compute_share_split(self, buffer=0.01):
         cash = self.risk_manager.curr_cash / 2

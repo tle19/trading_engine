@@ -14,7 +14,6 @@ class SpreadScalp(StrategyPair):
     
     def generate_signal(self, row, symbol):
         self.update(symbol, row)
-        self.ticks += 1
 
         if self.risk_manager._day_pause: 
             return None
@@ -24,7 +23,7 @@ class SpreadScalp(StrategyPair):
         signal = None
         if self.activated:
             self.compute_indicators()
-            if self.received and self.ticks > 30:
+            if self.received and self.ticks > 10:
                 if self.s1["direction"]:
                     signal = self.exit_trade()
                 else:
