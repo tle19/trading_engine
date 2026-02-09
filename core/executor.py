@@ -301,7 +301,7 @@ class Instrument:
         time.sleep(polling_rate)
         return response.status_code # 200 == success; 500 == failed
     
-    def replace_order(self, symbol, direction, quantity, stop_price, target_price, order_id):
+    def replace_order(self, order_id, direction, symbol, quantity, stop_price, target_price):
         self.cancel_order(order_id)
         if direction == 1:
             return self.sell_oco(self, symbol, quantity, stop_price, target_price)
@@ -404,11 +404,7 @@ class Equities(Instrument):
 
         # --- Adjust Stops / Targets ---
         elif signal == 9:
-            raise NotImplementedError
-            if direction == 1:
-                self.exit_ids[leg] = self.replace_order(symbol, direction, shares, stop_price, target_price, self.exit_ids[leg])
-            elif direction == -1:
-                self.exit_ids[leg] = self.replace_order(symbol, direction, shares, stop_price, target_price, self.exit_ids[leg])
+            self.exit_ids[leg] = self.replace_order(self.exit_ids[leg], direction, symbol, shares, stop_price, target_price)
                 
         # --- Exit Position --- 
         elif signal == 0:
@@ -483,7 +479,7 @@ class EquityPairs(Instrument):
             fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
             s1["entry_price"], s2["entry_price"] = fill_price1, fill_price2
             self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["bid"], fill_price1, None, None)
-            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["bid"], fill_price2, None, None)
+            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["ask"], fill_price2, None, None)
                 
         # --- Exit Position --- 
         elif signal == 0:

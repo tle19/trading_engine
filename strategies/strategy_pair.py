@@ -1,9 +1,11 @@
 from .risk import RiskManager
-import datetime
+
 LONG = 1
 SHORT = -1
 EXIT = 0
 HOLD = None
+# Summer (EDT) start_time=(13, 30), end_time=(20, 00)
+# Winter (EST) start_time=(14, 30), end_time=(21, 00)
 
 class StrategyPair:
     def __init__(self, pair, start_time=(14, 30), end_time=(21, 00), 
@@ -14,8 +16,6 @@ class StrategyPair:
         self.symbol1, self.symbol2 = pair.split("-")
         self.start_time = (start_time[0] * 3600 + start_time[1] * 60) * 1000
         self.end_time = (end_time[0] * 3600 + end_time[1] * 60) * 1000
-        # Summer (EDT) start_time=(13, 30), end_time=(20, 00)
-        # Winter (EST) start_time=(14, 30), end_time=(21, 00)
         self.take_profit = take_profit
 
         self.data = {

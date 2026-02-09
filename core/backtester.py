@@ -76,9 +76,9 @@ class Backtest:
             if train and (self.ts.hour, self.ts.minute) == (9, 30):
                 self.train_model(symbol)
             
-            signal = self.strategy.generate_signal(row)
+            signal = self.strategy.generate_signal(row, symbol)
             self.dynamic_slippage(signal)
-            self.interpret_signal(signal, symbol)
+            self.interpret_signal(signal, self.strategy)
             self.update_equity()
 
         self.stats.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
@@ -88,11 +88,13 @@ class Backtest:
             self.plotting.update_data(self.trade_manager.intraday_equity)
             self.plotting.plot_equity(display=False)
 
-    def interpret_signal(self, signal, symbol):
-        name = self.strategy.__class__.__name__
-        direction = self.position_manager.direction()
+    def interpret_signal(self, signal, strategy):
+        name = strategy.__class__.__name__
+        symbol = strategy.symbol
+        position_manager = self.position_manager
+        direction = position_manager.direction()
         if direction:
-            leg = self.position_manager.legs[-1]
+            leg = position_manager.legs[-1]
             entry_price = leg.entry_price
             stop_price = leg.stop_price
             target_price = leg.target_price
@@ -103,14 +105,14 @@ class Backtest:
         if signal == 1:
             fill_price = entry_price * self.slip_up
             leg.entry_price = fill_price
-            self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, self.strategy.features)
+            self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
             # print(f"[{self.ts}] | ENTRY (L): {fill_price}, STOP: {stop_price}, TARGET: {target_price}")
 
         # --- Enter Short ---
         elif signal == -1:
             fill_price = entry_price * self.slip_dn
             leg.entry_price = fill_price
-            self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, self.strategy.features)
+            self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
             # print(f"[{self.ts}] | ENTRY (S): {fill_price}, STOP: {stop_price}, TARGET: {target_price}")
 
         # --- Adjust Stops / Targets ---
@@ -119,7 +121,7 @@ class Backtest:
         
         # --- Exit Position ---
         elif signal == 0:
-            for leg in self.position_manager.legs.copy():
+            for leg in position_manager.legs.copy():
                 if leg.check_exit(self.ts, self.low, self.high) == 0:
                     entry_price = leg.entry_price
                     stop_price = leg.stop_price
@@ -158,7 +160,7 @@ class Backtest:
                     
                     self.trade_manager.update_exit(leg, self.ts, exit_price, fill_price)
                     self.update_pnl(pnl)
-                    self.position_manager.remove_leg(leg)
+                    position_manager.remove_leg(leg)
                     # print(f"[{self.ts}] | EXIT: {fill_price}, PnL: {pnl}")
 
     def initialize(self, symbol, strategy_class, **params):
