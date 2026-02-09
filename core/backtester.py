@@ -156,9 +156,8 @@ class Backtest:
                             exit_price = self.close
                         pnl = (entry_price - fill_price) * shares
                     
-                    self.cash += pnl
                     self.trade_manager.update_exit(leg, self.ts, exit_price, fill_price)
-                    self.risk_manager.update_trade(pnl)
+                    self.update_pnl(pnl)
                     self.position_manager.remove_leg(leg)
                     # print(f"[{self.ts}] | EXIT: {fill_price}, PnL: {pnl}")
 
@@ -182,6 +181,10 @@ class Backtest:
             slippage = avg_spread * self.slippage
             self.slip_up = 1 + slippage
             self.slip_dn = 1 - slippage
+
+    def update_pnl(self, pnl):
+        self.cash += pnl
+        self.risk_manager.update_trade(pnl)
 
     def update_equity(self):
         current_equity = self.cash

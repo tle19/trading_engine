@@ -134,7 +134,7 @@ class DataHandler:
 
     def stream_data(self, symbols, duration=300):
         def response_handler(response):
-            # system_receive_time = int(time() * 1000) # Latency Timing
+            system_receive_time = int(time() * 1000)
             data = json.loads(response).get("data", [])
             if not data:
                 return
@@ -142,7 +142,7 @@ class DataHandler:
             for entry in data:
                 service = entry["service"]
                 content = entry["content"]
-                # timestamp = entry["timestamp"] # Latency Timing
+                timestamp = entry["timestamp"]
                 for item in content:
                     symbol = item["key"]
                     if service == "CHART_EQUITY":
@@ -181,13 +181,12 @@ class DataHandler:
 
                     print(f"[{symbol}] {row}")
 
-                    # Latency Timing
-                    # if service == "CHART_EQUITY":
-                    #     ts = int(row.timestamp.timestamp() * 1000)
-                    # else:
-                    #     ts = row.timestamp
-                    # print(f"  QUOTE → API TIME: {timestamp - ts} ms")
-                    # print(f"  API → SYSTEM TIME: {system_receive_time - timestamp} ms")
+                    if service == "CHART_EQUITY":
+                        ts = int(row.timestamp.timestamp() * 1000)
+                    else:
+                        ts = row.timestamp
+                    print(f"  QUOTE → API TIME: {timestamp - ts} ms")
+                    print(f"  API → SYSTEM TIME: {system_receive_time - timestamp} ms")
                     # print(f"  COMPUTATION TIME: {round((time() * 1000) - system_receive_time, 4)} ms")
 
         self.stream.start(response_handler)

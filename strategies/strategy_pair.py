@@ -51,6 +51,7 @@ class StrategyPair:
         
         self.s1 = self.data[self.symbol1]
         self.s2 = self.data[self.symbol2]
+
         self.activated = False
         self.received = False
         self.last_processed = 0
@@ -96,10 +97,11 @@ class StrategyPair:
             if self.s1["activated"] and self.s2["activated"]:
                 self.activated = True
         else:
-            self.received = False
             if self.s1["ts"] > self.last_processed and self.s2["ts"] > self.last_processed:
                 self.last_processed = max(self.s1["ts"], self.s2["ts"])
-                self.received = True 
+                self.received = True
+            else:
+                self.received = False
 
         self.ticks += 1
 
@@ -109,9 +111,7 @@ class StrategyPair:
     
     def buy_pair(self):
         if self.s1["direction"] == 0:
-            # self.compute_share_split()
-            self.s1["shares"] = 10 # testing
-            self.s2["shares"] = 10 # testing
+            self.compute_share_split()
             self.s1["direction"] = 1
             self.s2["direction"] = -1
             self.ticks = 0
@@ -120,9 +120,7 @@ class StrategyPair:
         
     def sell_pair(self):
         if self.s1["direction"] == 0:
-            # self.compute_share_split()
-            self.s1["shares"] = 10 # testing
-            self.s2["shares"] = 10 # testing
+            self.compute_share_split()
             self.s1["direction"] = -1
             self.s2["direction"] = 1
             self.ticks = 0
@@ -145,6 +143,8 @@ class StrategyPair:
         cash = self.risk_manager.curr_cash / 2
         self.s1["shares"] = max(1, int(cash * (1 - buffer) / self.s1["last"]))
         self.s2["shares"] = max(1, int(cash * (1 - buffer) / self.s2["last"]))
+        self.s1["shares"] = 10 # testing
+        self.s2["shares"] = 10 # testing
         # change for partial shares/small arb
         
     def compute_ema(self, prev_ema, new_value, window=10):

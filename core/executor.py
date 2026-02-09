@@ -27,8 +27,6 @@ class DataFeedController:
 
     def run(self):
         def response_handler(response):
-            # system_receive_time = int(time.time() * 1000) # Latency Timing
-
             data = orjson.loads(response).get("data")
             if not data:
                 return
@@ -48,6 +46,7 @@ class DataFeedController:
                             item.get("5"),
                             item.get("6")
                         )
+                        ts = item.get("7")
                     elif service == "LEVELONE_EQUITIES":
                         row = self.level1_row.update(
                             item.get('34') or item.get('37') or item.get('38') or item.get('35'),
@@ -57,12 +56,8 @@ class DataFeedController:
                             item.get("4"),
                             item.get("5")
                         )
-                    self.log_buffer.append(f"[{symbol}] {row}")
-
-                    if service == "CHART_EQUITY":
-                        ts = int(row.timestamp.timestamp() * 1000)
-                    else:
                         ts = row.timestamp
+                    self.log_buffer.append(f"[{symbol}] {row}")
                     
                     feed = self.strategy_dict[symbol]
                     strategy = feed.strategies[symbol]
@@ -190,7 +185,7 @@ class Instrument:
         fill_price = self.get_fill_price(order_id, shares)
 
         self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[BOT] +{shares} {symbol} @ {fill_price}")
-        return order_id, fill_price
+        return fill_price
 
     def sell(self, signal, symbol, shares):
         instruction = "SELL_SHORT" if signal else "SELL"
@@ -200,7 +195,7 @@ class Instrument:
         fill_price = self.get_fill_price(order_id, shares)
 
         self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[SOLD] -{shares} {symbol} @ {fill_price}")
-        return order_id, fill_price
+        return fill_price
     
     def buy_oco(self, symbol, quantity, stop_price, target_price):
         response = self.oco_order(symbol, quantity, stop_price, target_price, "BUY_TO_COVER")
@@ -365,7 +360,6 @@ class Equities(Instrument):
     
     def initialize(self, symbols, strategy_class):
         self.strategies = {}
-        self.entry_ids = {}
         self.exit_ids = {}
 
         for symbol in symbols:
@@ -374,8 +368,8 @@ class Equities(Instrument):
             strat.risk_manager.start_cash = cash_allocation
             self.strategies[symbol] = strat
             print(
-                f"[INIT] {strat.__class__.__name__:10} | "
-                f"symbol={symbol:5} | cash=${cash_allocation}"
+                f"[INIT] {strat.__class__.__name__:15} | "
+                f"symbol={symbol:10} | cash=${cash_allocation}"
             )
 
     def subscribe_symbols(self):
@@ -396,14 +390,14 @@ class Equities(Instrument):
         
         # --- Enter Long ---
         if signal == 1:
-            self.entry_ids[leg], fill_price = self.buy(signal, symbol, shares)
+            fill_price = self.buy(signal, symbol, shares)
             self.exit_ids[leg] = self.sell_oco(symbol, shares, stop_price, target_price)
             leg.entry_price = fill_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
 
         # --- Enter Short ---
         elif signal == -1:
-            self.entry_ids[leg], fill_price = self.sell(signal, symbol, shares)
+            fill_price = self.sell(signal, symbol, shares)
             self.exit_ids[leg] = self.buy_oco(symbol, shares, stop_price, target_price)
             leg.entry_price = fill_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
@@ -427,15 +421,14 @@ class Equities(Instrument):
 
                     fill_price = self.get_fill_price(self.exit_ids[leg], shares, instruction="oco", timeout=1)
 
-                    
                     if fill_price is None:
                         self.cancel_order(self.exit_ids[leg])
                         # TODO: handle partial fills
                         # shares_remaining = shares - self.get_shares_owned(symbol)
                         if direction == 1:
-                            _, fill_price = self.sell(signal, symbol, shares)
+                            fill_price = self.sell(signal, symbol, shares)
                         elif direction == -1:
-                            _, fill_price = self.buy(signal, symbol, shares)
+                            fill_price = self.buy(signal, symbol, shares)
                         exit_price = strategy.close
                     else:
                         if direction == 1:
@@ -444,14 +437,11 @@ class Equities(Instrument):
                             self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[BOT] +{shares} {symbol} @ {fill_price}")
                         exit_price = min([stop_price, target_price], key=lambda x: abs(fill_price - x))
                     
-                    if fill_price is None:
-                        fill_price = exit_price
-                    self.update_pnl(strategy, direction, entry_price, fill_price, shares)
+                    fill_price = fill_price if fill_price is not None else exit_price
                     self.trade_manager.update_exit(leg, strategy.ts, exit_price, fill_price)
-                    self.entry_ids.pop(leg)
+                    self.update_pnl(strategy, direction, entry_price, fill_price, shares)
                     self.exit_ids.pop(leg)
                     position_manager.remove_leg(leg)
-
 
 class EquityPairs(Instrument):
     def __init__(self, pairs, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live_pt.json"):
@@ -469,8 +459,8 @@ class EquityPairs(Instrument):
             self.strategies[symbol1] = strat
             self.strategies[symbol2] = strat
             print(
-                f"[INIT] {strat.__class__.__name__:10} | "
-                f"symbol={pair:5} | cash=${cash_allocation}"
+                f"[INIT] {strat.__class__.__name__:15} | "
+                f"pair={pair:10} | cash=${cash_allocation}"
             )
 
     def subscribe_symbols(self):
@@ -499,21 +489,15 @@ class EquityPairs(Instrument):
         elif signal == 0:
             if s1["direction"] == 1:
                 fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
-                exit_price1 = s1["bid"] if fill_price1 is None else fill_price1
-                exit_price2 = s2["ask"] if fill_price2 is None else fill_price2
-                self.trade_manager.update_exit(symbol1, s1["ts"], s1["bid"], fill_price1)
-                self.trade_manager.update_exit(symbol2, s2["ts"], s2["ask"], fill_price2)
+                exit_price1, exit_price2 = s1["bid"], s2["ask"]
             elif s1["direction"] == -1:
                 fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
-                exit_price1 = s1["ask"] if fill_price1 is None else fill_price1
-                exit_price2 = s2["bid"] if fill_price2 is None else fill_price2
-                self.trade_manager.update_exit(symbol1, s1["ts"], s1["ask"], fill_price1)
-                self.trade_manager.update_exit(symbol2, s2["ts"], s2["bid"], fill_price2)
+                exit_price1, exit_price2 = s1["ask"], s2["bid"]
 
-            if fill_price1 is None:
-                fill_price1 = exit_price1         
-            if fill_price2 is None:
-                fill_price2 = exit_price2
+            fill_price1 = fill_price1 if fill_price1 is not None else exit_price1
+            fill_price2 = fill_price2 if fill_price2 is not None else exit_price2
+            self.trade_manager.update_exit(symbol1, s1["ts"], exit_price1, fill_price1)
+            self.trade_manager.update_exit(symbol2, s2["ts"], exit_price2, fill_price2)
             self.update_pnl(strategy, s1["direction"], s1["entry_price"], fill_price1, s1["shares"])
             self.update_pnl(strategy, s2["direction"], s2["entry_price"], fill_price2, s2["shares"])
             strategy.flatten()
