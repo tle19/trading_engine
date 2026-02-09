@@ -29,8 +29,6 @@ class StrategyPair:
                 "entry_price": None,
                 "direction": 0,
                 "shares": 0,
-                "updated": False,
-                "activated": False,
                 "latency": 0
             },
             self.symbol2: {
@@ -43,8 +41,6 @@ class StrategyPair:
                 "entry_price": None,
                 "direction": 0,
                 "shares": 0,
-                "updated": False,
-                "activated": False,
                 "latency": 0
             }
         }
@@ -88,14 +84,12 @@ class StrategyPair:
         if row.bid_size is not None: s["bid_size"] = row.bid_size
         if row.ask_size is not None: s["ask_size"] = row.ask_size
         s["latency"] = self.latency
-                
+
         if not self.activated:
             for attr in ("bid", "ask", "last", "bid_size", "ask_size"):
-                if s[attr] is None:
+                if self.s1[attr] is None or self.s2[attr] is None:
                     return
-            s["activated"] = True
-            if self.s1["activated"] and self.s2["activated"]:
-                self.activated = True
+            self.activated = True
         else:
             if self.s1["ts"] > self.last_processed and self.s2["ts"] > self.last_processed:
                 self.last_processed = max(self.s1["ts"], self.s2["ts"])
