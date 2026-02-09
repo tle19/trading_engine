@@ -139,14 +139,33 @@ class StrategyPair:
         self.s1["entry_price"] = None
         self.s2["entry_price"] = None
     
-    def compute_share_split(self, buffer=0.01):
+    def compute_share_split(self, min_pct=0.85):
         cash = self.risk_manager.curr_cash / 2
-        self.s1["shares"] = max(1, int(cash * (1 - buffer) / self.s1["last"]))
-        self.s2["shares"] = max(1, int(cash * (1 - buffer) / self.s2["last"]))
+        price1 = self.s1["last"]
+        price2 = self.s2["last"]
+
+        max_s1 = int(cash // self.s1["last"])
+        max_s2 = int(cash // self.s2["last"])
+        min_s1 = int(max_s1 * min_pct)
+        min_s2 = int(max_s2 * min_pct)
+
+        best_diff = float('inf')
+        shares1, shares2 = max_s1, max_s2
+
+        for s1 in range(min_s1, max_s1 + 1):
+            cash1 = s1 * price1
+            for s2 in range(min_s2, max_s2 + 1):
+                cash2 = s2 * price2
+                diff = abs(cash1 - cash2)
+                if diff < best_diff:
+                    best_diff = diff
+                    shares1, shares2 = s1, s2
+
+        self.s1["shares"] = max(1, shares1)
+        self.s2["shares"] = max(1, shares2)
         self.s1["shares"] = 10 # testing
         self.s2["shares"] = 10 # testing
-        # change for partial shares/small arb
-        
+
     def compute_ema(self, prev_ema, new_value, window=10):
         if prev_ema is None:
             return new_value

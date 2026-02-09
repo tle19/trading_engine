@@ -400,7 +400,7 @@ class PositionLeg:
         self.stop_price = stop_price
         self.target_price = target_price
         self.position_size = position_size
-        self.shares = (cash * position_size) // entry_price
+        self.shares = max(1, int((cash * position_size) // entry_price))
         self.force_close = force_close
 
         if direction not in (1, -1):

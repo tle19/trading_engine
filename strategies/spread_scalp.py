@@ -4,7 +4,7 @@ from utils import *
 
 class SpreadScalp(StrategyPair):
     def __init__(self, pair, ema_window=5, start_time=(15, 00), end_time=(20, 00),
-                 take_profit=0.00005, pnl_target=0.01, pnl_loss=-0.01, trade_max=50):
+                 take_profit=0.00005, pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         super().__init__(pair, start_time, end_time, take_profit, 
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
@@ -47,7 +47,7 @@ class SpreadScalp(StrategyPair):
         pnl1 = self.s1["direction"] * (exit1 - self.s1["entry_price"]) * self.s1["shares"]
         pnl2 = self.s2["direction"] * (exit2 - self.s2["entry_price"]) * self.s2["shares"]
 
-        position_value = self.s1["shares"] * self.s1["entry_price"] + self.s2["shares"] * self.s2["entry_price"]
+        position_value = (self.s1["shares"] * self.s1["entry_price"]) + (self.s2["shares"] * self.s2["entry_price"])
         if (pnl1 + pnl2) / position_value > self.take_profit:
             return self.exit()
         
