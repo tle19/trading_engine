@@ -1,5 +1,10 @@
 import time
+import numpy as np
+from datetime import datetime
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
+from zoneinfo import ZoneInfo
 import schwabdev
 
 from core import *
@@ -34,17 +39,32 @@ def acc_latency():
 with open("trade_logs_live_pt.json") as f:
     trade_history = json.load(f)["trade_history"]
 
+trade_history = trade_history[50:]
 pair_sums = []
-for i in range(0, len(trade_history), 2):
-    if i + 1 < len(trade_history):
-        pair_sums.append(
-            trade_history[i]["pnl_pct"] + trade_history[i+1]["pnl_pct"]
-        )
+pair_times = []
 
-plt.figure(figsize=(10, 4))
-plt.plot(range(len(pair_sums)), pair_sums)
-plt.xlabel("Pair index (chronological)")
-plt.ylabel("PnL % (pair sum)")
-plt.title("Chronological Pair-Summed PnLs")
+for i in range(0, len(trade_history), 2):
+    idx1 = i
+    idx2 = i + 1
+    if idx2 < len(trade_history):
+        pair_sums.append(trade_history[idx1]["pnl_pct"] + trade_history[idx2]["pnl_pct"])
+
+        t1 = trade_history[idx1]["exit_time"]
+        t2 = trade_history[idx2]["exit_time"]
+        t1_dt = datetime.fromtimestamp(t1 / 1000, tz=timezone)
+        t2_dt = datetime.fromtimestamp(t2 / 1000, tz=timezone)
+
+        pair_times.append(max(t1_dt, t2_dt))
+
+plt.figure(figsize=(12, 5))
+plt.plot(pair_times, np.cumsum(pair_sums), color='blue', linewidth=2, label="Cumulative PnL")
+
+plt.xlabel("Exit Time")
+plt.ylabel("PnL %")
+plt.title("Pair-Summed PnLs and Cumulative PnL Over Time")
+plt.legend()
 plt.grid(True)
+
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S', tz=timezone))
+plt.gcf().autofmt_xdate()
 plt.show()
