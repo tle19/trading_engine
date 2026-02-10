@@ -71,11 +71,6 @@ class StrategyPair:
     
     def update(self, symbol, row=None): 
         s = self.data[symbol]
-        if s["direction"]:
-            if self.s1["entry_price"] is None:
-                self.s1["entry_price"] = self.s1["ask"] if self.s1["direction"] > 0 else self.s1["bid"]
-            if self.s2["entry_price"] is None:  
-                self.s2["entry_price"] = self.s2["ask"] if self.s2["direction"] > 0 else self.s1["bid"]
 
         if row.timestamp is not None: s["ts"] = row.timestamp
         if row.bid is not None: s["bid"] = row.bid
@@ -105,18 +100,22 @@ class StrategyPair:
     
     def buy_pair(self):
         if self.s1["direction"] == 0:
-            self.compute_share_split()
+            self.s1["entry_price"] = self.s1["ask"]
+            self.s2["entry_price"] = self.s1["bid"]
             self.s1["direction"] = 1
             self.s2["direction"] = -1
+            self.compute_share_split()
             self.ticks = 0
             return LONG
         return HOLD
         
     def sell_pair(self):
         if self.s1["direction"] == 0:
-            self.compute_share_split()
+            self.s1["entry_price"] = self.s1["bid"]
+            self.s2["entry_price"] = self.s1["ask"]
             self.s1["direction"] = -1
             self.s2["direction"] = 1
+            self.compute_share_split()
             self.ticks = 0
             return SHORT
         return HOLD

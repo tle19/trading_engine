@@ -470,14 +470,16 @@ class EquityPairs(Instrument):
         # --- Enter Long/Short ---
         if signal == 1:
             fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
-            s1["entry_price"], s2["entry_price"] = fill_price1, fill_price2
+            s1["entry_price"] = fill_price1 if fill_price1 is not None else s1["entry_price"]
+            s2["entry_price"] = fill_price2 if fill_price2 is not None else s2["entry_price"]
             self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["ask"], fill_price1, None, None)
             self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["bid"], fill_price2, None, None)
 
         # --- Enter Short/Long ---
         elif signal == -1:
             fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
-            s1["entry_price"], s2["entry_price"] = fill_price1, fill_price2
+            s1["entry_price"] = fill_price1 if fill_price1 is not None else s1["entry_price"]
+            s2["entry_price"] = fill_price2 if fill_price2 is not None else s2["entry_price"]
             self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["bid"], fill_price1, None, None)
             self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["ask"], fill_price2, None, None)
                 
