@@ -39,7 +39,7 @@ class DataHandler:
             current_from = from_date
 
             try:
-                df = open_data(symbol, start_time="0:00", end_time="23:59")
+                df = open_data(symbol)
                 last_ts = df['timestamp'].iloc[-1]
                 current_from = (last_ts).strftime("%Y-%m-%d")
                 print(f"[{symbol}] Existing data found: fetching from {current_from} → {to_date}")
