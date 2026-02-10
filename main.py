@@ -25,6 +25,9 @@ def main():
     parser.add_argument("--margin", type=float, default=1.0)
     parser.add_argument("--commission", type=float, default=0.0)
     parser.add_argument("--slippage", type=float, default=0.1)
+
+    parser.add_argument("--service", type=str, default="level1")
+    parser.add_argument("--duration", type=int, default=300)
     args = parser.parse_args()
 
     if not args.live and not args.backtest and not args.fetch and not args.stream and not args.quote:
@@ -85,7 +88,7 @@ def main():
         else:
             dh.historical_data(args.symbols)
     elif args.stream:
-        dh.stream_data(args.symbols)
+        dh.stream_data(args.symbols, args.service, args.duration)
     elif args.quote:
         dh.get_quote(args.symbols)
     

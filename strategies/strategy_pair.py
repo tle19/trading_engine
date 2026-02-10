@@ -57,13 +57,13 @@ class StrategyPair:
 
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
 
-    def generate_signal(self, row, symbol=None):
+    def generate_signal(self, row, symbol):
         raise NotImplementedError
     
-    def enter_trade(self):
+    def enter_trade(self, ms=500):
         raise NotImplementedError
     
-    def exit_trade(self):
+    def exit_trade(self, ms=500):
         return self.exit()
     
     def compute_indicators(self):

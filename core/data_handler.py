@@ -6,6 +6,7 @@ import datetime
 
 from zoneinfo import ZoneInfo
 from polygon import RESTClient
+import orjson
 import schwabdev
 
 from utils import *
@@ -132,10 +133,10 @@ class DataHandler:
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
 
-    def stream_data(self, symbols, duration=300):
+    def stream_data(self, symbols, service="level1", duration=300):
         def response_handler(response):
             system_receive_time = int(time.time() * 1000)
-            data = json.loads(response).get("data", [])
+            data = orjson.loads(response).get("data")
             if not data:
                 return
             
@@ -163,6 +164,12 @@ class DataHandler:
                             item.get("4"),
                             item.get("5")
                         )
+                    elif service == "NASDAQ_BOOK" or service == "NYSE_BOOK":
+                        row = self.level2_row.update(
+                            item.get("1"),
+                            item.get("2"),
+                            item.get("3")
+                        )
                     elif service == "LEVELONE_FOREX":
                         row = self.level1_row.update(
                             item.get('8'),
@@ -171,12 +178,6 @@ class DataHandler:
                             item.get("3"),
                             item.get("4"),
                             item.get("5")
-                        )
-                    elif service == "NASDAQ_BOOK" or service == "NYSE_BOOK":
-                        row = self.level2_row.update(
-                            item.get("1"),
-                            item.get("2"),
-                            item.get("3")
                         )
 
                     print(f"[{symbol}] {row}")
@@ -189,13 +190,18 @@ class DataHandler:
                     print(f"  COMPUTATION TIME: {round((time.time() * 1000) - system_receive_time, 3)} ms")
 
         self.stream.start(response_handler)
-        if "/" in symbols[0]:
-            self.stream.send(self.stream.level_one_forex(symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))  
-        elif True:
-            self.stream.send(self.stream.level_one_equities(symbols, "0,1,2,3,4,5,34,35,37,38", command="SUBS"))
-            # stream.send(stream.nasdaq_book(self.symbols, "0,1,2,3,4", command="ADD"))
-        else:
+
+        if service == "chart":
             self.stream.send(self.stream.chart_equity(symbols, "0,1,2,3,4,5,6,7", command="SUBS"))
+        elif service == "level1":
+            self.stream.send(self.stream.level_one_equities(symbols, "0,1,2,3,4,5,34,35,37,38", command="SUBS"))
+        elif service == "level2":
+            self.stream.send(self.stream.nasdaq_book(symbols, "0,1,2,3,4", command="SUBS"))
+        elif service == "forex":
+            self.stream.send(self.stream.level_one_forex(symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))
+        else:
+            raise ValueError("You must provide a service, e.g. --service chart/level1/level2/forex ")
+
         time.sleep(duration)
         self.stream.stop()
     

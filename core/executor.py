@@ -46,7 +46,6 @@ class DataFeedController:
                             item.get("5"),
                             item.get("6")
                         )
-                        ts = item.get("7")
                     elif service == "LEVELONE_EQUITIES":
                         row = self.level1_row.update(
                             item.get('34') or item.get('37') or item.get('38') or item.get('35'),
@@ -56,9 +55,13 @@ class DataFeedController:
                             item.get("4"),
                             item.get("5")
                         )
-                        ts = row.timestamp
                     self.log_buffer.append(f"[{symbol}] {row}")
-                    
+
+                    if service == "CHART_EQUITY":
+                        ts = int(row.timestamp.timestamp() * 1000)
+                    else:
+                        ts = row.timestamp
+
                     feed = self.strategy_dict[symbol]
                     strategy = feed.strategies[symbol]
                     strategy.latency = timestamp - ts

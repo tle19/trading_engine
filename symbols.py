@@ -1,6 +1,7 @@
 SYMBOLS = [
     # ===== INDEX / MACRO =====
     "SPY",   # S&P 500 ETF
+    "VOO",   # S&P 500 ETF
     "QQQ",   # Nasdaq-100 ETF
     "IWM",   # Russell 2000 ETF
     "TLT",   # 20+ Year Treasury Bonds ETF
@@ -11,7 +12,8 @@ SYMBOLS = [
     "MSFT",  # Microsoft
     "NVDA",  # NVIDIA
     "AMD",   # AMD
-    "GOOG",  # Alphabet
+    "GOOG",  # Alphabet (Class A)
+    "GOOGL", # Alphabet (Class C)
     "META",  # Meta Platforms
     "ADBE",  # Adobe
     "CRM",   # Salesforce
