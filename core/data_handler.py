@@ -134,7 +134,7 @@ class DataHandler:
 
     def stream_data(self, symbols, duration=300):
         def response_handler(response):
-            system_receive_time = int(time() * 1000)
+            system_receive_time = int(time.time() * 1000)
             data = json.loads(response).get("data", [])
             if not data:
                 return
@@ -186,17 +186,16 @@ class DataHandler:
                     else:
                         ts = row.timestamp
                     print(f"  QUOTE → API TIME: {timestamp - ts} ms")
-                    print(f"  API → SYSTEM TIME: {system_receive_time - timestamp} ms")
-                    # print(f"  COMPUTATION TIME: {round((time() * 1000) - system_receive_time, 4)} ms")
+                    print(f"  COMPUTATION TIME: {round((time.time() * 1000) - system_receive_time, 3)} ms")
 
         self.stream.start(response_handler)
         if "/" in symbols[0]:
             self.stream.send(self.stream.level_one_forex(symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))  
         elif True:
-            self.stream.send(self.stream.chart_equity(symbols, "0,1,2,3,4,5,6,7", command="SUBS"))
-        else:
             self.stream.send(self.stream.level_one_equities(symbols, "0,1,2,3,4,5,34,35,37,38", command="SUBS"))
             # stream.send(stream.nasdaq_book(self.symbols, "0,1,2,3,4", command="ADD"))
+        else:
+            self.stream.send(self.stream.chart_equity(symbols, "0,1,2,3,4,5,6,7", command="SUBS"))
         time.sleep(duration)
         self.stream.stop()
     

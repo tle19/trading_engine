@@ -3,8 +3,8 @@ from models import *
 from utils import *
 
 class SpreadScalp(StrategyPair):
-    def __init__(self, pair, ema_window=5, start_time=(16, 00), end_time=(20, 00),
-                 take_profit=0.000075, pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
+    def __init__(self, pair, ema_window=5, start_time=(15, 30), end_time=(19, 30),
+                 take_profit=0.00005, pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
         super().__init__(pair, start_time, end_time, take_profit, 
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
@@ -38,7 +38,7 @@ class SpreadScalp(StrategyPair):
             signal = self.sell_pair()
         return signal
         
-    def exit_trade(self, ms=300):
+    def exit_trade(self, ms=500):
         if self.s1["latency"] > ms or self.s2["latency"] > ms:
             return
 
