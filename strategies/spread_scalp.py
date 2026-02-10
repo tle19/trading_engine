@@ -4,7 +4,7 @@ from utils import *
 
 class SpreadScalp(StrategyPair):
     def __init__(self, pair, ema_window=5, start_time=(15, 00), end_time=(20, 00),
-                 take_profit=0.00005, pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
+                 take_profit=0.000025, pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         super().__init__(pair, start_time, end_time, take_profit, 
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
@@ -35,9 +35,9 @@ class SpreadScalp(StrategyPair):
         if self.s1["latency"] > ms or self.s2["latency"] > ms:
             return signal
         
-        if self.s1["ask"] < self.ema1 and self.s2["bid"] > self.ema2:
+        if self.mid1 < self.ema1 and self.mid2 > self.ema2:
             signal = self.buy_pair()
-        elif self.s1["bid"] > self.ema1 and self.s2["ask"] < self.ema2:
+        elif self.mid1 > self.ema1 and self.mid2 < self.ema2:
             signal = self.sell_pair()
         return signal
         
@@ -55,8 +55,8 @@ class SpreadScalp(StrategyPair):
             return self.exit()
         
     def compute_indicators(self):
-        mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
-        mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
+        self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
+        self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
-        self.ema1 = self.compute_ema(self.ema1, mid1, self.ema_window)
-        self.ema2 = self.compute_ema(self.ema2, mid2, self.ema_window)
+        self.ema1 = self.compute_ema(self.ema1, self.mid1, self.ema_window)
+        self.ema2 = self.compute_ema(self.ema2, self.mid2, self.ema_window)

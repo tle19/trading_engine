@@ -92,7 +92,7 @@ class DataFeedController:
 
     def stream_duration(self):
         now = datetime.datetime.now(self.timezone)
-        market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
+        market_close = now.replace(hour=16, minute=0, second=5, microsecond=0)
         time.sleep((market_close - now).total_seconds())
 
     def initialize(self, strategy_dict, margin):

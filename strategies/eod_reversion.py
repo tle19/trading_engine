@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-from collections import deque
 import pandas as pd
 import numpy as np
 

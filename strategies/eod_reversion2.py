@@ -1,4 +1,5 @@
-from collections import deque
+import os
+from datetime import datetime
 import pandas as pd
 import numpy as np
 
@@ -20,22 +21,24 @@ class EODReversion2(Strategy):
 
         self.upper_support = None
         self.lower_support = None
-        self.pre_market_high = None
-        self.pre_market_low = None
         self.fast_ema = None
         self.slow_ema = None
         self.htf_ema = None
-        
+
         self.weighted_pressure = []
         self.rolling_atr = []
         self.prev_day_atr_mean = 0.0
 
+        self.model = XGBModel(symbol=symbol, live=True)
+        if not self.model.initialize():
+            self.model = None
+
     def generate_signal(self, row, _=None):
         self.update(row)
         self.backfill_data()
-        self.reset_data(reset_time=(4, 00))
+        self.reset_data()
         self.reset_day()
-        self.reset_indicators(reset_time=(4, 00))
+        self.reset_indicators()
         self.minimum_computations()
         
         self.compute_indicators()
@@ -58,40 +61,38 @@ class EODReversion2(Strategy):
 
         atr_mean = np.mean(self.rolling_atr)
         self.atr_cond = atr_mean - self.prev_day_atr_mean < self.atr_diff
-
-        if self.atr_cond and not self.position_manager.in_trade():
-            if self.close < self.pre_market_low:
-                if self.pressure < 0 and self.fast_ema < self.slow_ema and self.close > self.open:  # and self.slow_ema > self.htf_ema
-                    signal, _ = self.buy()
-            elif self.close > self.pre_market_high:
-                if self.pressure > 0 and self.fast_ema > self.slow_ema and self.close < self.open:  # and self.slow_ema < self.htf_ema
-                    signal, _ = self.sell()
-            # elif self.close < self.lower_support:
-            #     if self.pressure < 0 and self.slow_ema > self.htf_ema and self.close > self.open:
-            #         signal, _ = self.buy()
-            # elif self.close > self.upper_support:
-            #     if self.pressure > 0 and self.slow_ema < self.htf_ema and self.close < self.open:
-            #         signal, _ = self.sell()
+        
+        if self.atr_cond:
+            if self.close < self.lower_support:
+                if self.pressure < 0:
+                    if self.fast_ema < self.slow_ema and self.close > self.open:
+                        signal, _ = self.buy()
+                elif (self.opens[0] - min(self.lows)) / self.opens[0] > 0.02:
+                    if self.slow_ema > self.htf_ema:
+                        signal, _ = self.buy()
+            if self.close > self.upper_support:
+                if self.pressure > 0:
+                    if self.fast_ema > self.slow_ema and self.close < self.open:
+                        signal, _ = self.sell()
+                elif (max(self.highs) - self.opens[0]) / self.opens[0] > 0.02:
+                    if self.slow_ema < self.htf_ema:
+                        signal, _ = self.sell()
         if self.features:
             self.prev_day_atr_mean = atr_mean
         return signal
-    
+        
     def compute_indicators(self):
         self.fast_ema = self.compute_ema(self.fast_ema, self.close, self.fast_window)
         self.slow_ema = self.compute_ema(self.slow_ema, self.close, self.slow_window)
-        # self.htf_ema = self.compute_ema(self.htf_ema, self.close, self.htf_window)
-        self.rolling_atr.append(self.compute_atr(self.highs, self.lows, self.closes))
+        self.htf_ema = self.compute_ema(self.htf_ema, self.close, self.htf_window)
         self.weighted_pressure.append((self.close - self.open) / self.open * self.volume)
         self.pressure = sum(self.weighted_pressure)
-        if self.trade_window((9, 28), (9, 29)):
-            self.pre_market_high, self.pre_market_low = self.donchian_channel(period=330)
-
-    def reset_indicators(self, reset_time=(4, 00)):
+        self.rolling_atr.append(self.compute_atr(self.highs, self.lows, self.closes))
+        
+    def reset_indicators(self, reset_time=(9, 30)):
         if self.trade_window(reset_time, reset_time):
             self.upper_support = None
             self.lower_support = None
-            self.pre_market_support = None
-            self.pre_market_resistance = None
             self.fast_ema = None
             self.slow_ema = None
             self.htf_ema = None
@@ -112,16 +113,44 @@ class EODReversion2(Strategy):
 
     def backfill_data(self):
         if not self.back_filled:
-            df = open_data(self.symbol, start_time="9:30", end_time="15:00")
-            df = df[df['timestamp'] < self.ts]
-            last_trading_day = df['timestamp'].dt.date.max()
-            df = df[df['timestamp'].dt.date == last_trading_day]
-            if not df.empty:
-                atr = self.compute_atr(df['high'], df['low'], df['close'])
-                self.prev_day_atr_mean = np.mean(atr)
+            if os.path.exists("trade_logs.json"):
+                with open("trade_logs.json", "r") as f: 
+                    data = json.load(f)
+                    trade_history = data.get("trade_history", [])
+                    aapl_trades = [t for t in trade_history if t["symbol"] == "AAPL"]
+                    aapl_trades.sort(key=lambda t: datetime.fromisoformat(t["exit_time"]), reverse=True)
+                    self.prev_day_atr_mean = aapl_trades[0]["features"]["curr_day_atr_mean"]
             else:
-                self.prev_day_atr_mean = 0.25
+                df = open_data(self.symbol, start_time="9:30", end_time="15:00")
+                df = df[df['timestamp'] < self.ts]
+                last_trading_day = df['timestamp'].dt.date.max()
+                df = df[df['timestamp'].dt.date == last_trading_day]
+                if not df.empty:
+                    atr = self.compute_atr(df['high'], df['low'], df['close'])
+                    self.prev_day_atr_mean = np.mean(atr)
+                else:
+                    self.prev_day_atr_mean = 0.25
             self.back_filled = True
+    
+    def predict_trade(self, threshold=0.4):
+        df = pd.DataFrame([self.features])
+        self.model.prepare_features(df)
+        proba = self.model.get_proba()
+
+        if self.pressure < 0 and self.close < self.lower_support and self.close < self.fast_ema and self.atr_cond:
+            if proba > threshold:
+                self.position_size = 1.0
+            else:
+                self.position_size = 0.75
+            signal, leg = self.buy() 
+        elif self.pressure > 0 and self.close > self.upper_support and self.close > self.fast_ema and self.atr_cond:
+            if proba > threshold:
+                self.position_size = 1.0
+            else:
+                self.position_size = 0.75
+            signal, leg = self.sell() 
+ 
+        return signal, leg
             
     def add_features(self, direction, stop_price, target_price):
         self.features = {
@@ -136,18 +165,19 @@ class EODReversion2(Strategy):
             "open_volume": sum(self.volumes[0:15]),
             "upper_support": self.upper_support,
             "lower_support": self.lower_support,
+            "pressure": self.pressure,
             "curr_day_atr_mean": np.mean(self.rolling_atr), 
-            "prev_day_atr_mean": self.prev_day_atr_mean
+            "prev_day_atr_mean": self.prev_day_atr_mean,
+            "original_dir": 1 if self.pressure < 0 else -1
         }
 
     def param_grid(self):
         params = {
             "orb_window": [1], # 1, 2, 3, 4, 5, 10, 15, 30, 45, 60
-            "fast_window": [2, 3, 4, 5], # 5, 8, 10
-            "slow_window": [6, 7, 8, 9, 10, 12, 15, 20], # 10, 15, 20, 25
+            "fast_window": [2], # 5, 8, 10
+            "slow_window": [10], # 10, 15, 20, 25
             "atr_diff": [0.20], # 0.05, 0.10, 0.15, 0.20, 0.25, 0.30
-            "stop_loss": [0.01], # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
-            "take_profit": [0.01] # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
+            "stop_loss": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015], # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
+            "take_profit": [0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015] # 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015
         }
         return params
-    
