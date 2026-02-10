@@ -21,6 +21,8 @@ def main():
     parser.add_argument("--strategy", nargs="+", type=str, default=None, help="'eod_reversion stochastic' or 'eod_reversion:SPY spread_diff:SPY-QQQ'")
     parser.add_argument("--symbols", nargs="+", type=str, default=None, help="'QQQ AAPL MSFT' or 'SPY-QQQ GOOG-GOOGL'")
     
+    parser.add_argument("--start_date", type=str, default="2024-1-10")
+    parser.add_argument("--end_date", type=str, default=str(date.today()))
     parser.add_argument("--cash", type=int, default=25000)
     parser.add_argument("--margin", type=float, default=1.0)
     parser.add_argument("--commission", type=float, default=0.0)
@@ -81,7 +83,7 @@ def main():
         dfc = DataFeedController(strategy_dict, margin=args.margin)
         dfc.run()
     elif args.backtest:
-        bt.run(end_date=str(date.today()), grid=args.grid, train=args.train)
+        bt.run(start_date=args.start_date, end_date=args.end_date, grid=args.grid, train=args.train)
     elif args.fetch:
         if args.schwab:
             dh.schwab_data(args.symbols)

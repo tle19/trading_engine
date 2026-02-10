@@ -60,7 +60,7 @@ class Plotting:
         plt.close()
 
     def plot_overlay(self, dates, equity):
-        df = open_data(self.symbol, self.start_date, self.end_date, start_time="9:30", end_time="16:00")
+        df = open_data(self.symbol, self.start_date, self.end_date)
 
         if df.empty or "close" not in df.columns:
             print("No valid stock data to overlay.")

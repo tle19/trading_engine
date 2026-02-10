@@ -12,17 +12,17 @@ def load_config(config_path="configs/api_config.json"):
         config = json.load(f)
     return config
 
-def save_data(df, symbol):
+def save_data(df, symbol, mode="intraday"):
     df = df.drop_duplicates(subset=["timestamp"])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
     df["timestamp"] = df["timestamp"].dt.tz_convert(timezone)
 
-    file_path = os.path.join(data_path, f"{symbol}_historical_data.csv")
+    file_path = os.path.join(data_path, f"{symbol + "_" + mode}.csv")
     df.to_csv(file_path, index=False)
     print(f"Saved CSV to {file_path}")
 
-def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_time="15:59"):
-    file_path = os.path.join(data_path, f"{symbol}_historical_data.csv")
+def open_data(symbol, start_date=None, end_date=None, mode="intraday"):
+    file_path = os.path.join(data_path, f"{symbol + "_" + mode}.csv")
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"[WARN] Missing CSV for {symbol}: {file_path}")
     df = pd.read_csv(file_path)
@@ -34,7 +34,6 @@ def open_data(symbol, start_date=None, end_date=None, start_time="9:30", end_tim
                 (df['timestamp'].dt.date <= pd.to_datetime(end_date).date())
         df = df.loc[mask]
 
-    df = df.set_index('timestamp').between_time(start_time, end_time).reset_index()
     return df
 
 def resample_data(df, type="1D"):

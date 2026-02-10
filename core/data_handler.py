@@ -14,7 +14,7 @@ from utils import *
 class DataHandler:
     def __init__(self):
         config = load_config()
-        os.makedirs(config['data_path'], exist_ok=True)
+        os.makedirs("data", exist_ok=True)
 
         self.polygon_client = RESTClient(config['api_key'])
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])
@@ -100,7 +100,7 @@ class DataHandler:
                 df.sort_values('timestamp', inplace=True)
                 df.reset_index(drop=True, inplace=True)
 
-            save_data(df, symbol)
+            save_data(df, symbol, mode="intraday")
 
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Data Fetch Time: {elapsed_time:.3f} seconds")
@@ -108,7 +108,7 @@ class DataHandler:
     def schwab_data(self, symbols=['SPY'], periodType="year", period=20, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
         start_time = time.perf_counter()
-        endDate = str(datetime.date.today())
+        endDate = int(time.time() * 1000)
 
         for symbol in symbols:
             raw_data = self.client.price_history(
@@ -128,7 +128,7 @@ class DataHandler:
             df = pd.DataFrame(data.get("candles", []))
             df.rename(columns={"datetime": "timestamp"}, inplace=True)
 
-            save_data(df, symbol)
+            save_data(df, symbol, mode="daily")
 
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Data Fetch Time: {elapsed_time:.3f} seconds")
@@ -200,7 +200,7 @@ class DataHandler:
         elif service == "forex":
             self.stream.send(self.stream.level_one_forex(symbols, "0,1,2,3,4,5,6,7,8", command="SUBS"))
         else:
-            raise ValueError("You must provide a service, e.g. --service chart/level1/level2/forex ")
+            raise ValueError("You must provide a service, e.g. --service chart/level1/level2/forex")
 
         time.sleep(duration)
         self.stream.stop()

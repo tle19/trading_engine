@@ -37,7 +37,7 @@ class Backtest:
         self.trade_history = []
         self.intraday_equity = []
         for symbol in self.symbols:
-            df = open_data(symbol, start_date, end_date, start_time="4:00", end_time="15:59")
+            df = open_data(symbol, start_date, end_date, mode="intraday") # mode="daily"
             self.initialize(symbol, self.strategy_class)
             
             if grid:
