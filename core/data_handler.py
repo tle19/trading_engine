@@ -105,7 +105,7 @@ class DataHandler:
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Data Fetch Time: {elapsed_time:.3f} seconds")
 
-    def schwab_data(self, symbols=['SPY'], periodType="month", period=6, frequencyType="daily", frequency=1, 
+    def schwab_data(self, symbols=['SPY'], periodType="year", period=20, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
         start_time = time.perf_counter()
         endDate = str(datetime.date.today())
@@ -131,7 +131,7 @@ class DataHandler:
             save_data(df, symbol)
 
         elapsed_time = time.perf_counter() - start_time
-        print(f"Elapsed Data Fetch Time: {elapsed_time:.6f} seconds")
+        print(f"Elapsed Data Fetch Time: {elapsed_time:.3f} seconds")
 
     def stream_data(self, symbols, service="level1", duration=300):
         def response_handler(response):
