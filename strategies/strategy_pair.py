@@ -156,8 +156,8 @@ class StrategyPair:
 
         self.s1["shares"] = max(1, shares1)
         self.s2["shares"] = max(1, shares2)
-        self.s1["shares"] = 10 # testing
-        self.s2["shares"] = 10 # testing
+        self.s1["shares"] = 1 # testing
+        self.s2["shares"] = 1 # testing
 
     def compute_ema(self, prev_ema, new_value, window=10):
         if prev_ema is None:
