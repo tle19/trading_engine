@@ -32,7 +32,7 @@ class SpreadScalp(StrategyPair):
                     signal = self.enter_trade()
         return signal
     
-    def enter_trade(self, signal=None): # max spread length?
+    def enter_trade(self, signal=None):
         # if self.s1_spread > 0.10 or self.s1_spread > 0.10:
         #     return signal
 
