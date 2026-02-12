@@ -14,15 +14,15 @@ def main():
     parser.add_argument("--stream", action="store_true")
     parser.add_argument("--quote", action="store_true")
 
-    parser.add_argument("--schwab", action="store_true")
-    parser.add_argument("--grid", action="store_true")
-    parser.add_argument("--train", action="store_true")
-
     parser.add_argument("--strategy", nargs="+", type=str, default=None, help="'eod_reversion stochastic' or 'eod_reversion:SPY spread_diff:SPY-QQQ'")
     parser.add_argument("--symbols", nargs="+", type=str, default=None, help="'QQQ AAPL MSFT' or 'SPY-QQQ GOOG-GOOGL'")
-    
+
+    parser.add_argument("--daily", action="store_true")
+
     parser.add_argument("--start_date", type=str, default="2024-1-10")
     parser.add_argument("--end_date", type=str, default=str(date.today()))
+    parser.add_argument("--grid", action="store_true")
+    parser.add_argument("--train", action="store_true")
     parser.add_argument("--cash", type=int, default=25000)
     parser.add_argument("--margin", type=float, default=1.0)
     parser.add_argument("--commission", type=float, default=0.0)
@@ -77,7 +77,7 @@ def main():
             minutes, seconds = divmod(rem, 60)
             print(f"[WAIT] Data not ready. Time remaining: {hours}h {minutes}m {seconds}s")
             time.sleep(wait_seconds)
-        dh.historical_data(symbols)
+        dh.intraday_data(symbols)
         bt.run(end_date=str(date.today()), display_stats=False, display_plot=False)
 
         dfc = DataFeedController(strategy_dict, margin=args.margin)
@@ -85,10 +85,10 @@ def main():
     elif args.backtest:
         bt.run(start_date=args.start_date, end_date=args.end_date, grid=args.grid, train=args.train)
     elif args.fetch:
-        if args.schwab:
-            dh.schwab_data(args.symbols)
+        if args.daily:
+            dh.daily_data(args.symbols)
         else:
-            dh.historical_data(args.symbols)
+            dh.intraday_data(args.symbols)
     elif args.stream:
         dh.stream_data(args.symbols, args.service, args.duration)
     elif args.quote:

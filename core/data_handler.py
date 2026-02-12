@@ -26,7 +26,7 @@ class DataHandler:
         self.level1_row = Level1Row()
         self.level2_row = Level2Row()
 
-    def historical_data(self, symbols=['SPY'], from_date='2024-01-01', to_date='2026-01-01',
+    def intraday_data(self, symbols=['SPY'], from_date='2024-01-01', to_date='2026-01-01',
                                 timespan='minute', multiplier=1, max_iter=10):
         start_time = time.perf_counter()
 
@@ -105,7 +105,7 @@ class DataHandler:
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Data Fetch Time: {elapsed_time:.3f} seconds")
 
-    def schwab_data(self, symbols=['SPY'], periodType="year", period=20, frequencyType="daily", frequency=1, 
+    def daily_data(self, symbols=['SPY'], periodType="year", period=20, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
         start_time = time.perf_counter()
         endDate = int(time.time() * 1000)
