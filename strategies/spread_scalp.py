@@ -25,28 +25,24 @@ class SpreadScalp(StrategyPair):
         signal = None
         if self.activated:
             self.compute_indicators()
-            if self.received and self.ticks > 10:
+            if self.received and self.latency_check and self.ticks > 10:
                 if self.s1["direction"]:
                     signal = self.exit_trade()
                 else:
                     signal = self.enter_trade()
         return signal
     
-    def enter_trade(self, ms=500): # max spread length?
-        signal = None
-        if self.s1["latency"] > ms or self.s2["latency"] > ms:
-            return signal
-        
+    def enter_trade(self, signal=None): # max spread length?
+        # if self.s1_spread > 0.10 or self.s1_spread > 0.10:
+        #     return signal
+
         if self.mid1 < self.ema1 and self.mid2 > self.ema2:
             signal = self.buy_pair()
         elif self.mid1 > self.ema1 and self.mid2 < self.ema2:
             signal = self.sell_pair()
         return signal
         
-    def exit_trade(self, ms=500):
-        if self.s1["latency"] > ms or self.s2["latency"] > ms:
-            return
-
+    def exit_trade(self, signal=None):
         exit1 = self.s1["bid"] if self.s1["direction"] > 0 else self.s1["ask"]
         exit2 = self.s2["bid"] if self.s2["direction"] > 0 else self.s2["ask"]
         pnl1 = self.s1["direction"] * (exit1 - self.s1["entry_price"]) * self.s1["shares"]
@@ -56,17 +52,23 @@ class SpreadScalp(StrategyPair):
         pnl_pct = (pnl1 + pnl2) / position_value
 
         if pnl_pct > self.take_profit:
-            return self.exit()
+            signal = self.exit()
         if self.ticks > self.decay_start:
             decay_factor = max(0, 1 - ((self.ticks - self.decay_start) / self.decay_window))
             if pnl_pct > self.take_profit * decay_factor:
-                return self.exit()
+                signal = self.exit()
         if self.ticks > self.decay_start + self.decay_window:
-            return self.exit()
+            signal = self.exit()
+        return signal
         
-    def compute_indicators(self):
+    def compute_indicators(self, ms=500):
+        self.latency_check = self.s1["latency"] < ms and self.s2["latency"] < ms
+
         self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
         self.ema1 = self.compute_ema(self.ema1, self.mid1, self.ema_window)
         self.ema2 = self.compute_ema(self.ema2, self.mid2, self.ema_window)
+
+        self.s1_spread = abs(self.s1["bid"] - self.s1["ask"])
+        self.s2_spread = abs(self.s2["bid"] - self.s2["ask"])
