@@ -30,14 +30,15 @@ class Backtest:
         self.train_wait = True
 
     def run(self, start_date="2024-1-10", end_date="2026-1-10", 
-            grid=False, train=False, display_stats=True, display_plot=True):
+            grid=False, train=False, display_stats=True, display_plot=True, data_type=False):
         start_time = time.perf_counter()
 
         self.start_date = start_date
         self.trade_history = []
         self.intraday_equity = []
         for symbol in self.symbols:
-            df = open_data(symbol, start_date, end_date, mode="intraday") # mode="daily"
+            mode = "daily" if data_type else "intraday"
+            df = open_data(symbol, start_date, end_date, mode)
             self.initialize(symbol, self.strategy_class)
             
             if grid:

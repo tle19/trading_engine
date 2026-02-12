@@ -35,15 +35,15 @@ class DataHandler:
         
         for symbol in symbols:
             data_list = []
-            df = pd.DataFrame()
-            current_from = from_date
 
             try:
-                df = open_data(symbol)
+                df = open_data(symbol, mode="intraday")
                 last_ts = df['timestamp'].iloc[-1]
                 current_from = (last_ts).strftime("%Y-%m-%d")
                 print(f"[{symbol}] Existing data found: fetching from {current_from} → {to_date}")
             except FileNotFoundError:
+                df = pd.DataFrame()
+                current_from = from_date
                 print(f"[{symbol}] No existing data: fetching from {current_from} → {to_date}")
 
             if "/" in symbol:
@@ -108,9 +108,15 @@ class DataHandler:
     def daily_data(self, symbols=['SPY'], periodType="year", period=20, frequencyType="daily", frequency=1, 
                        startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
         start_time = time.perf_counter()
+
         endDate = int(time.time() * 1000)
 
         for symbol in symbols:
+            try:
+                df = open_data(symbol, mode="daily")
+            except FileNotFoundError:
+                df = pd.DataFrame()
+
             raw_data = self.client.price_history(
                 symbol=symbol, 
                 periodType=periodType, 
@@ -125,8 +131,15 @@ class DataHandler:
 
             full_str = b"".join(raw_data).decode("utf-8")
             data = json.loads(full_str)
-            df = pd.DataFrame(data.get("candles", []))
-            df.rename(columns={"datetime": "timestamp"}, inplace=True)
+
+            new_df = pd.DataFrame(data.get("candles", []))
+            new_df.rename(columns={"datetime": "timestamp"}, inplace=True)
+            new_df['timestamp'] = pd.to_datetime(new_df['timestamp'], unit='ms', utc=True)
+            new_df['timestamp'] = new_df['timestamp'].dt.tz_convert(self.timezone)
+            df = pd.concat([df, new_df], ignore_index=True)
+            df.drop_duplicates(subset='timestamp', inplace=True)
+            df.sort_values('timestamp', inplace=True)
+            df.reset_index(drop=True, inplace=True)
 
             save_data(df, symbol, mode="daily")
 

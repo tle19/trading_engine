@@ -83,7 +83,7 @@ def main():
         dfc = DataFeedController(strategy_dict, margin=args.margin)
         dfc.run()
     elif args.backtest:
-        bt.run(start_date=args.start_date, end_date=args.end_date, grid=args.grid, train=args.train)
+        bt.run(start_date=args.start_date, end_date=args.end_date, grid=args.grid, train=args.train, data_type=args.daily)
     elif args.fetch:
         if args.daily:
             dh.daily_data(args.symbols)
