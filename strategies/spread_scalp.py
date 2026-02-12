@@ -3,11 +3,13 @@ from models import *
 from utils import *
 
 class SpreadScalp(StrategyPair):
-    def __init__(self, pair, ema_window=5, start_time=(15, 00), end_time=(20, 00),
+    def __init__(self, pair, ema_window=5, start_time=(16, 00), end_time=(20, 00), decay_start=500, decay_window=500,
                  take_profit=0.00001, pnl_target=0.01, pnl_loss=-0.01, trade_max=400):
         super().__init__(pair, start_time, end_time, take_profit, 
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
+        self.decay_start = decay_start
+        self.decay_window = decay_window
 
         self.ema1 = None
         self.ema2 = None
@@ -30,7 +32,7 @@ class SpreadScalp(StrategyPair):
                     signal = self.enter_trade()
         return signal
     
-    def enter_trade(self, ms=500):
+    def enter_trade(self, ms=500): # max spread length?
         signal = None
         if self.s1["latency"] > ms or self.s2["latency"] > ms:
             return signal
@@ -51,7 +53,15 @@ class SpreadScalp(StrategyPair):
         pnl2 = self.s2["direction"] * (exit2 - self.s2["entry_price"]) * self.s2["shares"]
 
         position_value = (self.s1["shares"] * self.s1["entry_price"]) + (self.s2["shares"] * self.s2["entry_price"])
-        if (pnl1 + pnl2) / position_value > self.take_profit or (self.ticks > 1000 and (pnl1 + pnl2) / position_value > self.take_profit / 2):
+        pnl_pct = (pnl1 + pnl2) / position_value
+
+        if pnl_pct > self.take_profit:
+            return self.exit()
+        if self.ticks > self.decay_start:
+            decay_factor = max(0, 1 - ((self.ticks - self.decay_start) / self.decay_window))
+            if pnl_pct > self.take_profit * decay_factor:
+                return self.exit()
+        if self.ticks > self.decay_start + self.decay_window:
             return self.exit()
         
     def compute_indicators(self):
