@@ -4,8 +4,6 @@ SYMBOLS = [
     "VOO",   # S&P 500 ETF
     "QQQ",   # Nasdaq-100 ETF
     "IWM",   # Russell 2000 ETF
-    "TLT",   # 20+ Year Treasury Bonds ETF
-    "BRK.B",  # Berkshire Hathaway
 
     # ===== TECH =====
     "AAPL",  # Apple
