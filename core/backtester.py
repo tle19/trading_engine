@@ -30,7 +30,7 @@ class Backtest:
         self.train_wait = True
 
     def run(self, start_date="2024-1-10", end_date="2026-1-10", 
-            grid=False, train=False):
+            grid=False, train=False, display=True):
         start_time = time.perf_counter()
 
         self.start_date = start_date
@@ -44,7 +44,7 @@ class Backtest:
             if grid:
                 self.grid_search(symbol, df, train)
             else:
-                self.run_simulation(symbol, df, train)
+                self.run_simulation(symbol, df, train, display, display)
 
             self.trade_history.extend(self.trade_manager.trade_history)
             self.intraday_equity.append(self.trade_manager.intraday_equity)
@@ -55,15 +55,15 @@ class Backtest:
         self.intraday_equity = self.combine_equity_dicts(self.intraday_equity)
 
         if len(self.symbols) == 1:
-            self.plotting.overview(display=True)
+            self.plotting.overview(display=display)
         else:
             stats = Stats("AGGREGATE")
             stats.update_data(self.trade_history, self.intraday_equity)
-            stats.summary(display=True)
+            stats.summary(display=display)
 
             plotting = Plotting("AGGREGATE")
             plotting.update_data(self.intraday_equity)
-            plotting.overview(display=True)
+            plotting.overview(display=display)
 
         self.trade_manager.update_data(self.trade_history, self.intraday_equity)
         self.trade_manager.save_logs()

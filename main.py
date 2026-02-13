@@ -78,7 +78,7 @@ def main():
             print(f"[WAIT] Data not ready. Time remaining: {hours}h {minutes}m {seconds}s")
             time.sleep(wait_seconds)
         dh.intraday_data(symbols)
-        bt.run(end_date=str(date.today()))
+        bt.run(end_date=str(date.today()), display=False)
 
         dfc = DataFeedController(strategy_dict, margin=args.margin)
         dfc.run()

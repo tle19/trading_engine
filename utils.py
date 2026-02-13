@@ -19,7 +19,7 @@ def save_data(df, symbol, mode="intraday"):
 
     file_path = os.path.join(data_path, f"{symbol}_{mode}.csv")
     df.to_csv(file_path, index=False)
-    print(f"Saved CSV to {file_path}")
+    print(f"Saved data to {file_path}")
 
 def open_data(symbol, start_date=None, end_date=None, mode="intraday"):
     file_path = os.path.join(data_path, f"{symbol}_{mode}.csv")
