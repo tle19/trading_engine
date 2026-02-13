@@ -100,7 +100,7 @@ class SMACrossover(Strategy):
                 
     def backfill_data(self):
         if not self.back_filled:
-            df = open_data(self.symbol, start_time="9:30", end_time="15:59")
+            df = open_data(self.symbol)
             df = df[df['timestamp'] < self.ts]
             last_trading_day = df['timestamp'].dt.date.max()
             df = df[df['timestamp'].dt.date == last_trading_day]
