@@ -6,7 +6,6 @@ tokens.json
 trade_logs.json
 trade_logs_*.json
 *_grid_search.json
-math.txt
 
 # --- Pickle Files ---
 *_model.pkl

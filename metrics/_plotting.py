@@ -1,5 +1,7 @@
 import os
+from itertools import accumulate
 import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
 import pandas as pd
 import numpy as np
 
@@ -35,15 +37,12 @@ class Plotting:
             equity = equity[::step]
             dates = dates[::step]
 
-        plt.figure(figsize=(14, 6))
-        self._plot_equity(dates, equity)
-        self._plot_benchmark(dates, equity)
-        self._plot_drawdown(dates, equity)
-        plt.xlabel("Date")
-        plt.ylabel("Portfolio Value")
-        plt.title(f"{self.symbol} Strategy Equity ({self.start_date.date()} to {self.end_date.date()})")
-        plt.legend()
-        plt.grid(True, linestyle="--", alpha=0.6)
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True,
+                                    gridspec_kw={'height_ratios': [3, 1]})
+
+        # Equity curve
+        self._plot_equity_and_benchmark(ax1, dates, equity)
+        self._plot_drawdown(ax2, dates, equity)
         plt.tight_layout()
         os.makedirs(self.img_path, exist_ok=True)
         filename = f"{self.symbol}_{self.start_date.date()}_{self.end_date.date()}.png"
@@ -53,46 +52,44 @@ class Plotting:
             plt.show()
         plt.close()
 
-    def _plot_equity(self, dates, equity):
-        plt.plot(dates, equity, label="Strategy", color="mediumseagreen")
-
-    def _plot_benchmark(self, dates, equity):
+    def _plot_equity_and_benchmark(self, ax, dates, equity):
         if self.symbol == "AGGREGATE":
             df = open_data("SPY", self.start_date, self.end_date, "daily")
             label = "S&P 500 (Buy & Hold)"
-            dates_naive = dates.tz_localize(None)
-            spy_series = pd.Series(df["close"].values, index=pd.to_datetime(df.index))
-            spy_intraday = spy_series.reindex(dates_naive, method="ffill")
-            stock_scaled = spy_intraday.values / spy_intraday.values[0] * equity[0]
-            plt.plot(dates, stock_scaled, label=label, color="gray", linestyle="--", alpha=0.7)
         else:
-            df = open_data(self.symbol, self.start_date, self.end_date)
+            df = open_data(self.symbol, self.start_date, self.end_date, "daily")
             label = f"{self.symbol} (Buy & Hold)"
-            stock_close = df["close"].values
-            min_len = min(len(stock_close), len(equity))
-            stock_close = stock_close[:min_len]
-            equity = equity[:min_len]
-            dates = dates[:min_len]
 
-            stock_scaled = stock_close / stock_close[0] * equity[0]
-            plt.plot(dates, stock_scaled, label=label, color="gray", linestyle="--", alpha=0.7)
+        benchmark_intraday = pd.Series(index=dates, dtype=float)
+        daily_dates = pd.to_datetime(df["timestamp"]).dt.date.tolist()
+        daily_closes = df['close'].values
+        daily_idx = 0
+
+        for ts in dates:
+            ts_date = ts.date()
+            if ts_date > daily_dates[daily_idx] and ts_date in daily_dates:
+                daily_idx += 1
+            benchmark_intraday.loc[ts] = daily_closes[daily_idx]
+
+        shares = equity[0] / benchmark_intraday.iloc[0]
+        benchmark_intraday = benchmark_intraday * shares
+
+        ax.plot(dates, equity, label="Strategy", color="mediumseagreen", linewidth=2.0, alpha=0.8)
+        ax.plot(dates, benchmark_intraday, label=label, color="gray", linewidth=2.0, alpha=0.8)
+        ax.axhline(y=equity[0], color='black', linestyle='--', linewidth=1.0, alpha=0.8)
+        ax.grid(True, linestyle=":", alpha=0.3)
+        ax.set_title(f"Strategy Performance ({self.symbol})")
+        ax.set_ylabel("Portfolio Value")
+        ax.legend()
         
-    def _plot_drawdown(self, dates, equity):
-        peak = equity[0]
-        peak_idx = 0
-        drawdown_segments = []
-
-        for i in range(1, len(equity)):
-            if equity[i] > peak:
-                if peak_idx != i - 1:
-                    drawdown_segments.append((peak_idx, i - 1, peak))
-                peak = equity[i]
-                peak_idx = i
-
-        if peak_idx < len(equity) - 1:
-            drawdown_segments.append((peak_idx, len(equity) - 1, peak))
-
-        for start, end, peak_val in drawdown_segments:
-            plt.hlines(y=peak_val, xmin=dates[start], xmax=dates[end], color="red", linewidth=1, alpha=0.5)
-            plt.fill_between(dates[start:end + 1], equity[start:end + 1], peak_val, 
-                            color="red", alpha=0.1)
+    def _plot_drawdown(self, ax, dates, equity):
+        running_max = list(accumulate(equity, max))
+        drawdown_pct = [(eq - rm) / rm * 100 for eq, rm in zip(equity, running_max)]
+        ax.plot(dates, drawdown_pct, color="salmon", linewidth=2.0)
+        ax.fill_between(dates, drawdown_pct, color="salmon", alpha=0.5)
+        ax.grid(True, linestyle=":", alpha=0.3)
+        ax.set_title("Drawdown (%)")
+        ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
+    
+    def _plot_monthly_returns(self):
+        raise NotImplementedError
