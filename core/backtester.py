@@ -48,11 +48,11 @@ class Backtest:
 
             self.trade_history.extend(self.trade_manager.trade_history)
             self.intraday_equity.append(self.trade_manager.intraday_equity)
+            
+        elapsed_time = time.perf_counter() - start_time
 
         self.trade_history = self.sort_trade_history(self.trade_history)
         self.intraday_equity = self.combine_equity_dicts(self.intraday_equity)
-
-        elapsed_time = time.perf_counter() - start_time
 
         if len(self.symbols) == 1:
             self.plotting.plot_equity(display=display_plot)
