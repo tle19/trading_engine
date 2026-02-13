@@ -30,7 +30,7 @@ class Backtest:
         self.train_wait = True
 
     def run(self, start_date="2024-1-10", end_date="2026-1-10", 
-            grid=False, train=False, display_stats=True, display_plot=True):
+            grid=False, train=False):
         start_time = time.perf_counter()
 
         self.start_date = start_date
@@ -44,7 +44,7 @@ class Backtest:
             if grid:
                 self.grid_search(symbol, df, train)
             else:
-                self.run_simulation(symbol, df, train, display_stats, display_plot)
+                self.run_simulation(symbol, df, train)
 
             self.trade_history.extend(self.trade_manager.trade_history)
             self.intraday_equity.append(self.trade_manager.intraday_equity)
@@ -55,22 +55,22 @@ class Backtest:
         self.intraday_equity = self.combine_equity_dicts(self.intraday_equity)
 
         if len(self.symbols) == 1:
-            self.plotting.plot_equity(display=display_plot)
+            self.plotting.overview(display=True)
         else:
             stats = Stats("AGGREGATE")
             stats.update_data(self.trade_history, self.intraday_equity)
-            stats.summary(display_stats)
+            stats.summary(display=True)
 
             plotting = Plotting("AGGREGATE")
             plotting.update_data(self.intraday_equity)
-            plotting.plot_equity(display=display_plot)
+            plotting.overview(display=True)
 
         self.trade_manager.update_data(self.trade_history, self.intraday_equity)
         self.trade_manager.save_logs()
         
         print(f"Elapsed Backtest Time: {elapsed_time:.3f} seconds")
 
-    def run_simulation(self, symbol, df, train, display_stats, display_plot):
+    def run_simulation(self, symbol, df, train, display_stats=True, display_plot=True):
         for row in df.itertuples(index=False):
             self.ts = row.timestamp
             self.open = row.open
@@ -78,7 +78,7 @@ class Backtest:
             self.low = row.low
             self.close = row.close
 
-            if train and (self.ts.hour, self.ts.minute) == (9, 30):
+            if train and (self.ts.hour, self.ts.minute) == (9, 30): # adjust to be first data point in new day
                 self.train_model(symbol)
 
             signal = self.strategy.generate_signal(row, symbol)
@@ -94,7 +94,7 @@ class Backtest:
 
         if display_plot:
             self.plotting.update_data(self.trade_manager.intraday_equity)
-            self.plotting.plot_equity(display=False)
+            self.plotting.overview(display=False)
 
     def interpret_signal(self, signal, strategy):
         name = strategy.__class__.__name__
