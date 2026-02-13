@@ -53,7 +53,6 @@ class Backtest:
         self.intraday_equity = self.combine_equity_dicts(self.intraday_equity)
 
         elapsed_time = time.perf_counter() - start_time
-        print(f"Elapsed Backtest Time: {elapsed_time:.3f} seconds")
 
         if len(self.symbols) == 1:
             self.plotting.plot_equity(display=display_plot)
@@ -68,6 +67,8 @@ class Backtest:
 
         self.trade_manager.update_data(self.trade_history, self.intraday_equity)
         self.trade_manager.save_logs()
+        
+        print(f"Elapsed Backtest Time: {elapsed_time:.3f} seconds")
 
     def run_simulation(self, symbol, df, train, display_stats, display_plot):
         for row in df.itertuples(index=False):

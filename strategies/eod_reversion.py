@@ -9,9 +9,9 @@ from utils import *
 
 class EODReversion(Strategy):
     def __init__(self, symbol, orb_window=1, fast_window=2, slow_window=10, htf_window=20, atr_diff=0.2,
-                 stop_loss=0.0075, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False, force_close=True,
+                 stop_loss=0.0075, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False, force_close=True, swing=False,
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=1):
-        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
+        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close, swing,
                          pnl_target, pnl_loss, trade_max)
         self.orb_window = orb_window
         self.fast_window = fast_window
@@ -121,7 +121,7 @@ class EODReversion(Strategy):
                     aapl_trades.sort(key=lambda t: datetime.fromisoformat(t["exit_time"]), reverse=True)
                     self.prev_day_atr_mean = aapl_trades[0]["features"]["curr_day_atr_mean"]
             else:
-                df = open_data(self.symbol, start_time="9:30", end_time="15:00")
+                df = open_data(self.symbol)
                 df = df[df['timestamp'] < self.ts]
                 last_trading_day = df['timestamp'].dt.date.max()
                 df = df[df['timestamp'].dt.date == last_trading_day]
