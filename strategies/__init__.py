@@ -3,7 +3,6 @@ from .strategy_pair import StrategyPair
 from .risk import RiskManager
 from .example import SMACrossover
 from .stochastic import StochasticIndicator
-from .macd import MACDIndicator
 from .orb import ORBIndicator
 from .volume_decay import VolumeDecay
 from .rsi_scalp import RSIScalp
@@ -18,7 +17,6 @@ __all__ = [
     "RiskManager",
     "SMACrossover",
     "StochasticIndicator",
-    "MACDIndicator",
     "ORBIndicator",
     "VolumeDecay",
     "RSIScalp",
@@ -32,7 +30,6 @@ __all__ = [
 strategy_map = {
     "sma": SMACrossover,
     "stochastic": StochasticIndicator,
-    "macd": MACDIndicator,
     "orb": ORBIndicator,
     "volume": VolumeDecay,
     "rsi": RSIScalp,

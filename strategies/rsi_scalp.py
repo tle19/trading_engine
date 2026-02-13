@@ -5,9 +5,9 @@ from utils import *
 
 class RSIScalp(Strategy):
     def __init__(self, symbol, rsi_period=2, rsi_lower=1, rsi_upper=99, htf_window=20, vol_length=5,
-                 stop_loss=0.0025, take_profit=0.001, position_size=0.25, trailing_ratio=0.15, pyramid=True, force_close=True, 
+                 stop_loss=0.0025, take_profit=0.001, position_size=0.25, trailing_ratio=0.15, pyramid=True, force_close=True, swing=False,
                  pnl_target=0.02, pnl_loss=-0.02, trade_max=50):
-        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close,
+        super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close, swing,
                          pnl_target, pnl_loss, trade_max)
         self.rsi_period = rsi_period
         self.rsi_lower = rsi_lower
