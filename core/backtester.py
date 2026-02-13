@@ -52,19 +52,22 @@ class Backtest:
         self.trade_history = self.sort_trade_history(self.trade_history)
         self.intraday_equity = self.combine_equity_dicts(self.intraday_equity)
 
-        stats = Stats("AGGREGATE")
-        stats.update_data(self.trade_history, self.intraday_equity)
-        stats.summary(display_stats)
-
-        self.trade_manager.update_data(self.trade_history, self.intraday_equity)
-        self.trade_manager.save_logs()
-
         elapsed_time = time.perf_counter() - start_time
         print(f"Elapsed Backtest Time: {elapsed_time:.3f} seconds")
 
-        plotting = Plotting("AGGREGATE")
-        plotting.update_data(self.intraday_equity)
-        plotting.plot_equity(display=display_plot, overlay=False)
+        if len(self.symbols) == 1:
+            self.plotting.plot_equity(display=display_plot)
+        else:
+            stats = Stats("AGGREGATE")
+            stats.update_data(self.trade_history, self.intraday_equity)
+            stats.summary(display_stats)
+
+            plotting = Plotting("AGGREGATE")
+            plotting.update_data(self.intraday_equity)
+            plotting.plot_equity(display=display_plot, overlay=False)
+
+        self.trade_manager.update_data(self.trade_history, self.intraday_equity)
+        self.trade_manager.save_logs()
 
     def run_simulation(self, symbol, df, train, display_stats, display_plot):
         for row in df.itertuples(index=False):
@@ -76,11 +79,14 @@ class Backtest:
 
             if train and (self.ts.hour, self.ts.minute) == (9, 30):
                 self.train_model(symbol)
-            
+
             signal = self.strategy.generate_signal(row, symbol)
             self.dynamic_slippage(signal)
             self.interpret_signal(signal, self.strategy)
             self.update_equity()
+                
+            if self.cash * self.margin < self.close:
+                break
 
         self.stats.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
         self.stats.summary(display=display_stats)

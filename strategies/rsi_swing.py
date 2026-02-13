@@ -14,15 +14,12 @@ class RSISwing(Strategy):
 
         self.ema = None
     
-    def generate_signal(self, row):
+    def generate_signal(self, row, _=None):
         self.update(row)
         self.reset_data()
         self.minimum_computations()
 
         rsi = self.compute_indicators()
-
-        if self.trade_window((9, 31), (15, 57)):
-            return None
         
         signal = None
         if self.activated:

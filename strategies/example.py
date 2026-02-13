@@ -35,7 +35,7 @@ class SMACrossover(Strategy):
         if not self.model3.initialize():
             self.model3 = None
     
-    def generate_signal(self, row):
+    def generate_signal(self, row, _=None):
         self.update(row)  # store OHLCV
         self.backfill_data() # backfill data if needed
         self.reset_data() # intraday data reset

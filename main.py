@@ -19,7 +19,7 @@ def main():
 
     parser.add_argument("--daily", action="store_true")
 
-    parser.add_argument("--start_date", type=str, default="2024-1-10")
+    parser.add_argument("--start_date", type=str, default="2007-1-01")
     parser.add_argument("--end_date", type=str, default=str(date.today()))
     parser.add_argument("--grid", action="store_true")
     parser.add_argument("--train", action="store_true")
