@@ -37,10 +37,8 @@ class Plotting:
             equity = equity[::step]
             dates = dates[::step]
 
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True,
-                                    gridspec_kw={'height_ratios': [3, 1]})
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True, gridspec_kw={'height_ratios': [3, 1]})
 
-        # Equity curve
         self._plot_equity_and_benchmark(ax1, dates, equity)
         self._plot_drawdown(ax2, dates, equity)
         plt.tight_layout()
@@ -55,10 +53,10 @@ class Plotting:
     def _plot_equity_and_benchmark(self, ax, dates, equity):
         if self.symbol == "AGGREGATE":
             df = open_data("SPY", self.start_date, self.end_date, "daily")
-            label = "S&P 500 (Buy & Hold)"
+            label = "S&P 500"
         else:
             df = open_data(self.symbol, self.start_date, self.end_date, "daily")
-            label = f"{self.symbol} (Buy & Hold)"
+            label = f"{self.symbol}"
 
         benchmark_intraday = pd.Series(index=dates, dtype=float)
         daily_dates = pd.to_datetime(df["timestamp"]).dt.date.tolist()
