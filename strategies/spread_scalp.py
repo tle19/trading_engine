@@ -33,8 +33,8 @@ class SpreadScalp(StrategyPair):
         return signal
     
     def enter_trade(self, signal=None):
-        # if self.s1_spread > 0.10 or self.s1_spread > 0.10:
-        #     return signal
+        if self.s1_spread > 0.05 or self.s1_spread > 0.05:
+            return signal
 
         if self.mid1 < self.ema1 and self.mid2 > self.ema2:
             signal = self.buy_pair()

@@ -39,7 +39,7 @@ def acc_latency():
 with open("trade_logs_live_pt.json") as f:
     trade_history = json.load(f)["trade_history"]
 
-trade_history = trade_history[50:]
+trade_history = trade_history[200:]
 pair_sums = []
 pair_times = []
 
