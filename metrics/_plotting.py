@@ -21,7 +21,7 @@ class Plotting:
         self.start_date = dates[0]
         self.end_date = dates[-1]
 
-    def plot_equity(self, display=True, overlay=True, drawdown=True):
+    def plot_equity(self, display=True):
         intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
         if not intraday_equity:
             print("No equity data to plot.")
@@ -37,13 +37,10 @@ class Plotting:
             dates = dates[::step]
 
         plt.figure(figsize=(14, 6))
-        plt.plot(dates, equity, label="Strategy", color="blue")
+        plt.plot(dates, equity, label="Strategy", color="seagreen")
 
-        if overlay:
-            self.plot_overlay(dates, equity)
-
-        if drawdown:
-            self.drawdown_overlay(dates, equity)
+        self.plot_benchmark(dates, equity)
+        self.plot_drawdown(dates, equity)
 
         plt.xlabel("Date")
         plt.ylabel("Portfolio Value")
@@ -59,29 +56,28 @@ class Plotting:
             plt.show()
         plt.close()
 
-    def plot_overlay(self, dates, equity):
-        df = open_data(self.symbol, self.start_date, self.end_date)
+    def plot_benchmark(self, dates, equity):
+        if self.symbol == "AGGREGATE":
+            df = open_data("SPY", self.start_date, self.end_date, "daily")
+            label = "S&P 500 (Buy & Hold)"
+            dates_naive = dates.tz_localize(None)
+            spy_series = pd.Series(df["close"].values, index=pd.to_datetime(df.index))
+            spy_intraday = spy_series.reindex(dates_naive, method="ffill")
+            stock_scaled = spy_intraday.values / spy_intraday.values[0] * equity[0]
+            plt.plot(dates, stock_scaled, label=label, color="gray", linestyle="--", alpha=0.7)
+        else:
+            df = open_data(self.symbol, self.start_date, self.end_date)
+            label = f"{self.symbol} (Buy & Hold)"
+            stock_close = df["close"].values
+            min_len = min(len(stock_close), len(equity))
+            stock_close = stock_close[:min_len]
+            equity = equity[:min_len]
+            dates = dates[:min_len]
 
-        if df.empty or "close" not in df.columns:
-            print("No valid stock data to overlay.")
-            return
-
-        stock_close = df["close"].values
-
-        min_len = min(len(stock_close), len(equity))
-        stock_close = stock_close[:min_len]
-        equity = equity[:min_len]
-        dates = dates[:min_len]
-
-        stock_norm = (stock_close - stock_close.min()) / (stock_close.max() - stock_close.min())
-        equity_norm = (equity - equity.min()) / (equity.max() - equity.min())
-
-        stock_scaled = stock_norm * (equity.max() - equity.min()) + equity.min()
-
-        plt.plot(dates, stock_scaled, label=f"{self.symbol} (Normalized Price)",
-                color="orange", linestyle="--", alpha=0.7)
+            stock_scaled = stock_close / stock_close[0] * equity[0]
+            plt.plot(dates, stock_scaled, label=label, color="gray", linestyle="--", alpha=0.7)
         
-    def drawdown_overlay(self, dates, equity):
+    def plot_drawdown(self, dates, equity):
         peak = equity[0]
         peak_idx = 0
         drawdown_segments = []

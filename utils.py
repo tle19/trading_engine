@@ -17,12 +17,12 @@ def save_data(df, symbol, mode="intraday"):
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
     df["timestamp"] = df["timestamp"].dt.tz_convert(timezone)
 
-    file_path = os.path.join(data_path, f"{symbol + "_" + mode}.csv")
+    file_path = os.path.join(data_path, f"{symbol}_{mode}.csv")
     df.to_csv(file_path, index=False)
     print(f"Saved CSV to {file_path}")
 
 def open_data(symbol, start_date=None, end_date=None, mode="intraday"):
-    file_path = os.path.join(data_path, f"{symbol + "_" + mode}.csv")
+    file_path = os.path.join(data_path, f"{symbol}_{mode}.csv")
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"[WARN] Missing CSV for {symbol}: {file_path}")
     df = pd.read_csv(file_path)

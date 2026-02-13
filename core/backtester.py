@@ -63,7 +63,7 @@ class Backtest:
 
             plotting = Plotting("AGGREGATE")
             plotting.update_data(self.intraday_equity)
-            plotting.plot_equity(display=display_plot, overlay=False)
+            plotting.plot_equity(display=display_plot)
 
         self.trade_manager.update_data(self.trade_history, self.intraday_equity)
         self.trade_manager.save_logs()
