@@ -117,9 +117,9 @@ class EODReversion(Strategy):
                 with open("trade_logs.json", "r") as f: 
                     data = json.load(f)
                     trade_history = data.get("trade_history", [])
-                    aapl_trades = [t for t in trade_history if t["symbol"] == "AAPL"]
-                    aapl_trades.sort(key=lambda t: datetime.fromisoformat(t["exit_time"]), reverse=True)
-                    self.prev_day_atr_mean = aapl_trades[0]["features"]["curr_day_atr_mean"]
+                    trades = [t for t in trade_history if t["symbol"] == self.symbol]
+                    trades.sort(key=lambda t: datetime.fromisoformat(t["exit_time"]), reverse=True)
+                    self.prev_day_atr_mean = trades[0]["features"]["curr_day_atr_mean"]
             else:
                 df = open_data(self.symbol)
                 df = df[df['timestamp'] < self.ts]
