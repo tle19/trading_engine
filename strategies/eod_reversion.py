@@ -108,6 +108,7 @@ class EODReversion(Strategy):
                 self.slow_window,
                 self.htf_window
             ) + 1
+            # if self.trade_window((9, 30), (9, 30)):
             self.upper_support, self.lower_support = self.donchian_channel(self.orb_window)
             self.activated = len(self.closes) > required_data
 
@@ -119,7 +120,10 @@ class EODReversion(Strategy):
                     trade_history = data.get("trade_history", [])
                     trades = [t for t in trade_history if t["symbol"] == self.symbol]
                     trades.sort(key=lambda t: datetime.fromisoformat(t["exit_time"]), reverse=True)
-                    self.prev_day_atr_mean = trades[0]["features"]["curr_day_atr_mean"]
+                    if trades:
+                        self.prev_day_atr_mean = trades[0]["features"]["curr_day_atr_mean"]
+                    else:
+                        self.prev_day_atr_mean = 0.25
             else:
                 df = open_data(self.symbol)
                 df = df[df['timestamp'] < self.ts]
