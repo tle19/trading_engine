@@ -30,10 +30,11 @@ class Backtest:
         self.train_wait = True
 
     def run(self, start_date="2024-1-10", end_date="2026-1-10", 
-            grid=False, train=False, display=True):
+            grid=False, train=False, display=True, show_trade=False):
         start_time = time.perf_counter()
 
         self.start_date = start_date
+        self.show_trade = show_trade
         self.trade_history = []
         self.intraday_equity = []
         for symbol in self.symbols:
@@ -114,14 +115,16 @@ class Backtest:
             fill_price = entry_price * self.slip_up
             leg.entry_price = fill_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
-            # print(f"[{self.ts}] | ENTRY (L): {fill_price}, STOP: {stop_price}, TARGET: {target_price}")
+            if self.show_trade:
+                print(f"[{self.ts}] | ENTRY (L): {fill_price}, STOP: {stop_price}, TARGET: {target_price}")
 
         # --- Enter Short ---
         elif signal == -1:
             fill_price = entry_price * self.slip_dn
             leg.entry_price = fill_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
-            # print(f"[{self.ts}] | ENTRY (S): {fill_price}, STOP: {stop_price}, TARGET: {target_price}")
+            if self.show_trade:
+                print(f"[{self.ts}] | ENTRY (S): {fill_price}, STOP: {stop_price}, TARGET: {target_price}")
 
         # --- Adjust Stops / Targets ---
         elif signal == 9:
@@ -169,7 +172,8 @@ class Backtest:
                     self.trade_manager.update_exit(leg, self.ts, exit_price, fill_price)
                     self.update_pnl(pnl)
                     position_manager.remove_leg(leg)
-                    # print(f"[{self.ts}] | EXIT: {fill_price}, PnL: {pnl}")
+                    if self.show_trade:
+                        print(f"[{self.ts}] | EXIT: {fill_price}, PnL: {pnl}")
 
     def initialize(self, symbol, strategy_class, **params):
         self.strategy = strategy_class(symbol, **params)

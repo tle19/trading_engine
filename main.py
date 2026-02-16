@@ -23,6 +23,7 @@ def main():
     parser.add_argument("--end_date", type=str, default=str(date.today()))
     parser.add_argument("--grid", action="store_true")
     parser.add_argument("--train", action="store_true")
+    parser.add_argument("--show_trade", action="store_true")
     parser.add_argument("--cash", type=int, default=25000)
     parser.add_argument("--margin", type=float, default=1.0)
     parser.add_argument("--commission", type=float, default=0.0)
@@ -83,7 +84,7 @@ def main():
         dfc = DataFeedController(strategy_dict, margin=args.margin)
         dfc.run()
     elif args.backtest:
-        bt.run(start_date=args.start_date, end_date=args.end_date, grid=args.grid, train=args.train)
+        bt.run(start_date=args.start_date, end_date=args.end_date, grid=args.grid, train=args.train, show_trade=args.show_trade)
     elif args.fetch:
         if args.daily:
             dh.daily_data(args.symbols)
