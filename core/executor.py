@@ -55,6 +55,12 @@ class DataFeedController:
                             item.get("4"),
                             item.get("5")
                         )
+                    elif service == "NASDAQ_BOOK" or service == "NYSE_BOOK":
+                        row = self.level2_row.update(
+                            item.get("1"),
+                            item.get("2"),
+                            item.get("3")
+                        )
                     self.log_buffer.append(f"[{symbol}] {row}")
 
                     if service == "CHART_EQUITY":
