@@ -37,7 +37,7 @@ class Plotting:
             equity = equity[::step]
             dates = dates[::step]
 
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True, gridspec_kw={'height_ratios': [3, 1]})
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), sharex=True, gridspec_kw={'height_ratios': [3, 1]})
 
         self._plot_equity_and_benchmark(ax1, dates, equity)
         self._plot_drawdown(ax2, dates, equity)
