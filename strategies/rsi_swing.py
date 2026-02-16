@@ -5,7 +5,8 @@ from utils import *
 
 class RSISwing(Strategy):
     def __init__(self, symbol, rsi_period=2, rsi_lower=10, rsi_upper=90, htf_window=100,
-                 stop_loss=0.0025, take_profit=0.001, position_size=0.25, trailing_ratio=0.15, pyramid=True, force_close=False, swing=True):
+                 stop_loss=0.0025, take_profit=0.001, position_size=0.25, trailing_ratio=0.15, 
+                 pyramid=True, force_close=False, swing=True):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close, swing)
         self.rsi_period = rsi_period
         self.rsi_lower = rsi_lower

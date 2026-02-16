@@ -9,7 +9,8 @@ class StochasticIndicator(Strategy):
     def __init__(self, symbol, fast_window=12, slow_window=26, signal_window=9,
                  rsi_period=14, k_period=14, k_smooth=3, d_period=3, stoch_lower=20, stoch_upper=80,
                  vol_fast_window=14, vol_slow_window=28,
-                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, pyramid=False, force_close=True, swing=False,
+                 stop_loss=0.01, take_profit=0.01, position_size=1.0, trailing_ratio=0.05, 
+                 pyramid=False, force_close=True, swing=False,
                  pnl_target=0.01, pnl_loss=-0.02, trade_max=10):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close, swing,
                          pnl_target, pnl_loss, trade_max)

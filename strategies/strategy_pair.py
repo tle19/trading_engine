@@ -130,10 +130,12 @@ class StrategyPair:
         return HOLD
     
     def flatten(self):
-        self.s1["direction"] = 0 
-        self.s2["direction"] = 0
         self.s1["entry_price"] = None
         self.s2["entry_price"] = None
+        self.s1["direction"] = 0 
+        self.s2["direction"] = 0
+        self.s1["shares"] = 0
+        self.s2["shares"] = 0
     
     def compute_share_split(self, min_pct=0.85):
         cash = self.risk_manager.curr_cash / 2
