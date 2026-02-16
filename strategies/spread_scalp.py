@@ -1,18 +1,23 @@
+import numpy as np
+from collections import deque
+
 from strategies import StrategyPair
 from models import *
 from utils import *
 
 class SpreadScalp(StrategyPair):
-    def __init__(self, pair, ema_window=5, start_time=(16, 00), end_time=(20, 00), decay_start=500, decay_window=500,
-                 take_profit=0.00001, pnl_target=0.01, pnl_loss=-0.01, trade_max=400):
-        super().__init__(pair, start_time, end_time, take_profit, 
+    def __init__(self, pair, ema_window=5, start_time=(16, 00), end_time=(20, 00), decay_start=1000, decay_end=2000,
+                 stop_loss=0.0001, take_profit=0.00001, pnl_target=0.01, pnl_loss=-0.01, trade_max=400):
+        super().__init__(pair, start_time, end_time, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
         self.decay_start = decay_start
-        self.decay_window = decay_window
+        self.decay_end = decay_end
 
         self.ema1 = None
         self.ema2 = None
+        
+        self.rolling_spread = deque(maxlen=50)
     
     def generate_signal(self, row, symbol):
         self.update(symbol, row)
@@ -33,14 +38,22 @@ class SpreadScalp(StrategyPair):
         return signal
     
     def enter_trade(self, signal=None):
-        if self.s1_spread > 0.05 or self.s1_spread > 0.05:
+        if self.bid_ask_spread1 > 0.10 or self.bid_ask_spread2 > 0.10:
             return signal
 
         if self.mid1 < self.ema1 and self.mid2 > self.ema2:
+            self.features = self.z_score
             signal = self.buy_pair()
         elif self.mid1 > self.ema1 and self.mid2 < self.ema2:
+            self.features = self.z_score
             signal = self.sell_pair()
         return signal
+
+        # threshold = 1.0
+        # if self.z_score > threshold:
+        #     signal = self.sell_pair()
+        # elif self.z_score < -threshold:
+        #     signal = self.buy_pair()
         
     def exit_trade(self, signal=None):
         exit1 = self.s1["bid"] if self.s1["direction"] > 0 else self.s1["ask"]
@@ -51,17 +64,22 @@ class SpreadScalp(StrategyPair):
         position_value = (self.s1["shares"] * self.s1["entry_price"]) + (self.s2["shares"] * self.s2["entry_price"])
         pnl_pct = (pnl1 + pnl2) / position_value
 
-        if pnl_pct > self.take_profit:
-            signal = self.exit()
+        if pnl_pct >= self.take_profit:
+            return self.exit()
+        if pnl_pct <= -self.stop_loss:
+            return self.exit()
+
+        # time decay
+        if self.ticks >= self.decay_end:
+            return self.exit()
         if self.ticks > self.decay_start:
-            decay_factor = max(0, 1 - ((self.ticks - self.decay_start) / self.decay_window))
-            if pnl_pct > self.take_profit * decay_factor:
-                signal = self.exit()
-        if self.ticks > self.decay_start + self.decay_window:
-            signal = self.exit()
+            decay_factor = 1 - ((self.ticks - self.decay_start) / (self.decay_end - self.decay_start))
+            if pnl_pct >= self.take_profit * decay_factor:
+                return self.exit()
+
         return signal
         
-    def compute_indicators(self, ms=500):
+    def compute_indicators(self, ms=300):
         self.latency_check = self.s1["latency"] < ms and self.s2["latency"] < ms
 
         self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
@@ -70,5 +88,9 @@ class SpreadScalp(StrategyPair):
         self.ema1 = self.compute_ema(self.ema1, self.mid1, self.ema_window)
         self.ema2 = self.compute_ema(self.ema2, self.mid2, self.ema_window)
 
-        self.s1_spread = abs(self.s1["bid"] - self.s1["ask"])
-        self.s2_spread = abs(self.s2["bid"] - self.s2["ask"])
+        spread = self.mid1 - self.mid2
+        self.rolling_spread.append(spread)
+        self.z_score = (spread - np.mean(self.rolling_spread)) / np.std(self.rolling_spread, ddof=1)
+        
+        self.bid_ask_spread1 = abs(self.s1["ask"] - self.s1["bid"])
+        self.bid_ask_spread2 = abs(self.s2["ask"] - self.s2["bid"])

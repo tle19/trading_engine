@@ -9,7 +9,7 @@ HOLD = None
 
 class StrategyPair:
     def __init__(self, pair, start_time=(14, 30), end_time=(21, 00), 
-                 take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
+                 stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         self.pair = pair
         if "-" not in pair:
             raise ValueError(f"Invalid pair format: '{pair}'. Expected format 'SYMBOL1-SYMBOL2'.")
@@ -17,6 +17,7 @@ class StrategyPair:
         self.start_time = (start_time[0] * 3600 + start_time[1] * 60) * 1000
         self.end_time = (end_time[0] * 3600 + end_time[1] * 60) * 1000
         self.take_profit = take_profit
+        self.stop_loss = stop_loss
 
         self.data = {
             self.symbol1: {
@@ -54,6 +55,8 @@ class StrategyPair:
         self.ticks = 0
         
         self.latency = 0  # network latency in milliseconds
+
+        self.features = None
 
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
 
