@@ -39,18 +39,21 @@ def acc_latency():
 with open("trade_logs_live_pt.json") as f:
     trade_history = json.load(f)["trade_history"]
 
-trade_history = trade_history[200:]
+trade_history = trade_history[251:]
 pair_sums = []
 pair_times = []
-
-for i in range(0, len(trade_history), 2):
+th = []
+for trade in trade_history.copy():
+    if trade["symbol"] == "GOOG" or trade["symbol"] == "GOOGL":
+        th.append(trade)
+for i in range(0, len(th), 2):
     idx1 = i
     idx2 = i + 1
-    if idx2 < len(trade_history):
-        pair_sums.append(trade_history[idx1]["pnl_pct"] + trade_history[idx2]["pnl_pct"])
+    if idx2 < len(th):
+        pair_sums.append(th[idx1]["pnl_pct"] + th[idx2]["pnl_pct"])
 
-        t1 = trade_history[idx1]["exit_time"]
-        t2 = trade_history[idx2]["exit_time"]
+        t1 = th[idx1]["exit_time"]
+        t2 = th[idx2]["exit_time"]
         t1_dt = datetime.fromtimestamp(t1 / 1000, tz=timezone)
         t2_dt = datetime.fromtimestamp(t2 / 1000, tz=timezone)
 
