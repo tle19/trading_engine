@@ -294,13 +294,13 @@ class Level2Row:
 
     def __init__(self, timestamp=None, bid_side=None, ask_side=None):
         self.timestamp = timestamp
-        self.bid_side = bid_side or []
-        self.ask_side = ask_side or []
+        self.bid_side = bid_side
+        self.ask_side = ask_side
 
     def update(self, timestamp=None, bid_side=None, ask_side=None):
         self.timestamp = timestamp
-        self.bid_side = bid_side or []
-        self.ask_side = ask_side or []
+        self.bid_side = bid_side
+        self.ask_side = ask_side
         return self
 
     def __repr__(self):
