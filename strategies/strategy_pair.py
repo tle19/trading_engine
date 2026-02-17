@@ -72,7 +72,7 @@ class StrategyPair:
     def compute_indicators(self):
         raise NotImplementedError
     
-    def update(self, symbol, row=None): 
+    def update(self, symbol, row): 
         s = self.data[symbol]
 
         if row.timestamp is not None: s["ts"] = row.timestamp

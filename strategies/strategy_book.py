@@ -7,7 +7,7 @@ HOLD = None
 # Summer (EDT) start_time=(13, 30), end_time=(20, 00)
 # Winter (EST) start_time=(14, 30), end_time=(21, 00)
 
-class StrategyPair:
+class StrategyBook:
     def __init__(self, symbol, start_time=(14, 30), end_time=(21, 00), 
                  stop_loss=0.01, take_profit=0.01, pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         self.symbol = symbol
@@ -42,10 +42,10 @@ class StrategyPair:
     def compute_indicators(self):
         raise NotImplementedError
     
-    def update(self, row=None): 
+    def update(self, row): 
         if row.timestamp is not None: self.ts = row.timestamp
-        if row.bid is not None: self.bid_side = row.bid
-        if row.ask is not None: self.ask_side = row.ask
+        if row.bid_side is not None: self.bid_side = row.bid_side
+        if row.ask_side is not None: self.ask_side = row.ask_side
 
         if not self.activated:
             if self.bid_side is None or self.ask_side is None:

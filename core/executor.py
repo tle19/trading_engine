@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import orjson
 import schwabdev
 
-from strategies import Strategy, StrategyPair
+from strategies import Strategy, StrategyPair, StrategyBook
 from core import OHLCVRow, Level1Row, Level2Row
 from metrics import *
 from utils import *
@@ -119,6 +119,11 @@ class DataFeedController:
                     symbol1, symbol2 = pair.split("-")
                     self.strategy_dict[symbol1] = ep
                     self.strategy_dict[symbol2] = ep
+            elif issubclass(strategy_cl, StrategyBook):
+                eq = EquityBook(items, strategy_cl, margin=margin, log_buffer=self.log_buffer, client=self.client, stream=self.stream)
+                self.feeds.append(eq)
+                for symbol in items:
+                    self.strategy_dict[symbol] = eq
 
 class Instrument:
     def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live.json"):
@@ -508,3 +513,80 @@ class EquityPairs(Instrument):
             self.update_pnl(strategy, s1["direction"], s1["entry_price"], fill_price1, s1["shares"])
             self.update_pnl(strategy, s2["direction"], s2["entry_price"], fill_price2, s2["shares"])
             strategy.flatten()
+
+class EquityBook(Instrument):
+    def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live_eb.json"):
+        super().__init__(symbols, strategy_class, margin, log_buffer, client, stream, log_file)
+        self.initialize(symbols, strategy_class)
+    
+    def initialize(self, symbols, strategy_class):
+        self.strategies = {}
+        self.exit_ids = {}
+
+        for symbol in symbols:
+            strat = strategy_class(symbol)
+            cash_allocation = round(self.cash / len(symbols), 2)
+            strat.risk_manager.start_cash = cash_allocation
+            self.strategies[symbol] = strat
+            print(
+                f"[INIT] {strat.__class__.__name__:15} | "
+                f"symbol={symbol:10} | cash=${cash_allocation}"
+            )
+
+    def subscribe_symbols(self):
+        self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4", command="ADD"))
+
+    def interpret_signal(self, signal, strategy):
+        return
+
+        # TODO: finish book interpret
+        name = strategy.__class__.__name__
+        symbol = strategy.symbol
+        direction = strategy.direction
+        entry_price = strategy.entry_price
+        shares = strategy.shares
+        
+        # --- Enter Long ---
+        if signal == 1:
+            fill_price = self.buy(signal, symbol, shares)
+            self.exit_ids[leg] = self.sell_oco(symbol, shares, stop_price, target_price)
+            strategy.entry_price = fill_price
+            self.trade_manager.log_entry(name, leg, symbol, direction, 1.0, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
+
+        # --- Enter Short ---
+        elif signal == -1:
+            fill_price = self.sell(signal, symbol, shares)
+            self.exit_ids[leg] = self.buy_oco(symbol, shares, stop_price, target_price)
+            strategy.entry_price = fill_price
+            self.trade_manager.log_entry(name, leg, symbol, direction, 1.0, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
+
+        # --- Adjust Stops / Targets ---
+        elif signal == 9:
+            self.exit_ids[leg] = self.replace_order(self.exit_ids[leg], direction, symbol, shares, stop_price, target_price)
+                
+        # --- Exit Position --- 
+        elif signal == 0:
+
+            fill_price = self.get_fill_price(self.exit_ids[leg], shares, instruction="oco", timeout=1)
+
+            if fill_price is None:
+                self.cancel_order(self.exit_ids[leg])
+                # TODO: handle partial fills
+                # shares_remaining = shares - self.get_shares_owned(symbol)
+                if direction == 1:
+                    fill_price = self.sell(signal, symbol, shares)
+                elif direction == -1:
+                    fill_price = self.buy(signal, symbol, shares)
+                exit_price = strategy.close
+            else:
+                if direction == 1:
+                    self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[SOLD] -{shares} {symbol} @ {fill_price}")
+                elif direction == -1:
+                    self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[BOT] +{shares} {symbol} @ {fill_price}")
+                exit_price = min([stop_price, target_price], key=lambda x: abs(fill_price - x))
+            
+            fill_price = fill_price if fill_price is not None else exit_price
+            self.trade_manager.update_exit(leg, strategy.ts, exit_price, fill_price)
+            self.update_pnl(strategy, direction, entry_price, fill_price, shares)
+            self.exit_ids.pop(leg)
+            position_manager.remove_leg(leg)

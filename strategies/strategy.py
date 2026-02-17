@@ -80,7 +80,7 @@ class Strategy:
     def predict_trade(self, threshold=0.5):
         raise NotImplementedError
     
-    def update(self, row=None): 
+    def update(self, row): 
         if row is not None:
             self.ts = row.timestamp
             self.open = row.open
