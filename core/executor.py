@@ -120,10 +120,10 @@ class DataFeedController:
                     self.strategy_dict[symbol1] = ep
                     self.strategy_dict[symbol2] = ep
             elif issubclass(strategy_cl, StrategyBook):
-                eq = EquityBook(items, strategy_cl, margin=margin, log_buffer=self.log_buffer, client=self.client, stream=self.stream)
-                self.feeds.append(eq)
+                eb = EquityBook(items, strategy_cl, margin=margin, log_buffer=self.log_buffer, client=self.client, stream=self.stream)
+                self.feeds.append(eb)
                 for symbol in items:
-                    self.strategy_dict[symbol] = eq
+                    self.strategy_dict[symbol] = eb
 
 class Instrument:
     def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live.json"):
@@ -486,16 +486,16 @@ class EquityPairs(Instrument):
             fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
             s1["entry_price"] = fill_price1 if fill_price1 is not None else s1["entry_price"]
             s2["entry_price"] = fill_price2 if fill_price2 is not None else s2["entry_price"]
-            self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["ask"], fill_price1, None, strategy.features)
-            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["bid"], fill_price2, None, strategy.features)
+            self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["ask"], fill_price1, None, None, strategy.features)
+            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["bid"], fill_price2, None, None, strategy.features)
 
         # --- Enter Short/Long ---
         elif signal == -1:
             fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
             s1["entry_price"] = fill_price1 if fill_price1 is not None else s1["entry_price"]
             s2["entry_price"] = fill_price2 if fill_price2 is not None else s2["entry_price"]
-            self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["bid"], fill_price1, None, strategy.features)
-            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["ask"], fill_price2, None, strategy.features)
+            self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["bid"], fill_price1, None, None, strategy.features)
+            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["ask"], fill_price2, None, None, strategy.features)
                 
         # --- Exit Position --- 
         elif signal == 0:

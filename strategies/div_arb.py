@@ -18,9 +18,6 @@ class DivArb(StrategyPair):
         self.ema2 = None
         
         self.rolling_spread = deque(maxlen=50)
-
-        self.saved = False
-        self.history = []
     
     def generate_signal(self, row, symbol):
         self.update(symbol, row)
@@ -39,19 +36,7 @@ class DivArb(StrategyPair):
                 else:
                     signal = self.enter_trade()
 
-        if self.received:
-            self.history.append(self.data)
-            if self.s1["ts"] % (24 * 3600 * 1000) > self.end_time and not self.saved:
-                file_path = os.path.join("data", f"{self.pair}_quote.json")
-                if os.path.exists(file_path):
-                    with open(file_path, "r") as f:
-                        existing_history = json.load(f)
-                else:
-                    existing_history = []
-                existing_history.extend(self.history)
-                with open(file_path, "w") as f:
-                    json.dump(existing_history, f, indent=2)
-                self.saved = True
+        self.save_data(symbol)
         return signal
     
     def enter_trade(self, signal=None):

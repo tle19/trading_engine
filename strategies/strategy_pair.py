@@ -1,3 +1,6 @@
+import os
+import json
+
 from .risk import RiskManager
 
 LONG = 1
@@ -55,6 +58,9 @@ class StrategyPair:
         self.ticks = 0
         
         self.latency = 0  # network latency in milliseconds
+
+        self.saved = False
+        self.history = []
 
         self.features = None
 
@@ -164,6 +170,29 @@ class StrategyPair:
         self.s1["shares"] = 1 # testing
         self.s2["shares"] = 1 # testing
 
+    def save_data(self, symbol):
+        if not self.saved:
+            self.history.append({
+                "symbol": symbol,
+                "timestamp": self.data[symbol]["ts"],
+                "bid": self.data[symbol]["bid"],
+                "ask": self.data[symbol]["ask"],
+                "last": self.data[symbol]["last"],
+                "bid_size": self.data[symbol]["bid_size"],
+                "ask_size": self.data[symbol]["ask_size"],
+            })
+            if self.s1["ts"] % (24 * 3600 * 1000) > self.end_time:
+                file_path = os.path.join("data", f"{self.pair}_quote.json")
+                if os.path.exists(file_path):
+                    with open(file_path, "r") as f:
+                        existing_history = json.load(f)
+                else:
+                    existing_history = []
+                existing_history.extend(self.history)
+                with open(file_path, "w") as f:
+                    json.dump(existing_history, f, indent=2)
+                self.saved = True
+        
     def compute_ema(self, prev_ema, new_value, window=10):
         if prev_ema is None:
             return new_value

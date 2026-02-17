@@ -1,3 +1,6 @@
+import os
+import json
+
 from .risk import RiskManager
 
 LONG = 1
@@ -27,6 +30,9 @@ class StrategyBook:
         self.ticks = 0
         
         self.latency = 0  # network latency in milliseconds
+
+        self.saved = False
+        self.history = []
 
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
 
@@ -86,6 +92,25 @@ class StrategyBook:
         self.direction = 0
         self.shares = 0
 
+    def save_data(self):
+        if not self.saved:
+            self.history.append({
+                "timestamp": self.ts,
+                "bid_side": self.bid_side,
+                "ask_side": self.ask_side
+            })
+            if self.ts % (24 * 3600 * 1000) > self.end_time:
+                file_path = os.path.join("data", f"{self.symbol}_book.json")
+                if os.path.exists(file_path):
+                    with open(file_path, "r") as f:
+                        existing_history = json.load(f)
+                else:
+                    existing_history = []
+                existing_history.extend(self.history)
+                with open(file_path, "w") as f:
+                    json.dump(existing_history, f, indent=2)
+                self.saved = True
+            
     def compute_ema(self, prev_ema, new_value, window=10):
         if prev_ema is None:
             return new_value
