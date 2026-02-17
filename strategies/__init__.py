@@ -12,6 +12,7 @@ from .spread_scalp import SpreadScalp
 from .rsi_swing import RSISwing
 from .eod_reversion import EODReversion
 from .eod_reversion2 import EODReversion2
+from .stat_arb import StatArb
 
 __all__ = [
     "Strategy",
@@ -28,6 +29,7 @@ __all__ = [
     "RSISwing",
     "EODReversion",
     "EODReversion2",
+    "StatArb",
     "strategy_map"
 ]
 
@@ -41,6 +43,7 @@ strategy_map = {
     "record_book": RecordBook,
     "rsi_swing": RSISwing,
     "eod_reversion": EODReversion,
-    "eod_reversion2": EODReversion2
+    "eod_reversion2": EODReversion2,
+    "stat-arb": StatArb
 }
 

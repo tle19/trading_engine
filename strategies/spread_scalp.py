@@ -4,7 +4,7 @@ from collections import deque
 from strategies import StrategyPair
 from models import *
 from utils import *
-
+# rename DivArb
 class SpreadScalp(StrategyPair):
     def __init__(self, pair, ema_window=5, start_time=(16, 00), end_time=(20, 00), decay_start=1000, decay_end=2000,
                  stop_loss=0.0001, take_profit=0.00001, pnl_target=0.01, pnl_loss=-0.01, trade_max=400):
@@ -18,6 +18,9 @@ class SpreadScalp(StrategyPair):
         self.ema2 = None
         
         self.rolling_spread = deque(maxlen=50)
+
+        self.saved = False
+        self.history = []
     
     def generate_signal(self, row, symbol):
         self.update(symbol, row)
@@ -35,6 +38,20 @@ class SpreadScalp(StrategyPair):
                     signal = self.exit_trade()
                 else:
                     signal = self.enter_trade()
+
+        if self.received:
+            self.history.append(self.data)
+            if self.s1["ts"] % (24 * 3600 * 1000) > self.end_time and not self.saved:
+                file_path = os.path.join("data", f"{self.pair}_quote.json")
+                if os.path.exists(file_path):
+                    with open(file_path, "r") as f:
+                        existing_history = json.load(f)
+                else:
+                    existing_history = []
+                existing_history.extend(self.history)
+                with open(file_path, "w") as f:
+                    json.dump(existing_history, f, indent=2)
+                self.saved = True
         return signal
     
     def enter_trade(self, signal=None):

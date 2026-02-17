@@ -304,4 +304,5 @@ class Level2Row:
         return self
 
     def __repr__(self):
+        return (f"timestamp={self.timestamp}, bid_side={bool(self.bid_side)}, ask_side={bool(self.ask_side)}")
         return (f"timestamp={self.timestamp}, bid_side={self.bid_side}, ask_side={self.ask_side}")
