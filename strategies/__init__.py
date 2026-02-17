@@ -1,11 +1,13 @@
 from .strategy import Strategy
 from .strategy_pair import StrategyPair
+from .strategy_book import StrategyBook
 from .risk import RiskManager
 from .example import SMACrossover
 from .stochastic import StochasticIndicator
 from .orb import ORBIndicator
 from .volume_decay import VolumeDecay
 from .rsi_scalp import RSIScalp
+from .record_book import RecordBook
 from .spread_scalp import SpreadScalp
 from .rsi_swing import RSISwing
 from .eod_reversion import EODReversion
@@ -14,6 +16,7 @@ from .eod_reversion2 import EODReversion2
 __all__ = [
     "Strategy",
     "StrategyPair",
+    "StrategyBook",
     "RiskManager",
     "SMACrossover",
     "StochasticIndicator",
@@ -21,6 +24,7 @@ __all__ = [
     "VolumeDecay",
     "RSIScalp",
     "SpreadScalp",
+    "RecordBook",
     "RSISwing",
     "EODReversion",
     "EODReversion2",
@@ -34,6 +38,7 @@ strategy_map = {
     "volume": VolumeDecay,
     "rsi": RSIScalp,
     "spread_scalp": SpreadScalp,
+    "record_book": RecordBook,
     "rsi_swing": RSISwing,
     "eod_reversion": EODReversion,
     "eod_reversion2": EODReversion2

@@ -4,8 +4,8 @@ from strategies import Strategy
 from utils import *
 
 class RSISwing(Strategy):
-    def __init__(self, symbol, rsi_period=2, rsi_lower=10, rsi_upper=90, htf_window=100,
-                 stop_loss=0.0025, take_profit=0.001, position_size=0.25, trailing_ratio=0.15, 
+    def __init__(self, symbol, rsi_period=2, rsi_lower=10, rsi_upper=90, htf_window=200,
+                 stop_loss=0.05, take_profit=0.03, position_size=0.25, trailing_ratio=0.15, 
                  pyramid=True, force_close=False, swing=True):
         super().__init__(symbol, stop_loss, take_profit, position_size, trailing_ratio, pyramid, force_close, swing)
         self.rsi_period = rsi_period
@@ -26,18 +26,18 @@ class RSISwing(Strategy):
             signal = self.exit_trade()
             if signal is None:
                 signal = self.enter_trade(rsi)
-                if self.position_manager.in_trade():
-                    average_entry = self.position_manager.average_entry()
-                    for leg in self.position_manager.legs:
-                        leg.target_price = average_entry * (1 + self.take_profit)
+                # if self.position_manager.in_trade():
+                #     average_entry = self.position_manager.average_entry()
+                #     for leg in self.position_manager.legs:
+                #         leg.target_price = average_entry * (1 + self.take_profit)
         return signal
     
     def enter_trade(self, rsi):
         signal = None
-        if rsi < self.rsi_lower:
+        if rsi < self.rsi_lower and self.close > self.ema:
             signal, _ = self.buy()
-        if rsi > self.rsi_upper:
-            signal, _ = self.sell()
+        # if rsi > self.rsi_upper:
+        #     signal, _ = self.sell()
         return signal
         
     # def exit_trade(self):
