@@ -8,7 +8,7 @@ from .orb import ORBIndicator
 from .volume_decay import VolumeDecay
 from .rsi_scalp import RSIScalp
 from .record_book import RecordBook
-from .spread_scalp import SpreadScalp
+from .div_arb import DivArb
 from .rsi_swing import RSISwing
 from .eod_reversion import EODReversion
 from .eod_reversion2 import EODReversion2
@@ -24,11 +24,11 @@ __all__ = [
     "ORBIndicator",
     "VolumeDecay",
     "RSIScalp",
-    "SpreadScalp",
     "RecordBook",
     "RSISwing",
     "EODReversion",
     "EODReversion2",
+    "DivArb",
     "StatArb",
     "strategy_map"
 ]
@@ -39,7 +39,7 @@ strategy_map = {
     "orb": ORBIndicator,
     "volume": VolumeDecay,
     "rsi": RSIScalp,
-    "spread_scalp": SpreadScalp,
+    "div_arb": DivArb,
     "record_book": RecordBook,
     "rsi_swing": RSISwing,
     "eod_reversion": EODReversion,
