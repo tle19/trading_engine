@@ -17,8 +17,8 @@ class RecordBook(StrategyBook):
         
         self.history.append({
             "timestamp": self.ts,
-            "bids": self.bid_side,
-            "asks": self.ask_side
+            "bid_side": self.bid_side,
+            "ask_side": self.ask_side
         })
 
         if not self.trade_window() and not self.saved:

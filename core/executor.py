@@ -470,7 +470,7 @@ class EquityPairs(Instrument):
             self.strategies[symbol2] = strat
             print(
                 f"[INIT] {strat.__class__.__name__:15} | "
-                f"pair={pair:10} | cash=${cash_allocation}"
+                f"pair={pair:12} | cash=${cash_allocation}"
             )
 
     def subscribe_symbols(self):

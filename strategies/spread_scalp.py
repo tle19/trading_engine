@@ -42,10 +42,10 @@ class SpreadScalp(StrategyPair):
             return signal
 
         if self.mid1 < self.ema1 and self.mid2 > self.ema2:
-            self.features = self.z_score
+            self.features = [self.z_score, self.s1["latency"], self.s2["latency"]]
             signal = self.buy_pair()
         elif self.mid1 > self.ema1 and self.mid2 < self.ema2:
-            self.features = self.z_score
+            self.features = [self.z_score, self.s1["latency"], self.s2["latency"]]
             signal = self.sell_pair()
         return signal
 
