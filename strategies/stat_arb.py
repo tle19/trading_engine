@@ -48,6 +48,8 @@ class StatArb(StrategyPair):
         return signal
         
     def exit_trade(self, signal=None):
+        if self.bid_ask_spread1 > 0.05 or self.bid_ask_spread2 > 0.05: # or bid/ask in a profitable location
+            return signal
         if self.s1["direction"] == 1 and self.z_score >= 0:
             self.features = [self.z_score, self.ticks, self.s1["latency"], self.s2["latency"]]
             return self.exit()
