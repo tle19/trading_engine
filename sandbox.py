@@ -108,3 +108,40 @@ def find_proba(df):
 # std_low_open = np.std(df['low_open_pct'])
 # print("High-Open % -> Mean:", mean_high_open, "Std:", std_high_open)
 # print("Low-Open %  -> Mean:", mean_low_open, "Std:", std_low_open)
+
+df1 = open_data("GOOG", start_date="2026-02-10", end_date="2026-02-10")
+df2 = open_data("GOOGL", start_date="2026-02-10", end_date="2026-02-10")
+df1 = df1.set_index("timestamp")
+df2 = df2.set_index("timestamp")
+df1 = df1.between_time("09:30", "16:00")
+df2 = df2.between_time("09:30", "16:00")
+open_spread  = df1["open"]  - df2["open"]
+high_spread  = df1["high"]  - df2["high"]
+low_spread   = df1["low"]   - df2["low"]
+close_spread = df1["close"] - df2["close"]
+
+plt.figure(figsize=(14, 8))
+
+plt.subplot(2,1,1)
+plt.plot(df1["close"], label="GOOG Close", linewidth=1.2)
+plt.plot(df2["close"], label="GOOGL Close", linewidth=1.2)
+plt.title("GOOG vs GOOGL Price Trend")
+plt.xlabel("Time")
+plt.ylabel("Price (USD)")
+plt.grid(True)
+plt.legend()
+
+plt.subplot(2,1,2)
+plt.plot(open_spread,  label="Open Spread",  linewidth=1)
+plt.plot(high_spread,  label="High Spread",  linewidth=1)
+plt.plot(low_spread,   label="Low Spread",   linewidth=1)
+plt.plot(close_spread, label="Close Spread", linewidth=1)
+
+plt.title("GOOG - GOOGL OHLC Spreads")
+plt.xlabel("Time")
+plt.ylabel("Spread (USD)")
+plt.grid(True)
+plt.legend()
+
+plt.tight_layout()
+plt.show()
