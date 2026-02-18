@@ -44,6 +44,6 @@ strategy_map = {
     "rsi_swing": RSISwing,
     "eod_reversion": EODReversion,
     "eod_reversion2": EODReversion2,
-    "stat-arb": StatArb
+    "stat_arb": StatArb
 }
 
