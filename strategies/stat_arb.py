@@ -20,6 +20,7 @@ class StatArb(StrategyPair):
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
+        self.save_data(symbol) # temp
 
         if self.risk_manager._day_pause: 
             return None
@@ -35,7 +36,6 @@ class StatArb(StrategyPair):
                 else:
                     signal = self.enter_trade()
 
-        self.save_data(symbol)
         return signal
    
     def enter_trade(self, signal=None):
