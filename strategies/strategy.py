@@ -81,13 +81,12 @@ class Strategy:
         raise NotImplementedError
     
     def update(self, row): 
-        if row is not None:
-            self.ts = row.timestamp
-            self.open = row.open
-            self.high = row.high
-            self.low = row.low
-            self.close = row.close
-            self.volume = row.volume
+        if row.timestamp is not None: self.ts = row.timestamp
+        if row.open is not None: self.open = row.open
+        if row.high is not None: self.high = row.high
+        if row.low is not None: self.low = row.low
+        if row.close is not None: self.close = row.close
+        if row.volume is not None: self.volume = row.volume
 
         self.opens.append(self.open)
         self.highs.append(self.high)

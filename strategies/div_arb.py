@@ -20,7 +20,7 @@ class DivArb(StrategyPair):
         self.rolling_spread = deque(maxlen=50)
     
     def generate_signal(self, row, symbol):
-        self.update(symbol, row)
+        self.update(row, symbol)
 
         if self.risk_manager._day_pause: 
             return None

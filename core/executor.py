@@ -64,7 +64,7 @@ class DataFeedController:
                     self.log_buffer.append(f"[{symbol}] {row}")
 
                     if service == "CHART_EQUITY":
-                        ts = int(row.timestamp.timestamp() * 1000)
+                        ts = item.get("7")
                     else:
                         ts = row.timestamp
 

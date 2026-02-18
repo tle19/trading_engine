@@ -6,7 +6,7 @@ from models import *
 from utils import *
 
 class StatArb(StrategyPair):
-    def __init__(self, pair, ema_window=5, z_threshold=2.0, start_time=(16, 00), end_time=(20, 00),
+    def __init__(self, pair, ema_window=5, z_threshold=2.0, start_time=(15, 00), end_time=(20, 00),
                  stop_loss=0.0001, take_profit=0.00001, pnl_target=0.01, pnl_loss=-0.01, trade_max=400):
         super().__init__(pair, start_time, end_time, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
@@ -19,7 +19,7 @@ class StatArb(StrategyPair):
         self.rolling_spread = deque(maxlen=50)
     
     def generate_signal(self, row, symbol):
-        self.update(symbol, row)
+        self.update(row, symbol)
 
         if self.risk_manager._day_pause: 
             return None
