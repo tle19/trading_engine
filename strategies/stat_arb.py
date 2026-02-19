@@ -6,7 +6,7 @@ from models import *
 from utils import *
 
 class StatArb(StrategyPair):
-    def __init__(self, pair, ema_window=5, z_threshold=2.0, start_time=(15, 00), end_time=(20, 00), latency_ms=500,
+    def __init__(self, pair, ema_window=5, z_threshold=1.75, start_time=(15, 00), end_time=(20, 00), latency_ms=500,
                  stop_loss=0.0001, take_profit=0.00001, pnl_target=0.01, pnl_loss=-0.01, trade_max=400):
         super().__init__(pair, start_time, end_time, latency_ms, 
                          stop_loss, take_profit, 
@@ -17,7 +17,7 @@ class StatArb(StrategyPair):
         self.ema1 = None
         self.ema2 = None
         
-        self.rolling_spread = deque(maxlen=600)
+        self.rolling_spread = deque(maxlen=1000)
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
@@ -41,7 +41,7 @@ class StatArb(StrategyPair):
         return signal
    
     def enter_trade(self, signal=None):
-        if self.bid_ask_spread1 > 0.03 or self.bid_ask_spread2 > 0.03:
+        if self.bid_ask_spread1 > 0.05 or self.bid_ask_spread2 > 0.05:
             return signal
         if self.z_score < -self.z_threshold:
             self.features = [self.z_score, self.ticks, self.s1["latency"], self.s2["latency"]]
@@ -52,7 +52,7 @@ class StatArb(StrategyPair):
         return signal
         
     def exit_trade(self, signal=None):
-        if self.bid_ask_spread1 > 0.03 or self.bid_ask_spread2 > 0.03: # or bid/ask in a profitable location
+        if self.bid_ask_spread1 > 0.05 or self.bid_ask_spread2 > 0.05:
             return signal
         if self.s1["direction"] == 1 and self.z_score >= 0:
             self.features = [self.z_score, self.ticks, self.s1["latency"], self.s2["latency"]]

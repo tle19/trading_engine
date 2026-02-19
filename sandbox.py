@@ -85,43 +85,90 @@ def find_proba(df):
 
 # plot_dist(df, "ema_straddle_target")
 
-start = "2026-01-02"
-end = "2026-01-02"
-df1 = open_data("GOOG", start_date=start, end_date=end)
-df2 = open_data("GOOGL", start_date=start, end_date=end)
+symbol1 = "GOOG"
+symbol2 = "GOOGL"
+start = "2026-02-03"
+end = "2026-02-03"
+
+df1 = open_data(symbol1, start_date=start, end_date=end)
+df2 = open_data(symbol2, start_date=start, end_date=end)
 df1 = df1.set_index("timestamp")
 df2 = df2.set_index("timestamp")
 df1 = df1.between_time("09:30", "16:00")
 df2 = df2.between_time("09:30", "16:00")
-# df1 = df1.between_time("11:30", "12:00")
-# df2 = df2.between_time("11:30", "12:00")
-open_spread  = df1["open"]  - df2["open"]
-high_spread  = df1["high"]  - df2["high"]
-low_spread   = df1["low"]   - df2["low"]
-close_spread = df1["close"] - df2["close"]
+
+# Spread
+spread = ((df1["close"] + df1["open"]) / 2) - ((df2["close"] + df2["open"]) / 2)
+
+# Rolling statistics
+window = 15
+roll_mean = spread.rolling(window).mean()
+roll_std = spread.rolling(window).std()
+
+z = 1.75
+upper_band = roll_mean + z * roll_std
+lower_band = roll_mean - z * roll_std
+
+in_trade = False
+trades = []
+
+for i in range(len(spread)):
+    if i < window:
+        continue
+
+    s = spread.iloc[i]
+    mean = roll_mean.iloc[i]
+    ub = upper_band.iloc[i]
+    lb = lower_band.iloc[i]
+
+    # ENTRY
+    if not in_trade:
+        if s >= ub:
+            direction = "long"      # expect spread to fall toward mean
+            entry_spread = s
+            entry_index = spread.index[i]
+            in_trade = True
+
+        elif s <= lb:
+            direction = "short"     # expect spread to rise toward mean
+            entry_spread = s
+            entry_index = spread.index[i]
+            in_trade = True
+
+    # EXIT WHEN SPREAD CROSSES MEAN
+    else:
+        if np.sign(s - mean) != np.sign(entry_spread - mean) or abs(s - mean) < 1e-12:
+            exit_spread = s
+            exit_index = spread.index[i]
+
+            # PROFIT LOGIC (FINAL):
+            if direction == "long":
+                profitable = exit_spread < entry_spread   # downward slope
+            else: # short
+                profitable = exit_spread > entry_spread   # upward slope
+
+            trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
+            in_trade = False
 
 plt.figure(figsize=(14, 8))
 
 plt.subplot(2,1,1)
-plt.plot(df1["close"], label="GOOG Close", linewidth=1.2)
-plt.plot(df2["close"], label="GOOGL Close", linewidth=1.2)
-plt.title("GOOG vs GOOGL Price Trend")
-plt.xlabel("Time")
-plt.ylabel("Price (USD)")
+plt.plot(df1["close"], label=symbol1)
+plt.plot(df2["close"], label=symbol2)
 plt.grid(True)
 plt.legend()
 
 plt.subplot(2,1,2)
-plt.plot(open_spread,  label="Open Spread",  linewidth=1)
-plt.plot(high_spread,  label="High Spread",  linewidth=1)
-plt.plot(low_spread,   label="Low Spread",   linewidth=1)
-plt.plot(close_spread, label="Close Spread", linewidth=1)
+plt.plot(spread, label="Spread")
+plt.plot(roll_mean, linestyle="--", label="Mean", color="gray")
+plt.plot(upper_band, linestyle="--", label=f"+{z} Std", color="lightgray")
+plt.plot(lower_band, linestyle="--", label=f"-{z} Std", color="lightgray")
 
-plt.title("GOOG - GOOGL OHLC Spreads")
-plt.xlabel("Time")
-plt.ylabel("Spread (USD)")
+for entry_t, exit_t, ep, xp, direction, ok in trades:
+    color = "green" if ok else "red"
+    plt.plot([entry_t, exit_t], [ep, xp], linewidth=2, color=color)
+
 plt.grid(True)
 plt.legend()
-
 plt.tight_layout()
 plt.show()
