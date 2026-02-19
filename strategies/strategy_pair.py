@@ -11,7 +11,7 @@ HOLD = None
 # Winter (EST) start_time=(14, 30), end_time=(21, 00)
 
 class StrategyPair:
-    def __init__(self, pair, start_time=(14, 30), end_time=(21, 00), 
+    def __init__(self, pair, start_time=(14, 30), end_time=(21, 00), latency_ms=500,
                  stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         self.pair = pair
         if "-" not in pair:
@@ -19,6 +19,7 @@ class StrategyPair:
         self.symbol1, self.symbol2 = pair.split("-")
         self.start_time = (start_time[0] * 3600 + start_time[1] * 60) * 1000
         self.end_time = (end_time[0] * 3600 + end_time[1] * 60) * 1000
+        self.latency_ms = latency_ms
         self.take_profit = take_profit
         self.stop_loss = stop_loss
 

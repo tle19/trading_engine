@@ -6,9 +6,10 @@ from models import *
 from utils import *
 
 class DivArb(StrategyPair):
-    def __init__(self, pair, ema_window=5, start_time=(16, 00), end_time=(20, 00), decay_start=1000, decay_end=2000,
+    def __init__(self, pair, ema_window=5, decay_start=1000, decay_end=2000, start_time=(16, 00), end_time=(20, 00), latency_ms=500,
                  stop_loss=0.0001, take_profit=0.00001, pnl_target=0.01, pnl_loss=-0.01, trade_max=400):
-        super().__init__(pair, start_time, end_time, stop_loss, take_profit, 
+        super().__init__(pair, start_time, end_time, latency_ms, 
+                         stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
         self.decay_start = decay_start
