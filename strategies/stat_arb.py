@@ -41,28 +41,26 @@ class StatArb(StrategyPair):
         return signal
    
     def enter_trade(self, signal=None):
-        if self.bid_ask_spread1 > 0.05 or self.bid_ask_spread2 > 0.05:
+        if self.bid_ask_spread1 > 0.03 or self.bid_ask_spread2 > 0.03:
             return signal
         if self.z_score < -self.z_threshold:
-            self.features = [self.z_score, self.ticks, self.s1["latency"], self.s2["latency"]]
+            self.features = [self.z_score, self.s1["latency"], self.s2["latency"]]
             signal = self.buy_pair()
         elif self.z_score > self.z_threshold:
-            self.features = [self.z_score, self.ticks, self.s1["latency"], self.s2["latency"]]
+            self.features = [self.z_score, self.s1["latency"], self.s2["latency"]]
             signal = self.sell_pair()
         return signal
         
     def exit_trade(self, signal=None):
-        if self.bid_ask_spread1 > 0.05 or self.bid_ask_spread2 > 0.05:
+        if self.bid_ask_spread1 > 0.03 or self.bid_ask_spread2 > 0.03:
             return signal
-        if self.s1["direction"] == 1 and self.z_score >= 0:
-            self.features = [self.z_score, self.ticks, self.s1["latency"], self.s2["latency"]]
+        if self.s1["direction"] == 1 and self.z_score >= 1.0:
             return self.exit()
-        elif self.s1["direction"] == -1 and self.z_score <= 0:
-            self.features = [self.z_score, self.ticks, self.s1["latency"], self.s2["latency"]]
+        elif self.s1["direction"] == -1 and self.z_score <= -1.0:
             return self.exit()
         return signal
         
-    def compute_indicators(self, ms=500):
+    def compute_indicators(self):
         self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 

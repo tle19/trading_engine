@@ -97,11 +97,32 @@ df2 = df2.set_index("timestamp")
 df1 = df1.between_time("09:30", "16:00")
 df2 = df2.between_time("09:30", "16:00")
 
-# Spread
-spread = ((df1["close"] + df1["open"]) / 2) - ((df2["close"] + df2["open"]) / 2)
+# symbol1 = "NVDA"
+# symbol2 = "AMD"
+# start = "2023-02-03"
+# end = "2026-02-03"
+# df1 = open_data(symbol1, start_date=start, end_date=end, mode="daily")
+# df2 = open_data(symbol2, start_date=start, end_date=end, mode="daily")
 
-# Rolling statistics
-window = 15
+with open("data/GOOG-GOOGL_quote.json") as f:
+    data = json.load(f)
+rows1 = []
+rows2 = []
+for row in data:
+    new_row = row.copy()
+    new_row["close"] = new_row.pop("bid")
+    new_row["open"] = new_row.pop("ask")
+    if row["symbol"] == "GOOG":
+        rows1.append(new_row)
+    elif row["symbol"] == "GOOGL":
+        rows2.append(new_row)
+df1 = pd.DataFrame(rows1)
+df2 = pd.DataFrame(rows2)
+
+hedge_ratio = round(df1["close"].iloc[0] / df2["close"].iloc[0], 2)
+spread = ((df1["close"] + df1["open"]) / 2) - ((df2["close"] * hedge_ratio + df2["open"] * hedge_ratio) / 2)
+
+window = 1000
 roll_mean = spread.rolling(window).mean()
 roll_std = spread.rolling(window).std()
 
@@ -111,6 +132,7 @@ lower_band = roll_mean - z * roll_std
 
 in_trade = False
 trades = []
+direction = None
 
 for i in range(len(spread)):
     if i < window:
@@ -124,37 +146,39 @@ for i in range(len(spread)):
     # ENTRY
     if not in_trade:
         if s >= ub:
-            direction = "long"      # expect spread to fall toward mean
+            direction = "sell"      # expect spread to fall toward mean
             entry_spread = s
             entry_index = spread.index[i]
             in_trade = True
 
         elif s <= lb:
-            direction = "short"     # expect spread to rise toward mean
+            direction = "buy"     # expect spread to rise toward mean
             entry_spread = s
             entry_index = spread.index[i]
             in_trade = True
 
-    # EXIT WHEN SPREAD CROSSES MEAN
+    # EXIT
     else:
-        if np.sign(s - mean) != np.sign(entry_spread - mean) or abs(s - mean) < 1e-12:
-            exit_spread = s
-            exit_index = spread.index[i]
-
-            # PROFIT LOGIC (FINAL):
-            if direction == "long":
-                profitable = exit_spread < entry_spread   # downward slope
-            else: # short
-                profitable = exit_spread > entry_spread   # upward slope
-
-            trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
-            in_trade = False
+        exit_spread = s
+        exit_index = spread.index[i]
+        if direction == "buy":
+            if s >= mean:
+                direction = None
+                profitable = exit_spread > entry_spread
+                trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
+                in_trade = False
+        else:
+            if s <= mean:
+                direction = None
+                profitable = exit_spread < entry_spread
+                trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
+                in_trade = False
 
 plt.figure(figsize=(14, 8))
 
 plt.subplot(2,1,1)
-plt.plot(df1["close"], label=symbol1)
-plt.plot(df2["close"], label=symbol2)
+plt.plot(df1["close"], label=f"{symbol1}")
+plt.plot(df2["close"] * hedge_ratio, label=f"{symbol2}")
 plt.grid(True)
 plt.legend()
 
@@ -164,9 +188,12 @@ plt.plot(roll_mean, linestyle="--", label="Mean", color="gray")
 plt.plot(upper_band, linestyle="--", label=f"+{z} Std", color="lightgray")
 plt.plot(lower_band, linestyle="--", label=f"-{z} Std", color="lightgray")
 
+trade_times = []
 for entry_t, exit_t, ep, xp, direction, ok in trades:
     color = "green" if ok else "red"
     plt.plot([entry_t, exit_t], [ep, xp], linewidth=2, color=color)
+    trade_times.append(exit_t - entry_t)
+print(np.mean(trade_times), "seconds")
 
 plt.grid(True)
 plt.legend()

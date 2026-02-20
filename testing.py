@@ -1,5 +1,6 @@
 import time
 import numpy as np
+from collections import defaultdict
 from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -39,9 +40,12 @@ def acc_latency():
 with open("trade_logs_live_pt.json") as f:
     trade_history = json.load(f)["trade_history"]
 
-trade_history = trade_history[251:]
+trade_history = trade_history[0:]
 pair_sums = []
 pair_times = []
+def z_bucket(z):
+    return round(z * 2) / 2.0
+pair_zscores = []
 th = []
 for trade in trade_history.copy():
     if trade["symbol"] == "GOOG" or trade["symbol"] == "GOOGL":
@@ -58,6 +62,20 @@ for i in range(0, len(th), 2):
         t2_dt = datetime.fromtimestamp(t2 / 1000, tz=timezone)
 
         pair_times.append(max(t1_dt, t2_dt))
+
+        z = th[idx1]["features"][0]
+        pair_zscores.append(z_bucket(z))
+
+pnl_by_z = defaultdict(list)
+
+for pnl, z in zip(pair_sums, pair_zscores):
+    pnl_by_z[z].append(pnl)
+
+for z in sorted(pnl_by_z.keys()):
+    arr = pnl_by_z[z]
+    print(
+        f"Z bucket = {z:+.1f} | count = {len(arr)} | mean pnl = {sum(arr)/len(arr):.10f}"
+    )
 
 plt.figure(figsize=(12, 5))
 plt.plot(pair_times, np.cumsum(pair_sums), color='blue', linewidth=2, label="Cumulative PnL")
