@@ -1,4 +1,5 @@
 import argparse
+import sys
 from datetime import date, datetime, timedelta
 
 from symbols import SYMBOLS
@@ -80,6 +81,7 @@ def main():
             time.sleep(wait_seconds)
         dh.intraday_data(symbols)
         bt.run(end_date=str(date.today()), display=False)
+        del dh, bt
 
         dfc = DataFeedController(strategy_dict, margin=args.margin)
         dfc.run()
