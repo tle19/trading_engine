@@ -85,8 +85,8 @@ def find_proba(df):
 
 # plot_dist(df, "ema_straddle_target")
 
-symbol1 = "GOOG"
-symbol2 = "GOOGL"
+symbol1 = "V"
+symbol2 = "MA"
 start = "2026-02-03"
 end = "2026-02-03"
 
@@ -104,7 +104,9 @@ df2 = df2.between_time("09:30", "16:00")
 # df1 = open_data(symbol1, start_date=start, end_date=end, mode="daily")
 # df2 = open_data(symbol2, start_date=start, end_date=end, mode="daily")
 
-with open("data/GOOG-GOOGL_quote.json") as f:
+symbol1 = "XOM"
+symbol2 = "CVX"
+with open(f"data/{symbol1}-{symbol2}_quote.json") as f:
     data = json.load(f)
 rows1 = []
 rows2 = []
@@ -112,9 +114,9 @@ for row in data:
     new_row = row.copy()
     new_row["close"] = new_row.pop("bid")
     new_row["open"] = new_row.pop("ask")
-    if row["symbol"] == "GOOG":
+    if row["symbol"] == symbol1:
         rows1.append(new_row)
-    elif row["symbol"] == "GOOGL":
+    elif row["symbol"] == symbol2:
         rows2.append(new_row)
 df1 = pd.DataFrame(rows1)
 df2 = pd.DataFrame(rows2)

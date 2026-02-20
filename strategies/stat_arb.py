@@ -6,13 +6,16 @@ from models import *
 from utils import *
 
 class StatArb(StrategyPair):
-    def __init__(self, pair, ema_window=5, z_threshold=1.75, start_time=(15, 00), end_time=(20, 00), latency_ms=500,
+    def __init__(self, pair, ema_window=5, entry_threshold=1.75, exit_threshold=0.0, start_time=(15, 00), end_time=(20, 00), latency_ms=500,
                  stop_loss=0.0001, take_profit=0.00001, pnl_target=0.01, pnl_loss=-0.01, trade_max=400):
         super().__init__(pair, start_time, end_time, latency_ms, 
                          stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
-        self.z_threshold = z_threshold
+        self.entry_threshold = entry_threshold
+        self.exit_threshold = exit_threshold
+        if pair in ("GOOG-GOOGL", "SPY-VOO", "QQQ-QQQM"):
+            self.exit_threshold = 1.0
 
         self.ema1 = None
         self.ema2 = None
@@ -29,34 +32,30 @@ class StatArb(StrategyPair):
             return None
 
         signal = None
-        if self.activated:
+        if self.activated and self.received:
+            self.compute_indicators()
+            spread_check = self.bid_ask_spread1 < 0.05 or self.bid_ask_spread2 < 0.05
             latency_check = self.s1["latency"] < self.latency_ms and self.s2["latency"] < self.latency_ms
-            if self.received and latency_check and self.ticks > 10:
-                self.compute_indicators()
+            if spread_check and latency_check and self.ticks > 10:
                 if self.s1["direction"]:
                     signal = self.exit_trade()
                 else:
                     signal = self.enter_trade()
-
         return signal
    
     def enter_trade(self, signal=None):
-        if self.bid_ask_spread1 > 0.03 or self.bid_ask_spread2 > 0.03:
-            return signal
-        if self.z_score < -self.z_threshold:
+        if self.z_score < -self.entry_threshold:
             self.features = [self.z_score, self.s1["latency"], self.s2["latency"]]
             signal = self.buy_pair()
-        elif self.z_score > self.z_threshold:
+        elif self.z_score > self.entry_threshold:
             self.features = [self.z_score, self.s1["latency"], self.s2["latency"]]
             signal = self.sell_pair()
         return signal
         
     def exit_trade(self, signal=None):
-        if self.bid_ask_spread1 > 0.03 or self.bid_ask_spread2 > 0.03:
-            return signal
-        if self.s1["direction"] == 1 and self.z_score >= 1.0:
+        if self.s1["direction"] == 1 and self.z_score >= self.exit_threshold:
             return self.exit()
-        elif self.s1["direction"] == -1 and self.z_score <= -1.0:
+        elif self.s1["direction"] == -1 and self.z_score <= -self.exit_threshold:
             return self.exit()
         return signal
         
@@ -64,8 +63,8 @@ class StatArb(StrategyPair):
         self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
-        # self.ema1 = self.compute_ema(self.ema1, self.mid1, self.ema_window)
-        # self.ema2 = self.compute_ema(self.ema2, self.mid2, self.ema_window)
+        self.ema1 = self.compute_ema(self.ema1, self.mid1, self.ema_window)
+        self.ema2 = self.compute_ema(self.ema2, self.mid2, self.ema_window)
 
         self.spread = self.mid1 - self.mid2
         self.rolling_spread.append(self.spread)
