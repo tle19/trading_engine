@@ -44,6 +44,7 @@ def find_pair_corr(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
 
     print(f"{symbol1}-{symbol2} Intraday Correlation: {avg_intraday_corr}")
     print(f"{symbol1}-{symbol2} Daily Correlation: {long_term_corr}")
+    return avg_intraday_corr, long_term_corr
 
 def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
     hedge_ratio = round(df1["close"].iloc[0] / df2["close"].iloc[0], 2)
@@ -156,8 +157,20 @@ def find_proba(df):
             if df.loc["timestamp"] == 15.59:
                 break
 
+pair_corrs = []
 for x, y in combinations(symbols, 2):
-    find_pair_corr(x, y)
+    avg_intraday_corr, long_term_corr = find_pair_corr(x, y)
+    pair_corrs.append({
+        "symbol1": x,
+        "symbol2": y,
+        "avg_intraday_corr": avg_intraday_corr,
+        "long_term_corr": long_term_corr
+    })
+
+with open("pair_correlations.json", "w") as f:
+    json.dump(pair_corrs, f, indent=4)
+print("Saved correlations to pair_correlations.json")
+
 
 # TICK
 # symbol1 = "XOM"

@@ -3,6 +3,7 @@ SYMBOLS = [
     "SPY",   # S&P 500 ETF
     "VOO",   # S&P 500 ETF
     "QQQ",   # Nasdaq-100 ETF
+    "QQQM",  # Nasdaq-100 ETF
     "IWM",   # Russell 2000 ETF
 
     # ===== TECH =====
@@ -23,6 +24,7 @@ SYMBOLS = [
     "TSLA",  # Tesla
     "AMZN",  # Amazon
     "HD",    # Home Depot
+    "LOW",   # Lowe's
     "MCD",   # McDonald's
     "NKE",   # Nike
     "SBUX",  # Starbucks
