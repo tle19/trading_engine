@@ -1,7 +1,7 @@
-from strategies import StrategyBook
+from strategies import StrategyPair
 from utils import *
 
-class RecordBook(StrategyBook):
+class RecordQuote(StrategyPair):
     def __init__(self, symbol, start_time=(14, 30), end_time=(20, 59)):
         super().__init__(symbol, start_time, end_time)
 
