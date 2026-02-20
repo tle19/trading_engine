@@ -1,7 +1,7 @@
 import json
 import numpy as np
 import pandas as pd
-import seaborn as sns
+from itertools import combinations
 import matplotlib.pyplot as plt
 
 
@@ -14,25 +14,116 @@ from utils import *
 
 symbols = SYMBOLS
 
-def plot_dist(df, col):
-    x = df[col].dropna()
-    lo, hi = x.quantile([0.001, 0.999])
-    x_clip = x.clip(lo, hi)
-    mu = x.mean()
-    sigma = x.std()
-    print(f"±1σ: {round(mu + sigma, 5)}")
-    print(f"±2σ: {round(mu + 2*sigma, 5)}")
-    print(f"±3σ: {round(mu + 3*sigma, 5)}")
-    plt.figure(figsize=(10, 6))
-    plt.hist(x_clip, bins=100, color="lightgray", edgecolor="black")
-    plt.axvspan(mu - sigma,   mu + sigma,   color="green",  alpha=0.15, label="68% (±1σ)")
-    plt.axvspan(mu - 2*sigma, mu + 2*sigma, color="yellow", alpha=0.15, label="95% (±2σ)")
-    plt.axvspan(mu - 3*sigma, mu + 3*sigma, color="red",    alpha=0.15, label="99.7% (±3σ)")
-    plt.axvline(mu, color="blue", linestyle="--", linewidth=2, label="Mean")
-    plt.title(f"{col} (0.1-99.9% clipped)")
-    plt.xlabel(col)
-    plt.ylabel("Frequency")
+def find_pair_corr(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
+    # INTRADAY
+    df1 = open_data(symbol1, start_date=start, end_date=end)
+    df2 = open_data(symbol2, start_date=start, end_date=end)
+    df1 = df1.set_index("timestamp").between_time("09:30", "16:00")
+    df2 = df2.set_index("timestamp").between_time("09:30", "16:00")
+
+    df_intraday = pd.concat([df1['close'], df2['close']], axis=1, join="inner")
+    df_intraday.columns = ['a', 'b']
+
+    returns_intraday = df_intraday.pct_change().dropna()
+    daily_corr_intraday = returns_intraday.groupby(returns_intraday.index.date).apply(
+        lambda x: x['a'].corr(x['b'])
+    )
+    avg_intraday_corr = daily_corr_intraday.mean()
+
+    # DAILY
+    df1 = open_data(symbol1, start_date=start, end_date=end, mode="daily")
+    df2 = open_data(symbol2, start_date=start, end_date=end, mode="daily")
+    df1['date'] = pd.to_datetime(df1['timestamp']).dt.date
+    df2['date'] = pd.to_datetime(df2['timestamp']).dt.date
+
+    df_daily = pd.merge(df1[['date', 'close']], df2[['date', 'close']], on='date')
+    df_daily.columns = ['date', 'a', 'b']
+
+    returns_daily = df_daily[['a','b']].pct_change().dropna()
+    long_term_corr = returns_daily['a'].corr(returns_daily['b'])
+
+    print(f"{symbol1}-{symbol2} Intraday Correlation: {avg_intraday_corr}")
+    print(f"{symbol1}-{symbol2} Daily Correlation: {long_term_corr}")
+
+def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
+    hedge_ratio = round(df1["close"].iloc[0] / df2["close"].iloc[0], 2)
+    spread = ((df1["close"] + df1["open"]) / 2) - ((df2["close"] * hedge_ratio + df2["open"] * hedge_ratio) / 2)
+
+    roll_mean = spread.rolling(window).mean()
+    roll_std = spread.rolling(window).std()
+
+    upper_band = roll_mean + z * roll_std
+    lower_band = roll_mean - z * roll_std
+
+    in_trade = False
+    trades = []
+    direction = None
+
+    for i in range(len(spread)):
+        if i < window:
+            continue
+
+        s = spread.iloc[i]
+        mean = roll_mean.iloc[i]
+        ub = upper_band.iloc[i]
+        lb = lower_band.iloc[i]
+
+        # ENTRY
+        if not in_trade:
+            if s >= ub:
+                direction = "sell"      # expect spread to fall toward mean
+                entry_spread = s
+                entry_index = spread.index[i]
+                in_trade = True
+
+            elif s <= lb:
+                direction = "buy"     # expect spread to rise toward mean
+                entry_spread = s
+                entry_index = spread.index[i]
+                in_trade = True
+
+        # EXIT
+        else:
+            exit_spread = s
+            exit_index = spread.index[i]
+            if direction == "buy":
+                if s >= mean:
+                    direction = None
+                    profitable = exit_spread > entry_spread
+                    trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
+                    in_trade = False
+            else:
+                if s <= mean:
+                    direction = None
+                    profitable = exit_spread < entry_spread
+                    trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
+                    in_trade = False
+
+    plt.figure(figsize=(14, 8))
+
+    plt.subplot(2,1,1)
+    plt.plot(df1["close"], label=f"{symbol1}")
+    plt.plot(df2["close"] * hedge_ratio, label=f"{symbol2}")
+    plt.grid(True)
     plt.legend()
+
+    plt.subplot(2,1,2)
+    plt.plot(spread, label="Spread")
+    plt.plot(roll_mean, linestyle="--", label="Mean", color="gray")
+    plt.plot(upper_band, linestyle="--", label=f"+{z} Std", color="lightgray")
+    plt.plot(lower_band, linestyle="--", label=f"-{z} Std", color="lightgray")
+
+    trade_times = []
+    for entry_t, exit_t, ep, xp, direction, ok in trades:
+        color = "green" if ok else "red"
+        plt.plot([entry_t, exit_t], [ep, xp], linewidth=2, color=color)
+        trade_times.append(exit_t - entry_t)
+        
+    print("Average Trade Time:", np.mean(trade_times), "seconds")
+
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
     plt.show()
 
 def find_proba(df):
@@ -65,38 +156,38 @@ def find_proba(df):
             if df.loc["timestamp"] == 15.59:
                 break
 
-# ema_window = 50
-# lookback = 15
-# df = open_data("GOOG", start_date="2024-01-01", end_date="2026-01-01")
-# df["ema"] = df["close"].ewm(span=ema_window, adjust=False).mean()
-# df["straddle_up"] = (df["close"] > df["ema"]) & (df["open"] < df["ema"])
-# df["straddle_down"] = (df["close"] < df["ema"]) & (df["open"] > df["ema"])
-# df["ema_max_last5_pct"] = (df["high"].rolling(lookback, min_periods=1).max() - df["ema"]) / df["ema"]
-# df["ema_min_last5_pct"] = (df["low"].rolling(lookback, min_periods=1).min() - df["ema"]) / df["ema"]
-# df["ema_straddle_target"] = np.where(df["straddle_up"], df["ema_min_last5_pct"],
-#     np.where(df["straddle_down"], df["ema_max_last5_pct"], np.nan)
-# )
+for x, y in combinations(symbols, 2):
+    find_pair_corr(x, y)
 
-# col = "ema_straddle_target"
-# x = df[col].dropna()
-# mu = x.mean()
-# sigma = x.std()
-# df["entry_cond"] = (df[col] >= mu - 2*sigma) | (df[col] <= mu + 2*sigma)
+# TICK
+# symbol1 = "XOM"
+# symbol2 = "CVX"
+# with open(f"data/{symbol1}-{symbol2}_quote.json") as f:
+#     data = json.load(f)
+# rows1 = []
+# rows2 = []
+# for row in data:
+#     new_row = row.copy()
+#     new_row["close"] = new_row.pop("bid")
+#     new_row["open"] = new_row.pop("ask")
+#     if row["symbol"] == symbol1:
+#         rows1.append(new_row)
+#     elif row["symbol"] == symbol2:
+#         rows2.append(new_row)
+# df1 = pd.DataFrame(rows1)
+# df2 = pd.DataFrame(rows2)
 
-# plot_dist(df, "ema_straddle_target")
+# INTRADAY
+# symbol1 = "V"
+# symbol2 = "MA"
+# start = "2026-02-03"
+# end = "2026-02-03"
+# df1 = open_data(symbol1, start_date=start, end_date=end)
+# df2 = open_data(symbol2, start_date=start, end_date=end)
+# df1 = df1.set_index("timestamp").between_time("09:30", "16:00")
+# df2 = df2.set_index("timestamp").between_time("09:30", "16:00")
 
-symbol1 = "V"
-symbol2 = "MA"
-start = "2026-02-03"
-end = "2026-02-03"
-
-df1 = open_data(symbol1, start_date=start, end_date=end)
-df2 = open_data(symbol2, start_date=start, end_date=end)
-df1 = df1.set_index("timestamp")
-df2 = df2.set_index("timestamp")
-df1 = df1.between_time("09:30", "16:00")
-df2 = df2.between_time("09:30", "16:00")
-
+# DAILY
 # symbol1 = "NVDA"
 # symbol2 = "AMD"
 # start = "2023-02-03"
@@ -104,100 +195,4 @@ df2 = df2.between_time("09:30", "16:00")
 # df1 = open_data(symbol1, start_date=start, end_date=end, mode="daily")
 # df2 = open_data(symbol2, start_date=start, end_date=end, mode="daily")
 
-symbol1 = "XOM"
-symbol2 = "CVX"
-with open(f"data/{symbol1}-{symbol2}_quote.json") as f:
-    data = json.load(f)
-rows1 = []
-rows2 = []
-for row in data:
-    new_row = row.copy()
-    new_row["close"] = new_row.pop("bid")
-    new_row["open"] = new_row.pop("ask")
-    if row["symbol"] == symbol1:
-        rows1.append(new_row)
-    elif row["symbol"] == symbol2:
-        rows2.append(new_row)
-df1 = pd.DataFrame(rows1)
-df2 = pd.DataFrame(rows2)
-
-hedge_ratio = round(df1["close"].iloc[0] / df2["close"].iloc[0], 2)
-spread = ((df1["close"] + df1["open"]) / 2) - ((df2["close"] * hedge_ratio + df2["open"] * hedge_ratio) / 2)
-
-window = 1000
-roll_mean = spread.rolling(window).mean()
-roll_std = spread.rolling(window).std()
-
-z = 1.75
-upper_band = roll_mean + z * roll_std
-lower_band = roll_mean - z * roll_std
-
-in_trade = False
-trades = []
-direction = None
-
-for i in range(len(spread)):
-    if i < window:
-        continue
-
-    s = spread.iloc[i]
-    mean = roll_mean.iloc[i]
-    ub = upper_band.iloc[i]
-    lb = lower_band.iloc[i]
-
-    # ENTRY
-    if not in_trade:
-        if s >= ub:
-            direction = "sell"      # expect spread to fall toward mean
-            entry_spread = s
-            entry_index = spread.index[i]
-            in_trade = True
-
-        elif s <= lb:
-            direction = "buy"     # expect spread to rise toward mean
-            entry_spread = s
-            entry_index = spread.index[i]
-            in_trade = True
-
-    # EXIT
-    else:
-        exit_spread = s
-        exit_index = spread.index[i]
-        if direction == "buy":
-            if s >= mean:
-                direction = None
-                profitable = exit_spread > entry_spread
-                trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
-                in_trade = False
-        else:
-            if s <= mean:
-                direction = None
-                profitable = exit_spread < entry_spread
-                trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
-                in_trade = False
-
-plt.figure(figsize=(14, 8))
-
-plt.subplot(2,1,1)
-plt.plot(df1["close"], label=f"{symbol1}")
-plt.plot(df2["close"] * hedge_ratio, label=f"{symbol2}")
-plt.grid(True)
-plt.legend()
-
-plt.subplot(2,1,2)
-plt.plot(spread, label="Spread")
-plt.plot(roll_mean, linestyle="--", label="Mean", color="gray")
-plt.plot(upper_band, linestyle="--", label=f"+{z} Std", color="lightgray")
-plt.plot(lower_band, linestyle="--", label=f"-{z} Std", color="lightgray")
-
-trade_times = []
-for entry_t, exit_t, ep, xp, direction, ok in trades:
-    color = "green" if ok else "red"
-    plt.plot([entry_t, exit_t], [ep, xp], linewidth=2, color=color)
-    trade_times.append(exit_t - entry_t)
-print(np.mean(trade_times), "seconds")
-
-plt.grid(True)
-plt.legend()
-plt.tight_layout()
-plt.show()
+# backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75)
