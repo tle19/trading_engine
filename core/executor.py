@@ -370,6 +370,7 @@ class Instrument:
 class Equities(Instrument):
     def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live_eq.json"):
         super().__init__(symbols, strategy_class, margin, log_buffer, client, stream, log_file)
+        # self.cash = 
         self.initialize(symbols, strategy_class)
     
     def initialize(self, symbols, strategy_class):

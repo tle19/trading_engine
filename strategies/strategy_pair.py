@@ -112,8 +112,8 @@ class StrategyPair:
         if self.s1["direction"] == 0:
             self.s1["entry_price"] = self.s1["ask"]
             self.s2["entry_price"] = self.s1["bid"]
-            self.s1["direction"] = 10
-            self.s2["direction"] = -10
+            self.s1["direction"] = 1
+            self.s2["direction"] = -1
             self.compute_share_split()
             self.ticks = 0
             return LONG
@@ -123,8 +123,8 @@ class StrategyPair:
         if self.s1["direction"] == 0:
             self.s1["entry_price"] = self.s1["bid"]
             self.s2["entry_price"] = self.s1["ask"]
-            self.s1["direction"] = -10
-            self.s2["direction"] = 10
+            self.s1["direction"] = -1
+            self.s2["direction"] = 1
             self.compute_share_split()
             self.ticks = 0
             return SHORT
@@ -168,8 +168,6 @@ class StrategyPair:
 
         self.s1["shares"] = max(1, shares1)
         self.s2["shares"] = max(1, shares2)
-        self.s1["shares"] = 1
-        self.s2["shares"] = 1
 
     def save_data(self, symbol):
         if not self.saved:
