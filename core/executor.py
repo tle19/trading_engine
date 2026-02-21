@@ -456,7 +456,7 @@ class Equities(Instrument):
 class EquityPairs(Instrument):
     def __init__(self, pairs, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live_pt.json"):
         super().__init__(pairs, strategy_class, margin, log_buffer, client, stream, log_file)
-        self.cash = self.cash / 3
+        self.cash = self.cash / 3 # TEMPORARY
         self.initialize(pairs, strategy_class)
  
     def initialize(self, pairs, strategy_class):
