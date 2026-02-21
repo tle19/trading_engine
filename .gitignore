@@ -3,6 +3,7 @@ api_config.json
 tokens.json
 
 # --- Test files ---
+pair_correlations.json
 trade_logs.json
 trade_logs_*.json
 *_grid_search.json

@@ -157,6 +157,16 @@ def find_proba(df):
             if df.loc["timestamp"] == 15.59:
                 break
 
+# with open("pair_correlations.json") as f:
+#     pair_corrs = json.load(f)
+# top_pairs = sorted(
+#     pair_corrs,
+#     key=lambda x: x["avg_intraday_corr"],
+#     reverse=True
+# )
+# for pair in top_pairs[:30]:
+#     print(pair)
+
 pair_corrs = []
 for x, y in combinations(symbols, 2):
     avg_intraday_corr, long_term_corr = find_pair_corr(x, y)
@@ -169,8 +179,6 @@ for x, y in combinations(symbols, 2):
 
 with open("pair_correlations.json", "w") as f:
     json.dump(pair_corrs, f, indent=4)
-print("Saved correlations to pair_correlations.json")
-
 
 # TICK
 # symbol1 = "XOM"
