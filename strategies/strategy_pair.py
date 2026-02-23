@@ -55,7 +55,6 @@ class StrategyPair:
 
         self.activated = False
         self.received = False
-        self.last_processed = 0
         self.ticks = 0
         
         self.latency = 0  # network latency in milliseconds
@@ -96,8 +95,7 @@ class StrategyPair:
                     return
             self.activated = True
         else:
-            if self.s1["ts"] > self.last_processed and self.s2["ts"] > self.last_processed and abs(self.s1["ts"] - self.s2["ts"]) <= 500:
-                self.last_processed = max(self.s1["ts"], self.s2["ts"])
+            if abs(self.s1["ts"] - self.s2["ts"]) <= 1000:
                 self.received = True
             else:
                 self.received = False
@@ -169,14 +167,14 @@ class StrategyPair:
         self.s1["shares"] = max(1, shares1)
         self.s2["shares"] = max(1, shares2)
         if self.pair == "GOOG-GOOGL":
-            self.s1["shares"] = 10
-            self.s2["shares"] = 10
+            self.s1["shares"] = 5
+            self.s2["shares"] = 5
         if self.pair == "SPY-QQQ":
             self.s1["shares"] = 7
             self.s2["shares"] = 8
 
     def save_data(self, symbol):
-        if not self.saved:
+        if self.activated and not self.saved:
             self.history.append({
                 "symbol": symbol,
                 "timestamp": self.data[symbol]["ts"],

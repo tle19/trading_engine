@@ -14,8 +14,10 @@ class StatArb(StrategyPair):
         self.ema_window = ema_window
         self.entry_threshold = entry_threshold
         self.exit_threshold = exit_threshold
-        if pair in ("GOOG-GOOGL", "SPY-QQQ"): # , "SPY-VOO", "QQQ-QQQM"
-            self.exit_threshold = 1.0
+        if pair == "GOOG-GOOGL": # , "SPY-VOO", "QQQ-QQQM"
+            self.exit_threshold = 1.5
+        if pair == "SPY-QQQ":
+            self.exit_threshold = 0.5
 
         self.ema1 = None
         self.ema2 = None

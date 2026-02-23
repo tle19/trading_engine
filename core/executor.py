@@ -38,8 +38,9 @@ class DataFeedController:
                 for item in content:
                     symbol = item["key"]
                     if service == "CHART_EQUITY":
+                        ts = item.get("7") or timestamp
                         row = self.ohlcv_row.update(
-                            datetime.datetime.fromtimestamp(item.get("7") / 1000, tz=self.timezone),
+                            datetime.datetime.fromtimestamp(ts / 1000, tz=self.timezone),
                             item.get("2"),
                             item.get("3"),
                             item.get("4"),
@@ -48,7 +49,7 @@ class DataFeedController:
                         )
                     elif service == "LEVELONE_EQUITIES":
                         row = self.level1_row.update(
-                            item.get('34') or item.get('37') or item.get('38') or item.get('35'),
+                            item.get('34') or item.get('37') or item.get('38') or item.get('35') or timestamp,
                             item.get("1"),
                             item.get("2"),
                             item.get("3"),
@@ -57,15 +58,13 @@ class DataFeedController:
                         )
                     elif service == "NASDAQ_BOOK" or service == "NYSE_BOOK":
                         row = self.level2_row.update(
-                            item.get("1"),
+                            item.get("1") or timestamp,
                             item.get("2"),
                             item.get("3")
                         )
                     self.log_buffer.append(f"[{symbol}] {row}")
 
-                    if service == "CHART_EQUITY":
-                        ts = item.get("7")
-                    else:
+                    if service != "CHART_EQUITY":
                         ts = row.timestamp
 
                     feed = self.strategy_dict[symbol]
@@ -432,7 +431,9 @@ class Equities(Instrument):
                     fill_price = self.get_fill_price(self.exit_ids[leg], shares, instruction="oco", timeout=1)
 
                     if fill_price is None:
-                        self.cancel_order(self.exit_ids[leg])
+                        self.log_buffer.append(self.exit_ids, self.exit_ids[leg]) # DEBUG
+                        resp = self.cancel_order(self.exit_ids[leg])
+                        self.log_buffer.append(resp) # DEBUG
                         # TODO: handle partial fills
                         # shares_remaining = shares - self.get_shares_owned(symbol)
                         if direction == 1:
