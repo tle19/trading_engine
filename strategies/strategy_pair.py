@@ -96,7 +96,7 @@ class StrategyPair:
                     return
             self.activated = True
         else:
-            if self.s1["ts"] > self.last_processed and self.s2["ts"] > self.last_processed:
+            if self.s1["ts"] > self.last_processed and self.s2["ts"] > self.last_processed and abs(self.s1["ts"] - self.s2["ts"]) <= 500:
                 self.last_processed = max(self.s1["ts"], self.s2["ts"])
                 self.received = True
             else:

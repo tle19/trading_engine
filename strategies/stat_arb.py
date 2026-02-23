@@ -45,10 +45,10 @@ class StatArb(StrategyPair):
    
     def enter_trade(self, signal=None):
         if self.z_score < -self.entry_threshold:
-            self.features = [self.z_score, self.s1["latency"], self.s2["latency"]]
+            self.features = [self.z_score, self.s1["latency"], self.s2["latency"], abs(self.s1["ts"] - self.s2["ts"])]
             signal = self.buy_pair()
         elif self.z_score > self.entry_threshold:
-            self.features = [self.z_score, self.s1["latency"], self.s2["latency"]]
+            self.features = [self.z_score, self.s1["latency"], self.s2["latency"], abs(self.s1["ts"] - self.s2["ts"])]
             signal = self.sell_pair()
         return signal
         
