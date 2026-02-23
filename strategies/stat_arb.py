@@ -6,7 +6,7 @@ from models import *
 from utils import *
 
 class StatArb(StrategyPair):
-    def __init__(self, pair, ema_window=5, entry_threshold=1.75, exit_threshold=0.0, start_time=(15, 00), end_time=(20, 00), latency_ms=500,
+    def __init__(self, pair, ema_window=1000, entry_threshold=1.75, exit_threshold=0.0, start_time=(16, 00), end_time=(20, 00), latency_ms=500,
                  stop_loss=0.0001, take_profit=0.00001, pnl_target=0.01, pnl_loss=-0.01, trade_max=400):
         super().__init__(pair, start_time, end_time, latency_ms, 
                          stop_loss, take_profit, 
@@ -14,7 +14,7 @@ class StatArb(StrategyPair):
         self.ema_window = ema_window
         self.entry_threshold = entry_threshold
         self.exit_threshold = exit_threshold
-        if pair in ("GOOG-GOOGL", "SPY-VOO", "QQQ-QQQM"):
+        if pair in ("GOOG-GOOGL", "SPY-QQQ"): # , "SPY-VOO", "QQQ-QQQM"
             self.exit_threshold = 1.0
 
         self.ema1 = None

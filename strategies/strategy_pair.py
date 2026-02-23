@@ -168,6 +168,12 @@ class StrategyPair:
 
         self.s1["shares"] = max(1, shares1)
         self.s2["shares"] = max(1, shares2)
+        if self.pair == "GOOG-GOOGL":
+            self.s1["shares"] = 10
+            self.s2["shares"] = 10
+        if self.pair == "SPY-QQQ":
+            self.s1["shares"] = 7
+            self.s2["shares"] = 8
 
     def save_data(self, symbol):
         if not self.saved:
