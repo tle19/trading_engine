@@ -11,7 +11,7 @@ HOLD = None
 # Winter (EST) start_time=(14, 30), end_time=(21, 00)
 
 class StrategyPair:
-    def __init__(self, pair, start_time=(14, 30), end_time=(21, 00), latency_ms=500,
+    def __init__(self, pair, start_time=(14, 30), end_time=(21, 00),
                  stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         self.pair = pair
         if "-" not in pair:
@@ -19,7 +19,6 @@ class StrategyPair:
         self.symbol1, self.symbol2 = pair.split("-")
         self.start_time = (start_time[0] * 3600 + start_time[1] * 60) * 1000
         self.end_time = (end_time[0] * 3600 + end_time[1] * 60) * 1000
-        self.latency_ms = latency_ms
         self.take_profit = take_profit
         self.stop_loss = stop_loss
 
@@ -33,8 +32,7 @@ class StrategyPair:
                 "ask_size": None,
                 "entry_price": None,
                 "direction": 0,
-                "shares": 0,
-                "latency": 0
+                "shares": 0
             },
             self.symbol2: {
                 "ts": None,
@@ -45,8 +43,7 @@ class StrategyPair:
                 "ask_size": None,
                 "entry_price": None,
                 "direction": 0,
-                "shares": 0,
-                "latency": 0
+                "shares": 0
             }
         }
         
@@ -54,10 +51,9 @@ class StrategyPair:
         self.s2 = self.data[self.symbol2]
 
         self.activated = False
-        self.received = False
-        self.ticks = 0
-        
+        self.latency_check = False
         self.latency = 0  # network latency in milliseconds
+        self.ticks = 0
 
         self.saved = False
         self.history = []
@@ -87,18 +83,17 @@ class StrategyPair:
         if row.last is not None: s["last"] = row.last
         if row.bid_size is not None: s["bid_size"] = row.bid_size
         if row.ask_size is not None: s["ask_size"] = row.ask_size
-        s["latency"] = self.latency
 
         if not self.activated:
-            for attr in ("bid", "ask", "last", "bid_size", "ask_size"):
+            for attr in ("ts", "bid", "ask", "last", "bid_size", "ask_size"):
                 if self.s1[attr] is None or self.s2[attr] is None:
                     return
             self.activated = True
         else:
-            if abs(self.s1["ts"] - self.s2["ts"]) <= 1000:
-                self.received = True
+            if abs(self.s1["ts"] - self.s2["ts"]) <= 1000 and self.latency < 500 and self.ticks > 10:
+                self.latency_check = True
             else:
-                self.received = False
+                self.latency_check = False
 
         self.ticks += 1
 
@@ -166,9 +161,10 @@ class StrategyPair:
 
         self.s1["shares"] = max(1, shares1)
         self.s2["shares"] = max(1, shares2)
+        # TEST MIN SHARES
         if self.pair == "GOOG-GOOGL":
-            self.s1["shares"] = 5
-            self.s2["shares"] = 5
+            self.s1["shares"] = 1
+            self.s2["shares"] = 1
         if self.pair == "SPY-QQQ":
             self.s1["shares"] = 7
             self.s2["shares"] = 8
