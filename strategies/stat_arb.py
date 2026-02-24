@@ -7,7 +7,7 @@ from utils import *
 
 class StatArb(StrategyPair):
     def __init__(self, pair, ema_window=1000, entry_threshold=2.0, exit_threshold=0.0, start_time=(16, 00), end_time=(20, 00),
-                 stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.01, trade_max=200):
+                 stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.005, trade_max=200):
         super().__init__(pair, start_time, end_time, 
                          stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
