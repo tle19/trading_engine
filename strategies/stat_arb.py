@@ -15,7 +15,7 @@ class StatArb(StrategyPair):
         self.entry_threshold = entry_threshold
         self.exit_threshold = exit_threshold
         if pair == "GOOG-GOOGL":
-            self.entry_threshold = 2.0
+            self.entry_threshold = 1.75
             self.exit_threshold = 1.5
 
         self.ema1 = None

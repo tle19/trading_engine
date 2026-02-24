@@ -21,6 +21,8 @@ class DataFeedController:
         self.timezone = ZoneInfo("America/New_York")
         self.initialize(strategy_dict, margin)
 
+        self.log_file = open(f"market_logs_{datetime.datetime.now(self.timezone).date()}.jsonl", "ab")
+
         self.ohlcv_row = OHLCVRow()
         self.level1_row = Level1Row()
         self.level2_row = Level2Row()
@@ -75,6 +77,7 @@ class DataFeedController:
 
             if self.log_buffer:
                 sys.stdout.write("\n".join(self.log_buffer) + "\n")
+                self.log_file.write(orjson.dumps(self.log_buffer) + b"\n")
                 self.log_buffer.clear()
 
         self.stream.start_auto(
@@ -88,6 +91,7 @@ class DataFeedController:
         self.stream_duration()
         for feed in self.feeds:
             feed.trade_manager.save_logs()
+        self.log_file.close()
     
     def await_market_open(self):
         print("[WAIT] Market open pending")
@@ -213,12 +217,14 @@ class Instrument:
     def buy_oco(self, symbol, quantity, stop_price, target_price):
         response = self.oco_order(symbol, quantity, stop_price, target_price, "BUY_TO_COVER")
         order_id = self.get_order_id(response)
+
         self.log_buffer.append(f"{' ' * (len(symbol) + 4)}STP={stop_price} | LMT={target_price}")  
         return order_id
 
     def sell_oco(self, symbol, quantity, stop_price, target_price):
         response = self.oco_order(symbol, quantity, stop_price, target_price, "SELL")
         order_id = self.get_order_id(response)
+
         self.log_buffer.append(f"{' ' * (len(symbol) + 4)}STP={stop_price} | LMT={target_price}")  
         return order_id
     
@@ -449,6 +455,7 @@ class Equities(Instrument):
                         self.log_buffer.append(self.exit_ids[leg])
                         resp = self.cancel_order(self.exit_ids[leg])
                         self.log_buffer.append(resp)
+                        # DEBUG
 
                         # TODO: handle partial fills
                         # shares_remaining = shares - self.get_shares_owned(symbol)

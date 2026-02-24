@@ -1,19 +1,21 @@
 # --- Sensitive files ---
 api_config.json
-tokens.json
-
-# --- Test files ---
-pair_correlations.json
-trade_logs.json
-trade_logs_*.json
-*_grid_search.json
-
-# --- Pickle Files ---
-*_model.pkl
 
 # --- Data folders ---
 data/
 plots/
+
+# --- Pickle Files ---
+*_model.pkl
+
+# --- Live Logs ---
+trade_logs_*.json
+market_logs_*.jsonl
+
+# --- Test files ---
+pair_correlations.json
+trade_logs.json
+*_grid_search.json
 
 # --- Python build/cache files ---
 __pycache__/
