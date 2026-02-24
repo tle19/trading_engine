@@ -91,7 +91,8 @@ class DataFeedController:
         self.stream_duration()
         for feed in self.feeds:
             feed.trade_manager.save_logs()
-        self.log_file.close()
+        self.log_file.close() 
+        # construct df from log_file here
     
     def await_market_open(self):
         print("[WAIT] Market open pending")

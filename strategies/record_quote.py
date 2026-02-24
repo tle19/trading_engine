@@ -7,6 +7,5 @@ class RecordQuote(StrategyPair):
 
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
-        self.save_data(symbol)
         return None
 

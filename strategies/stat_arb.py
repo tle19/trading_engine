@@ -30,7 +30,6 @@ class StatArb(StrategyPair):
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
-        self.save_data(symbol)
 
         if self.risk_manager._day_pause: 
             return None
