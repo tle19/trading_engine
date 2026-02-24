@@ -14,6 +14,35 @@ from utils import *
 
 symbols = SYMBOLS
 
+def compute_share_split(price1, price2, min_pct=0.85, cash=25000, top_n=5):
+    cash = cash / 2
+    max_s1 = int(cash // price1)
+    max_s2 = int(cash // price2)
+    min_s1 = int(max_s1 * min_pct)
+    min_s2 = int(max_s2 * min_pct)
+
+    # List of tuples: (diff, shares1, shares2)
+    best_combos = []
+
+    for s1 in range(min_s1, max_s1 + 1):
+        cash1 = s1 * price1
+        for s2 in range(min_s2, max_s2 + 1):
+            cash2 = s2 * price2
+            diff = abs(cash1 - cash2)
+            best_combos.append((diff, s1, s2))
+
+    # Sort by smallest difference
+    best_combos.sort(key=lambda x: x[0])
+
+    # Keep top_n
+    top_combos = best_combos[:top_n]
+
+    print(f"Top {top_n} share splits (closest to dollar-neutral):")
+    for i, (diff, s1, s2) in enumerate(top_combos, start=1):
+        val1 = s1 * price1
+        val2 = s2 * price2
+        print(f"{i}. Symbol1: {s1} (${val1:.2f}), Symbol2: {s2} (${val2:.2f}), $ Diff = {diff:.2f}")
+
 def find_pair_corr(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
     # INTRADAY
     df1 = open_data(symbol1, start_date=start, end_date=end)
@@ -114,13 +143,9 @@ def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
     plt.plot(upper_band, linestyle="--", label=f"+{z} Std", color="lightgray")
     plt.plot(lower_band, linestyle="--", label=f"-{z} Std", color="lightgray")
 
-    trade_times = []
     for entry_t, exit_t, ep, xp, direction, ok in trades:
         color = "green" if ok else "red"
         plt.plot([entry_t, exit_t], [ep, xp], linewidth=2, color=color)
-        trade_times.append(exit_t - entry_t)
-        
-    print("Average Trade Time:", np.mean(trade_times), "seconds")
 
     plt.grid(True)
     plt.legend()
@@ -164,25 +189,25 @@ def find_proba(df):
 #     key=lambda x: x["avg_intraday_corr"],
 #     reverse=True
 # )
-# for pair in top_pairs[:30]:
+# for pair in top_pairs[:50]:
 #     print(pair)
 
-pair_corrs = []
-for x, y in combinations(symbols, 2):
-    avg_intraday_corr, long_term_corr = find_pair_corr(x, y)
-    pair_corrs.append({
-        "symbol1": x,
-        "symbol2": y,
-        "avg_intraday_corr": avg_intraday_corr,
-        "long_term_corr": long_term_corr
-    })
+# pair_corrs = []
+# for x, y in combinations(symbols, 2):
+#     avg_intraday_corr, long_term_corr = find_pair_corr(x, y)
+#     pair_corrs.append({
+#         "symbol1": x,
+#         "symbol2": y,
+#         "avg_intraday_corr": avg_intraday_corr,
+#         "long_term_corr": long_term_corr
+#     })
 
-with open("pair_correlations.json", "w") as f:
-    json.dump(pair_corrs, f, indent=4)
+# with open("pair_correlations.json", "w") as f:
+#     json.dump(pair_corrs, f, indent=4)
 
 # TICK
-# symbol1 = "XOM"
-# symbol2 = "CVX"
+# symbol1 = "GS"
+# symbol2 = "MS"
 # with open(f"data/{symbol1}-{symbol2}_quote.json") as f:
 #     data = json.load(f)
 # rows1 = []
@@ -197,16 +222,23 @@ with open("pair_correlations.json", "w") as f:
 #         rows2.append(new_row)
 # df1 = pd.DataFrame(rows1)
 # df2 = pd.DataFrame(rows2)
+# df1 = df1.groupby("timestamp").last()
+# df2 = df2.groupby("timestamp").last()
+# combined_index = df1.index.union(df2.index)
+# df1 = df1.reindex(combined_index).ffill().bfill()
+# df2 = df2.reindex(combined_index).ffill().bfill()
+# backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=2)
 
 # INTRADAY
-# symbol1 = "V"
-# symbol2 = "MA"
-# start = "2026-02-03"
-# end = "2026-02-03"
+# symbol1 = "SPY"
+# symbol2 = "QQQ"
+# start = "2026-02-05"
+# end = "2026-02-05"
 # df1 = open_data(symbol1, start_date=start, end_date=end)
 # df2 = open_data(symbol2, start_date=start, end_date=end)
 # df1 = df1.set_index("timestamp").between_time("09:30", "16:00")
 # df2 = df2.set_index("timestamp").between_time("09:30", "16:00")
+# backtest_pairs(symbol1, symbol2, df1, df2, window=15, z=1.75)
 
 # DAILY
 # symbol1 = "NVDA"
@@ -215,5 +247,17 @@ with open("pair_correlations.json", "w") as f:
 # end = "2026-02-03"
 # df1 = open_data(symbol1, start_date=start, end_date=end, mode="daily")
 # df2 = open_data(symbol2, start_date=start, end_date=end, mode="daily")
+# backtest_pairs(symbol1, symbol2, df1, df2, window=15, z=1.75)
 
-# backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75)
+# with open("trade_logs_live_pt.json") as f:
+#     trade_history = json.load(f)["trade_history"]
+
+# for i in range(0, len(trade_history), 2):
+#     idx1 = i
+#     idx2 = i + 1
+#     if idx2 < len(trade_history):
+#         t1 = trade_history[idx1]["entry_time"]
+#         t2 = trade_history[idx2]["entry_time"]
+#         print(abs(t1 - t2))
+
+# compute_share_split(890, 167, min_pct=0.05, cash=4000, top_n=5)
