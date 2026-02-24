@@ -70,13 +70,12 @@ class DivArb(StrategyPair):
         return signal
         
     def compute_indicators(self, symbol):
+        self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
+        self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
+        
         if self.symbol1 == symbol:
-            self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
             self.ema1 = self.compute_ema(self.ema1, self.mid1, self.ema_window)
         elif self.symbol2 == symbol:
-            self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
             self.ema2 = self.compute_ema(self.ema2, self.mid2, self.ema_window)
         
-        bid_ask_spread1 = abs(self.s1["ask"] - self.s1["bid"])
-        bid_ask_spread2 = abs(self.s2["ask"] - self.s2["bid"])
-        self.spread_check = bid_ask_spread1 < 0.05 and bid_ask_spread2 < 0.05
+        self.spread_check = abs(self.s1["ask"] - self.s1["bid"]) < 0.05 and abs(self.s2["ask"] - self.s2["bid"]) < 0.05

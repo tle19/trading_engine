@@ -309,10 +309,21 @@ class Instrument:
         response = self.client.place_order(self.hash, order)
         return response
 
-    def cancel_order(self, order_id, polling_rate=0.05):
+    def cancel_order(self, order_id, timeout=1, polling_rate=0.1):
         response = self.client.cancel_order(self.hash, order_id)
         time.sleep(polling_rate)
         return response.status_code # 200 == success; 500 == failed
+        # while True:
+        #     response = self.client.cancel_order(self.hash, order_id)
+        #     status_code = response.status_code
+
+        #     if status_code == 200:
+        #         return status_code
+            
+        #     if time.time() - start > timeout:
+        #         return status_code
+        #     time.sleep(polling_rate)
+
     
     def replace_order(self, order_id, direction, symbol, quantity, stop_price, target_price):
         self.cancel_order(order_id)
@@ -431,9 +442,14 @@ class Equities(Instrument):
                     fill_price = self.get_fill_price(self.exit_ids[leg], shares, instruction="oco", timeout=1)
 
                     if fill_price is None:
-                        self.log_buffer.append(self.exit_ids, self.exit_ids[leg]) # DEBUG
+                        # self.cancel_order(self.exit_ids[leg])
+
+                        # DEBUG
+                        self.log_buffer.append(self.exit_ids)
+                        self.log_buffer.append(self.exit_ids[leg])
                         resp = self.cancel_order(self.exit_ids[leg])
-                        self.log_buffer.append(resp) # DEBUG
+                        self.log_buffer.append(resp)
+
                         # TODO: handle partial fills
                         # shares_remaining = shares - self.get_shares_owned(symbol)
                         if direction == 1:

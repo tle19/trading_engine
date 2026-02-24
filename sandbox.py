@@ -260,4 +260,4 @@ def find_proba(df):
 #         t2 = trade_history[idx2]["entry_time"]
 #         print(abs(t1 - t2))
 
-# compute_share_split(890, 167, min_pct=0.05, cash=4000, top_n=5)
+compute_share_split(682.39, 601.41, min_pct=0.05, cash=4000, top_n=5)

@@ -20,6 +20,9 @@ class StatArb(StrategyPair):
 
         self.ema1 = None
         self.ema2 = None
+        self.slope_diff = 0.0
+        self.z_score = 0.0
+        self.spread_check = False
         
         self.rolling_ema1 = deque(maxlen=ema_window)
         self.rolling_ema2 = deque(maxlen=ema_window)
@@ -85,27 +88,26 @@ class StatArb(StrategyPair):
         return signal
         
     def compute_indicators(self, symbol):
+        self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
+        self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
+
         if self.symbol1 == symbol:
-            self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
             self.ema1 = self.compute_ema(self.ema1, self.mid1, self.ema_window)
             self.rolling_ema1.append(self.ema1)
         elif self.symbol2 == symbol:
-            self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
             self.ema2 = self.compute_ema(self.ema2, self.mid2, self.ema_window)
             self.rolling_ema2.append(self.ema2)
 
-        slope1 = self.ema1 - self.rolling_ema1[0]
-        slope2 = self.ema2 - self.rolling_ema2[0]
-        std1 = np.std(self.rolling_ema1) if len(self.rolling_ema1) > 1 else 1
-        std2 = np.std(self.rolling_ema2) if len(self.rolling_ema2) > 1 else 1
-        norm_slope1 = slope1 / std1
-        norm_slope2 = slope2 / std2
-        self.slope_diff = norm_slope1 - norm_slope2
+        if len(self.rolling_ema1) == self.ema_window and len(self.rolling_ema2) == self.ema_window:
+            slope1 = self.ema1 - self.rolling_ema1[0]
+            slope2 = self.ema2 - self.rolling_ema2[0]
+            norm_slope1 = slope1 / np.std(self.rolling_ema1, ddof=1)
+            norm_slope2 = slope2 / np.std(self.rolling_ema2, ddof=1)
+            self.slope_diff = norm_slope1 - norm_slope2
 
         spread = self.mid1 - self.mid2
         self.rolling_spread.append(spread)
-        self.z_score = (spread - np.mean(self.rolling_spread)) / np.std(self.rolling_spread, ddof=1)
+        if len(self.rolling_spread) == self.ema_window:
+            self.z_score = (spread - np.mean(self.rolling_spread)) / np.std(self.rolling_spread, ddof=1)
 
-        bid_ask_spread1 = abs(self.s1["ask"] - self.s1["bid"])
-        bid_ask_spread2 = abs(self.s2["ask"] - self.s2["bid"])
-        self.spread_check = bid_ask_spread1 < 0.05 and bid_ask_spread2 < 0.05
+        self.spread_check = abs(self.s1["ask"] - self.s1["bid"]) < 0.05 and abs(self.s2["ask"] - self.s2["bid"]) < 0.05
