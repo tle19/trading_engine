@@ -316,20 +316,23 @@ class Instrument:
         response = self.client.place_order(self.hash, order)
         return response
 
-    def cancel_order(self, order_id, timeout=1, polling_rate=0.1):
+    def cancel_order(self, order_id, polling_rate=0.1):
         response = self.client.cancel_order(self.hash, order_id)
         time.sleep(polling_rate)
         return response.status_code # 200 == success; 500 == failed
-        # while True:
-        #     response = self.client.cancel_order(self.hash, order_id)
-        #     status_code = response.status_code
+    
+    # def cancel_order(self, order_id, timeout=1, polling_rate=0.2):
+    #     start = time.time()
+    #     while True:
+    #         response = self.client.cancel_order(self.hash, order_id)
+    #         status_code = response.status_code
 
-        #     if status_code == 200:
-        #         return status_code
+    #         if status_code == 200: # 200 == success
+    #             return status_code
             
-        #     if time.time() - start > timeout:
-        #         return status_code
-        #     time.sleep(polling_rate)
+    #         if time.time() - start > timeout: # 500 == failed
+    #             return status_code
+    #         time.sleep(polling_rate)
 
     
     def replace_order(self, order_id, direction, symbol, quantity, stop_price, target_price):
@@ -452,10 +455,8 @@ class Equities(Instrument):
                         # self.cancel_order(self.exit_ids[leg])
 
                         # DEBUG
-                        self.log_buffer.append(self.exit_ids)
-                        self.log_buffer.append(self.exit_ids[leg])
                         resp = self.cancel_order(self.exit_ids[leg])
-                        self.log_buffer.append(resp)
+                        self.log_buffer.append(str(resp))
                         # DEBUG
 
                         # TODO: handle partial fills
