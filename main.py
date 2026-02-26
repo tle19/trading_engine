@@ -1,5 +1,5 @@
 import argparse
-import sys
+import time
 from datetime import date, datetime, timedelta
 
 from symbols import SYMBOLS

@@ -68,5 +68,5 @@ SYMBOLS = [
     "MRK",   # Merck
     "PFE",   # Pfizer
     "TMO",   # Thermo Fisher Scientific
-    "AMGN"  # Amgen
+    "AMGN"   # Amgen
 ]

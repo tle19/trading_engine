@@ -1,4 +1,5 @@
 import sys
+import re
 import time
 import datetime
 
@@ -92,7 +93,7 @@ class DataFeedController:
         for feed in self.feeds:
             feed.trade_manager.save_logs()
         self.log_file.close() 
-        # construct df from log_file here
+        self.construct_quote()
     
     def await_market_open(self):
         print("[WAIT] Market open pending")
@@ -128,6 +129,54 @@ class DataFeedController:
                 self.feeds.append(eb)
                 for symbol in items:
                     self.strategy_dict[symbol] = eb
+
+    def construct_quote(self):
+        with open(f"market_logs_{datetime.datetime.now(self.timezone).date()}.jsonl") as f:
+            market_logs = [json.loads(line) for line in f]
+        market_logs = [item for packet in market_logs for item in packet]
+
+        quote_pattern = re.compile(
+            r"\[(?P<symbol>[A-Z]+)\]\s*"
+            r"timestamp=(?P<timestamp>\d+),\s*"
+            r"bid=(?P<bid>[\d\.]+|None),\s*"
+            r"ask=(?P<ask>[\d\.]+|None),\s*"
+            r"last=(?P<last>[\d\.]+|None),\s*"
+            r"bid_size=(?P<bid_size>\d+|None),\s*"
+            r"ask_size=(?P<ask_size>\d+|None)"
+        )
+
+        parsed_data = []
+        for line in market_logs:
+            data = quote_pattern.search(line)
+            if not data:
+                continue
+
+            quote = data.groupdict()
+            quote["timestamp"] = None if quote["timestamp"] == "None" else int(quote["timestamp"])
+            for key in ["bid", "ask", "last"]:
+                quote[key] = None if quote[key] == "None" else float(quote[key])
+            for key in ["bid_size", "ask_size"]:
+                quote[key] = None if quote[key] == "None" else int(quote[key])
+
+            parsed_data.append(quote)
+
+        df_quotes = pd.DataFrame(parsed_data)
+        for symbol, df in df_quotes.groupby("symbol"):
+            df = df.sort_values("timestamp").reset_index(drop=True)
+            
+            cols = ["bid", "ask", "last", "bid_size", "ask_size"]
+            df[cols] = df[cols].ffill().bfill()
+            df.drop(columns=['symbol'], inplace=True)
+            
+            try:
+                old_df = open_data(symbol, mode="quote")
+            except FileNotFoundError:
+                old_df = pd.DataFrame()
+            df = pd.concat([old_df, df], ignore_index=True)
+            df.drop_duplicates(subset='timestamp', inplace=True)
+            df.sort_values('timestamp', inplace=True)
+            df.reset_index(drop=True, inplace=True)
+            save_data(df, symbol, mode="quote")
 
 class Instrument:
     def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live.json"):

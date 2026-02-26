@@ -27,7 +27,7 @@ class TradeManager:
             "direction": direction,
             "position_size": position_size,
             "shares": shares,
-            "entry_time": entry_time if isinstance(entry_time, (int, float)) else entry_time.isoformat(),
+            "entry_time": entry_time if isinstance(entry_time, int) else entry_time.isoformat(),
             "entry_price": entry_price,
             "entry_fill": entry_price if fill_price is None else round(fill_price, 2),
             "stop_price": stop_price,
