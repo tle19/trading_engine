@@ -6,7 +6,8 @@ from models import *
 from utils import *
 
 class StatArb(StrategyPair):
-    def __init__(self, pair, ema_window=1000, entry_threshold=2.0, exit_threshold=0.0, start_time=(16, 00), end_time=(20, 00),
+    def __init__(self, pair, ema_window=1000, entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.05, 
+                 start_time=(15, 00), end_time=(20, 00),
                  stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.005, trade_max=200):
         super().__init__(pair, start_time, end_time, 
                          stop_loss, take_profit, 
@@ -14,14 +15,14 @@ class StatArb(StrategyPair):
         self.ema_window = ema_window
         self.entry_threshold = entry_threshold
         self.exit_threshold = exit_threshold
-        if pair == "GOOG-GOOGL":
-            self.entry_threshold = 1.75
-            self.exit_threshold = 1.5
+        self.bid_ask_spread = bid_ask_spread
+
+        self.pair_preset(pair)
 
         self.ema1 = None
         self.ema2 = None
-        self.slope_diff = 0.0
         self.z_score = 0.0
+        self.slope_diff = 0.0
         self.spread_check = False
         
         self.rolling_ema1 = deque(maxlen=ema_window)
@@ -48,10 +49,8 @@ class StatArb(StrategyPair):
    
     def enter_trade(self, signal=None):
         if self.z_score < -self.entry_threshold:
-            self.features = [self.z_score, self.slope_diff, self.latency, abs(self.s1["ts"] - self.s2["ts"])]
             signal = self.buy_pair()
         elif self.z_score > self.entry_threshold:
-            self.features = [self.z_score, self.slope_diff, self.latency, abs(self.s1["ts"] - self.s2["ts"])]
             signal = self.sell_pair()
 
         # TEST MIN SHARES
@@ -76,7 +75,8 @@ class StatArb(StrategyPair):
         if self.pair == "GS-MS":
             self.s1["shares"] = 3
             self.s2["shares"] = 16
-
+            
+        self.features = [self.z_score, self.slope_diff, self.latency, abs(self.s1["ts"] - self.s2["ts"])]
         return signal
         
     def exit_trade(self, signal=None):
@@ -109,4 +109,34 @@ class StatArb(StrategyPair):
         if len(self.rolling_spread) == self.ema_window:
             self.z_score = (spread - np.mean(self.rolling_spread)) / np.std(self.rolling_spread, ddof=1)
 
-        self.spread_check = abs(self.s1["ask"] - self.s1["bid"]) < 0.05 and abs(self.s2["ask"] - self.s2["bid"]) < 0.05
+        self.spread_check = abs(self.s1["ask"] - self.s1["bid"]) < self.bid_ask_spread and abs(self.s2["ask"] - self.s2["bid"]) < self.bid_ask_spread
+    
+    def pair_preset(self, pair):
+        if self.pair == "SPY-QQQ":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.02
+        if pair == "GOOG-GOOGL":
+            self.entry_threshold = 1.75
+            self.exit_threshold = 1.0
+            self.bid_ask_spread = 0.03
+        if self.pair == "HD-LOW":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.25
+        if self.pair == "KO-PEP":
+            self.entry_threshold = 1.75
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.10
+        if self.pair == "V-MA":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.25
+        if self.pair == "GS-MS":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.75
+        if self.pair == "XOM-CVX":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.05

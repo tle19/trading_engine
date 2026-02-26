@@ -1,9 +1,9 @@
 import time
 import numpy as np
-import re
 from collections import defaultdict
 from datetime import datetime
 import matplotlib.pyplot as plt
+import seaborn as sns
 import matplotlib.dates as mdates
 
 from zoneinfo import ZoneInfo
@@ -48,18 +48,25 @@ def pairs_pnl(symbol1, symbol2):
     trade_history = trade_history[0:]
     pair_sums = []
     pair_times = []
+
     def z_bucket(z):
         return round(z * 2) / 2.0
+    
     pair_zscores = []
     th = []
     for trade in trade_history.copy():
-        if trade["symbol"] == symbol1 or trade["symbol"] == symbol1:
+        if trade["symbol"] == symbol1 or trade["symbol"] == symbol2:
             th.append(trade)
+
+    buy_slopes = []
+    sell_slopes = []
+
     for i in range(0, len(th), 2):
         idx1 = i
         idx2 = i + 1
         if idx2 < len(th):
-            pair_sums.append(th[idx1]["pnl_pct"] + th[idx2]["pnl_pct"])
+            net_pnl = th[idx1]["pnl_pct"] + th[idx2]["pnl_pct"]
+            pair_sums.append(net_pnl)
 
             t1 = th[idx1]["exit_time"]
             t2 = th[idx2]["exit_time"]
@@ -70,6 +77,13 @@ def pairs_pnl(symbol1, symbol2):
 
             z = th[idx1]["features"][0]
             pair_zscores.append(z_bucket(z))
+
+            dir = th[idx1]["direction"]
+            slope_sum = th[idx1]["features"][1]
+            if dir == 1:
+                buy_slopes.append([slope_sum, net_pnl])
+            elif dir == -1:
+                sell_slopes.append([slope_sum, net_pnl])
 
     pnl_by_z = defaultdict(list)
 
@@ -95,4 +109,58 @@ def pairs_pnl(symbol1, symbol2):
     plt.gcf().autofmt_xdate()
     plt.show()
 
-pairs_pnl()
+    buy_values, buy_pnl = zip(*buy_slopes) if buy_slopes else ([], [])
+    sell_values, sell_pnl = zip(*sell_slopes) if sell_slopes else ([], [])
+
+    buy_values = np.array(buy_values)
+    buy_pnl = np.array(buy_pnl)
+    sell_values = np.array(sell_values)
+    sell_pnl = np.array(sell_pnl)
+
+    clip_low, clip_high = 0.05, 0.95  # keep 5%-95% percentile
+    all_values = np.concatenate([buy_values, sell_values])
+    vmin, vmax = np.percentile(all_values, [clip_low*100, clip_high*100])
+
+    buy_values_clipped = np.clip(buy_values, vmin, vmax)
+    sell_values_clipped = np.clip(sell_values, vmin, vmax)
+
+    bins = np.linspace(vmin, vmax, 50)
+
+    plt.figure(figsize=(14,6))
+
+    plt.subplot(1,2,1)
+    plt.hist(
+        buy_values_clipped, 
+        bins=bins, 
+        weights=buy_pnl, 
+        alpha=0.7, 
+        color='green', 
+        edgecolor='black', 
+        histtype='stepfilled'
+    )
+    plt.axvline(0, color='black', linestyle='--')
+    plt.title("Buy Spread (-2σ) Slope Sum Weighted by PnL")
+    plt.xlabel("Slope Sum (A-B) at Entry")
+    plt.ylabel("Weighted PnL")
+    plt.grid(True)
+
+    plt.subplot(1,2,2)
+    plt.hist(
+        sell_values_clipped, 
+        bins=bins, 
+        weights=sell_pnl, 
+        alpha=0.7, 
+        color='red', 
+        edgecolor='black', 
+        histtype='stepfilled'
+    )
+    plt.axvline(0, color='black', linestyle='--')
+    plt.title("Sell Spread (+2σ) Slope Sum Weighted by PnL")
+    plt.xlabel("Slope Sum (A-B) at Entry")
+    plt.ylabel("Weighted PnL")
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+# pairs_pnl("XOM", "CVX") # -2std, A - B > 0 yes; +2std, A - B < 0 yes
