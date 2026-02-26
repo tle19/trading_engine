@@ -364,25 +364,31 @@ class Instrument:
 
         response = self.client.place_order(self.hash, order)
         return response
-
-    def cancel_order(self, order_id, polling_rate=0.1):
-        response = self.client.cancel_order(self.hash, order_id)
-        time.sleep(polling_rate)
-        return response.status_code # 200 == success; 500 == failed
     
-    # def cancel_order(self, order_id, timeout=1, polling_rate=0.2):
+    def cancel_order(self, order_id, polling_rate=0.1): 
+        response = self.client.cancel_order(self.hash, order_id)
+        print(self.get_order_details(order_id)) # DEBUG
+        time.sleep(polling_rate) 
+        print(self.get_order_details(order_id)) # DEBUG
+        print(response.status_code) # DEBUG
+        return response.status_code # 200 == success; 500 == failed
+
+    # def cancel_order(self, order_id, timeout=1, polling_rate=0.2, settle_delay=0.1):
     #     start = time.time()
     #     while True:
     #         response = self.client.cancel_order(self.hash, order_id)
     #         status_code = response.status_code
 
     #         if status_code == 200: # 200 == success
+    #             order_details = self.get_order_details(order_id) # Race Conditions
+    #             print(order_details) # Race Conditions
+
+    #             time.sleep(settle_delay)
     #             return status_code
             
     #         if time.time() - start > timeout: # 500 == failed
     #             return status_code
     #         time.sleep(polling_rate)
-
     
     def replace_order(self, order_id, direction, symbol, quantity, stop_price, target_price):
         self.cancel_order(order_id)
@@ -501,12 +507,7 @@ class Equities(Instrument):
                     fill_price = self.get_fill_price(self.exit_ids[leg], shares, instruction="oco", timeout=1)
 
                     if fill_price is None:
-                        # self.cancel_order(self.exit_ids[leg])
-
-                        # DEBUG
-                        resp = self.cancel_order(self.exit_ids[leg])
-                        self.log_buffer.append(str(resp))
-                        # DEBUG
+                        self.cancel_order(self.exit_ids[leg])
 
                         # TODO: handle partial fills
                         # shares_remaining = shares - self.get_shares_owned(symbol)
