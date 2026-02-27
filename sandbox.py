@@ -150,7 +150,7 @@ def time_dist(symbol1, symbol2):
     plt.show()
 
 def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
-    hedge_ratio = round(df1["close"].iloc[0] / df2["close"].iloc[0], 2)
+    hedge_ratio = round(df1["close"].iloc[0] / df2["close"].iloc[0], 1)
     spread = ((df1["close"] + df1["open"]) / 2) - ((df2["close"] * hedge_ratio + df2["open"] * hedge_ratio) / 2)
 
     roll_mean = spread.rolling(window).mean()
@@ -191,13 +191,13 @@ def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
             exit_spread = s
             exit_index = spread.index[i]
             if direction == "buy":
-                if s >= mean: # (ub + mean) / 2
+                if s >= mean: # (ub + mean) / 2, ub
                     direction = None
                     profitable = exit_spread > entry_spread
                     trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
                     in_trade = False
             else:
-                if s <= mean: # (lb + mean) / 2
+                if s <= mean: # (lb + mean) / 2, lb
                     direction = None
                     profitable = exit_spread < entry_spread
                     trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
@@ -217,19 +217,19 @@ def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
     plt.plot(upper_band, linestyle="--", label=f"+{z} Std", color="lightgray")
     plt.plot(lower_band, linestyle="--", label=f"-{z} Std", color="lightgray")
 
-    pos_total = 0.0
-    neg_total = 0.0
+    pos_trades = []
+    neg_trades = []
     for entry_t, exit_t, ep, xp, direction, ok in trades:
         distance = abs(xp - ep)
         if ok:
-            pos_total += distance
+            pos_trades.append(distance)
         else:
-            neg_total += distance
+            neg_trades.append(distance)
         color = "green" if ok else "red"
         plt.plot([entry_t, exit_t], [ep, xp], linewidth=2, color=color)
 
-    print(f"Total POS distance: {pos_total}")
-    print(f"Total NEG distance: {neg_total}")
+    print(f"POS PNL: {sum(pos_trades)}, POS TRADES: {len(pos_trades)}")
+    print(f"NEG PNL: {sum(neg_trades)}, NEG TRADES: {len(neg_trades)}")
 
     plt.grid(True)
     plt.legend()
@@ -277,25 +277,25 @@ def find_proba(df):
 #     print(pair)
 
 # TICK
-symbol1 = "KO"
-symbol2 = "PEP"
+symbol1 = "XOM"
+symbol2 = "CVX"
 df1 = open_data(symbol1, mode="quote")
 df2 = open_data(symbol2, mode="quote")
 df1 = df1.rename(columns={"bid": "close", "ask": "open"})
 df2 = df2.rename(columns={"bid": "close", "ask": "open"})
 df1['timestamp'] = pd.to_datetime(df1['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
 df2['timestamp'] = pd.to_datetime(df2['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
-backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75)
+backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=2.0)
 
 # INTRADAY
 # symbol1 = "SPY"
 # symbol2 = "QQQ"
-# start = "2026-02-05"
-# end = "2026-02-05"
+# start = "2026-02-26"
+# end = "2026-02-26"
 # df1 = open_data(symbol1, start_date=start, end_date=end)
 # df2 = open_data(symbol2, start_date=start, end_date=end)
-# df1 = df1.set_index("timestamp").between_time("09:30", "16:00")
-# df2 = df2.set_index("timestamp").between_time("09:30", "16:00")
+# df1 = df1.set_index("timestamp").between_time("09:30", "16:00").reset_index()
+# df2 = df2.set_index("timestamp").between_time("09:30", "16:00").reset_index()
 # backtest_pairs(symbol1, symbol2, df1, df2, window=15, z=1.75)
 
 # DAILY
@@ -318,4 +318,4 @@ backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75)
 #         t2 = trade_history[idx2]["entry_time"]
 #         print(abs(t1 - t2))
 
-# compute_share_split(682.39, 601.41, min_pct=0.05, cash=4000, top_n=5)
+# compute_share_split(148, 183, min_pct=0.50, cash=2000, top_n=5)
