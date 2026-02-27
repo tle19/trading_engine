@@ -1,4 +1,6 @@
+import os
 import argparse
+import shutil
 import time
 from datetime import date, datetime, timedelta
 
@@ -14,6 +16,7 @@ def main():
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--stream", action="store_true")
     parser.add_argument("--quote", action="store_true")
+    parser.add_argument("--sync", action="store_true")
 
     parser.add_argument("--strategy", nargs="+", type=str, default=None, help="'eod_reversion stochastic' or 'eod_reversion:SPY spread_diff:SPY-QQQ'")
     parser.add_argument("--symbols", nargs="+", type=str, default=None, help="'QQQ AAPL MSFT' or 'SPY-QQQ GOOG-GOOGL'")
@@ -34,16 +37,16 @@ def main():
     parser.add_argument("--duration", type=int, default=300)
     args = parser.parse_args()
 
-    if not args.live and not args.backtest and not args.fetch and not args.stream and not args.quote:
-        raise ValueError("You must provide one of the following arguments: --live, --backtest, --fetch, --stream, --quote")
+    if not args.live and not args.backtest and not args.fetch and not args.stream and not args.quote and not args.sync:
+        raise ValueError("You must provide one of the following arguments: --live, --backtest, --fetch, --stream, --quote, --sync")
     if not args.strategy and (args.live or args.backtest):
         raise ValueError(f"You must provide a strategy, e.g., --strategy eod_reversion or eod_reversion:AAPL,MSFT or spread_diff:SPY-QQQ,GOOG-GOOGL")
     colon_used = any(":" in s for s in args.strategy) if args.strategy else None
     if colon_used and args.symbols:
         raise ValueError("Cannot mix colon syntax with --symbol arguments")
-    if not colon_used and not args.symbols:
+    if not colon_used and not args.symbols and not args.sync:
         raise ValueError("Either use colon syntax in --strategy or provide --symbol")
-    if args.symbols == ["EVERYTHING"]:
+    if args.symbols == ["*"]:
         args.symbols = SYMBOLS
 
     strategy_dict = {}
@@ -96,6 +99,23 @@ def main():
         dh.stream_data(args.symbols, args.service, args.duration)
     elif args.quote:
         dh.get_quote(args.symbols)
-    
+    elif args.sync:
+        source = "data/"
+        destination = "/mnt/d/market data"
+
+        type_map = {
+            "daily": "daily data",
+            "intraday": "intraday data",
+            "quote": "quote data",
+            "book": "book data"
+        }
+
+        for f in os.listdir(source):          
+            file_type = f.split("_")[1].split(".")[0]
+            dest_folder = os.path.join(destination, type_map[file_type])
+            os.makedirs(dest_folder, exist_ok=True)
+            shutil.copyfile(os.path.join(source, f), os.path.join(dest_folder, f))
+            print(f"Copied {os.path.join(source, f)} → {dest_folder}")
+
 if __name__ == "__main__":
     main()
