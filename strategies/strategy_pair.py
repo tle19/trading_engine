@@ -87,7 +87,7 @@ class StrategyPair:
                     return
             self.activated = True
         else:
-            if abs(self.s1["ts"] - self.s2["ts"]) <= 2000 and self.latency < 500 and self.ticks > 5:
+            if abs(self.s1["ts"] - self.s2["ts"]) <= 1000 and self.latency < 500 and self.ticks > 5:
                 self.latency_check = True
             else:
                 self.latency_check = False

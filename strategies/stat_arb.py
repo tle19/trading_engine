@@ -7,7 +7,7 @@ from utils import *
 
 class StatArb(StrategyPair):
     def __init__(self, pair, ema_window=1000, entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.05, 
-                 start_time=(15, 00), end_time=(20, 00),
+                 start_time=(16, 00), end_time=(20, 00),
                  stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.005, trade_max=200):
         super().__init__(pair, start_time, end_time, 
                          stop_loss, take_profit, 
@@ -64,17 +64,17 @@ class StatArb(StrategyPair):
             self.s1["shares"] = 5
             self.s2["shares"] = 3
         if self.pair == "KO-PEP":
-            self.s1["shares"] = 2
-            self.s2["shares"] = 1
+            self.s1["shares"] = 6
+            self.s2["shares"] = 3
         if self.pair == "HD-LOW":
-            self.s1["shares"] = 3
-            self.s2["shares"] = 4
+            self.s1["shares"] = 2
+            self.s2["shares"] = 3
         if self.pair == "XOM-CVX":
             self.s1["shares"] = 5
             self.s2["shares"] = 4
         if self.pair == "GS-MS":
-            self.s1["shares"] = 3
-            self.s2["shares"] = 16
+            self.s1["shares"] = 1
+            self.s2["shares"] = 5
             
         self.features = [self.z_score, self.slope_diff, self.latency, abs(self.s1["ts"] - self.s2["ts"])]
         return signal
@@ -117,15 +117,15 @@ class StatArb(StrategyPair):
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.02
         if pair == "GOOG-GOOGL":
-            self.entry_threshold = 1.75
-            self.exit_threshold = 1.0
+            self.entry_threshold = 2.0
+            self.exit_threshold = 2.0
             self.bid_ask_spread = 0.03
         if self.pair == "HD-LOW":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.25
         if self.pair == "KO-PEP":
-            self.entry_threshold = 1.75
+            self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.10
         if self.pair == "V-MA":
