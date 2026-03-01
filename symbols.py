@@ -70,3 +70,12 @@ SYMBOLS = [
     "TMO",   # Thermo Fisher Scientific
     "AMGN"   # Amgen
 ]
+
+PAIRS = [
+    ["SPY", "QQQ"],
+    ["GOOG", "GOOGL"],
+    ["V", "MA"],
+    ["KO", "PEP"],
+    ["HD", "LOW"],
+    ["XOM", "CVX"]
+]

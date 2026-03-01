@@ -46,7 +46,7 @@ def main():
         raise ValueError("Cannot mix colon syntax with --symbol arguments")
     if not colon_used and not args.symbols and not args.sync:
         raise ValueError("Either use colon syntax in --strategy or provide --symbol")
-    if args.symbols == ["*"]:
+    if args.symbols == ["all"]:
         args.symbols = SYMBOLS
 
     strategy_dict = {}

@@ -132,10 +132,6 @@ class StatArb(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.25
-        if self.pair == "GS-MS":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.75
         if self.pair == "XOM-CVX":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
