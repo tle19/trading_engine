@@ -103,8 +103,12 @@ class DataFeedController:
 
     def stream_duration(self):
         now = datetime.datetime.now(self.timezone)
-        market_close = now.replace(hour=16, minute=0, second=5, microsecond=0)
+        market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
         time.sleep((market_close - now).total_seconds())
+        while self.stream.active:
+            print("ACTIVE")
+            time.sleep(5)
+        print("[INACTIVE] Market is closed")
 
     def initialize(self, strategy_dict, margin):
         self.strategy_dict = {}
@@ -364,31 +368,22 @@ class Instrument:
 
         response = self.client.place_order(self.hash, order)
         return response
-    
-    def cancel_order(self, order_id, polling_rate=0.1): 
-        response = self.client.cancel_order(self.hash, order_id)
-        print(self.get_order_details(order_id)) # DEBUG
-        time.sleep(polling_rate) 
-        print(self.get_order_details(order_id)) # DEBUG
-        print(response.status_code) # DEBUG
-        return response.status_code # 200 == success; 500 == failed
 
-    # def cancel_order(self, order_id, timeout=1, polling_rate=0.2, settle_delay=0.1):
-    #     start = time.time()
-    #     while True:
-    #         response = self.client.cancel_order(self.hash, order_id)
-    #         status_code = response.status_code
+    def cancel_order(self, order_id, timeout=1, polling_rate=0.2, settle_delay=0.1):
+        start = time.time()
+        while True:
+            print(self.get_order_details(order_id)['status']) # DEBUG
+            response = self.client.cancel_order(self.hash, order_id)
+            status_code = response.status_code # 200 == success; 500 == failed
+            print(self.get_order_details(order_id)['status']) # DEBUG
 
-    #         if status_code == 200: # 200 == success
-    #             order_details = self.get_order_details(order_id) # Race Conditions
-    #             print(order_details) # Race Conditions
-
-    #             time.sleep(settle_delay)
-    #             return status_code
+            if status_code == 200:
+                time.sleep(settle_delay)
+                return status_code
             
-    #         if time.time() - start > timeout: # 500 == failed
-    #             return status_code
-    #         time.sleep(polling_rate)
+            if time.time() - start > timeout:
+                return status_code
+            time.sleep(polling_rate)
     
     def replace_order(self, order_id, direction, symbol, quantity, stop_price, target_price):
         self.cancel_order(order_id)
