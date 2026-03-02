@@ -7,9 +7,9 @@ from utils import *
 
 class StatArb(StrategyPair):
     def __init__(self, pair, ema_window=1000, entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.05, 
-                 start_time=(16, 00), end_time=(20, 00),
+                 start_time=(16, 00), end_time=(20, 00), dca_count=10,
                  stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.005, trade_max=200):
-        super().__init__(pair, start_time, end_time, 
+        super().__init__(pair, start_time, end_time, dca_count,
                          stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
@@ -72,9 +72,6 @@ class StatArb(StrategyPair):
         if self.pair == "XOM-CVX":
             self.s1["shares"] = 5
             self.s2["shares"] = 4
-        if self.pair == "GS-MS":
-            self.s1["shares"] = 1
-            self.s2["shares"] = 5
             
         self.features = [self.z_score, self.slope_diff, self.latency, abs(self.s1["ts"] - self.s2["ts"])]
         return signal
@@ -116,23 +113,29 @@ class StatArb(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
+            self.dca_count = 10
         if pair == "GOOG-GOOGL":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 2.0
+            self.entry_threshold = 2.25
+            self.exit_threshold = 1.75
             self.bid_ask_spread = 0.03
+            self.dca_count = 10
         if self.pair == "HD-LOW":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.25
+            self.dca_count = 10
         if self.pair == "KO-PEP":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.10
+            self.dca_count = 10
         if self.pair == "V-MA":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.25
+            self.dca_count = 10
         if self.pair == "XOM-CVX":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
+            self.dca_count = 10

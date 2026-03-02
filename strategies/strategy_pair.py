@@ -11,7 +11,7 @@ HOLD = None
 # Winter (EST) start_time=(14, 30), end_time=(21, 00)
 
 class StrategyPair:
-    def __init__(self, pair, start_time=(14, 30), end_time=(21, 00),
+    def __init__(self, pair, start_time=(14, 30), end_time=(21, 00), dca_count=10,
                  stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         self.pair = pair
         if "-" not in pair:
@@ -19,6 +19,7 @@ class StrategyPair:
         self.symbol1, self.symbol2 = pair.split("-")
         self.start_time = (start_time[0] * 3600 + start_time[1] * 60) * 1000
         self.end_time = (end_time[0] * 3600 + end_time[1] * 60) * 1000
+        self.dca_count = dca_count
         self.take_profit = take_profit
         self.stop_loss = stop_loss
 
@@ -32,7 +33,9 @@ class StrategyPair:
                 "ask_size": None,
                 "entry_price": None,
                 "direction": 0,
-                "shares": 0
+                "shares": 1,
+                "curr_shares": 0,
+                "max_shares": 1,
             },
             self.symbol2: {
                 "ts": None,
@@ -43,7 +46,9 @@ class StrategyPair:
                 "ask_size": None,
                 "entry_price": None,
                 "direction": 0,
-                "shares": 0
+                "shares": 1,
+                "curr_shares": 0,
+                "max_shares": 1,
             }
         }
         
@@ -122,6 +127,8 @@ class StrategyPair:
           
     def exit(self):
         if self.s1["direction"]:
+            # self.s1["shares"] = self.dca()
+            # self.s2["shares"] = self.dca()
             self.ticks = 0
             return EXIT
         return HOLD
@@ -131,8 +138,8 @@ class StrategyPair:
         self.s2["entry_price"] = None
         self.s1["direction"] = 0 
         self.s2["direction"] = 0
-        self.s1["shares"] = 0
-        self.s2["shares"] = 0
+        self.s1["shares"] = 1
+        self.s2["shares"] = 1
     
     def compute_share_split(self, min_pct=0.85):
         cash = self.risk_manager.curr_cash / 2
@@ -158,9 +165,18 @@ class StrategyPair:
 
         self.s1["shares"] = max(1, shares1)
         self.s2["shares"] = max(1, shares2)
+        self.s1["max_shares"] = max(1, shares1)
+        self.s2["max_shares"] = max(1, shares2)
         
     def compute_ema(self, prev_ema, new_value, window=10):
         if prev_ema is None:
             return new_value
         alpha = 2.0 / (window + 1.0)
         return alpha * new_value + (1.0 - alpha) * prev_ema
+    
+    def dca(self):
+        # during entries set shares to dca_minimum
+        # when exit set shares to current
+        # if self.s1["direction"]:
+
+        raise NotImplementedError
