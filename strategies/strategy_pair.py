@@ -98,7 +98,7 @@ class StrategyPair:
     
     def buy_pair(self):
         direction = self.position_manager.direction()
-        if direction in (1, 0):
+        if direction in (1, 0) and self.dca_step < len(self.dca_plan):
             shares1, shares2 = self.dca_plan[self.dca_step]
             pos_leg1 = PositionLeg(
                 direction=1,
@@ -123,7 +123,7 @@ class StrategyPair:
         
     def sell_pair(self):
         direction = self.position_manager.direction()
-        if direction in (-1, 0):
+        if direction in (-1, 0) and self.dca_step < len(self.dca_plan):
             shares1, shares2 = self.dca_plan[self.dca_step]
             pos_leg1 = PositionLeg(
                 direction=-1,

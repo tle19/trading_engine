@@ -7,8 +7,8 @@ from utils import *
 
 class StatArb(StrategyPair):
     def __init__(self, pair, ema_window=1000, entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.05, 
-                 start_time=(16, 00), end_time=(20, 00), position_size=0.10,
-                 stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.005, trade_max=200):
+                 start_time=(15, 00), end_time=(20, 00), position_size=0.10,
+                 stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.0025, trade_max=400):
         super().__init__(pair, start_time, end_time, position_size,
                          stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
@@ -22,7 +22,6 @@ class StatArb(StrategyPair):
         self.ema1 = None
         self.ema2 = None
         self.z_score = 0.0
-        self.slope_diff = 0.0
         self.spread_check = False
         
         self.rolling_ema1 = deque(maxlen=self.ema_window)
@@ -60,9 +59,10 @@ class StatArb(StrategyPair):
         return signal
         
     def exit_trade(self, signal=None):
-        if self.position_manager.direction() == 1 and self.z_score >= self.exit_threshold:
+        direction = self.position_manager.direction()
+        if direction == 1 and self.z_score >= self.exit_threshold:
             return self.exit()
-        elif self.position_manager.direction() == -1 and self.z_score <= -self.exit_threshold:
+        elif direction == -1 and self.z_score <= -self.exit_threshold:
             return self.exit()
         return signal
         
@@ -76,13 +76,6 @@ class StatArb(StrategyPair):
         elif self.symbol2 == symbol:
             self.ema2 = self.compute_ema(self.ema2, self.mid2, self.ema_window)
             self.rolling_ema2.append(self.ema2)
-
-        # if len(self.rolling_ema1) == self.ema_window and len(self.rolling_ema2) == self.ema_window:
-        #     slope1 = self.ema1 - self.rolling_ema1[0]
-        #     slope2 = self.ema2 - self.rolling_ema2[0]
-        #     norm_slope1 = slope1 / np.std(self.rolling_ema1, ddof=1)
-        #     norm_slope2 = slope2 / np.std(self.rolling_ema2, ddof=1)
-        #     self.slope_diff = norm_slope1 - norm_slope2
 
         spread = self.mid1 - self.mid2
         self.rolling_spread.append(spread)

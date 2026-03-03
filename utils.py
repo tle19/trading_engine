@@ -28,13 +28,11 @@ def open_data(symbol, start_date=None, end_date=None, mode="intraday"):
     df = pd.read_csv(file_path)
     if mode == "intraday" or mode == "daily":
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert(timezone)
-    if mode == "quote":
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit='ms', utc=True).dt.tz_convert(timezone)
 
-    if start_date is not None and end_date is not None:
-        mask = (df['timestamp'].dt.date >= pd.to_datetime(start_date).date()) & \
-                (df['timestamp'].dt.date <= pd.to_datetime(end_date).date())
-        df = df.loc[mask]
+        if start_date is not None and end_date is not None:
+            mask = (df['timestamp'].dt.date >= pd.to_datetime(start_date).date()) & \
+                    (df['timestamp'].dt.date <= pd.to_datetime(end_date).date())
+            df = df.loc[mask]
 
     return df
 
