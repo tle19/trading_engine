@@ -7,9 +7,9 @@ from utils import *
 
 class StatArb(StrategyPair):
     def __init__(self, pair, ema_window=1000, entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.05, 
-                 start_time=(16, 00), end_time=(20, 00), dca_count=10,
+                 start_time=(16, 00), end_time=(20, 00), position_size=0.10,
                  stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.005, trade_max=200):
-        super().__init__(pair, start_time, end_time, dca_count,
+        super().__init__(pair, start_time, end_time, position_size,
                          stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
@@ -25,25 +25,24 @@ class StatArb(StrategyPair):
         self.slope_diff = 0.0
         self.spread_check = False
         
-        self.rolling_ema1 = deque(maxlen=ema_window)
-        self.rolling_ema2 = deque(maxlen=ema_window)
-        self.rolling_spread = deque(maxlen=ema_window)
+        self.rolling_ema1 = deque(maxlen=self.ema_window)
+        self.rolling_ema2 = deque(maxlen=self.ema_window)
+        self.rolling_spread = deque(maxlen=1000)
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
 
         if self.risk_manager._day_pause: 
             return None
-        if not self.trade_window() and not self.s1["direction"]:
+        if not self.trade_window() and not self.position_manager.in_trade():
             return None
 
         signal = None
         if self.activated:
             self.compute_indicators(symbol)
             if self.latency_check and self.spread_check:
-                if self.s1["direction"]:
-                    signal = self.exit_trade()
-                else:
+                signal = self.exit_trade()
+                if signal is None:
                     signal = self.enter_trade()
         return signal
    
@@ -52,34 +51,18 @@ class StatArb(StrategyPair):
             signal = self.buy_pair()
         elif self.z_score > self.entry_threshold:
             signal = self.sell_pair()
-
-        # TEST MIN SHARES
-        if self.pair == "GOOG-GOOGL":
-            self.s1["shares"] = 1
-            self.s2["shares"] = 1
-        if self.pair == "SPY-QQQ":
-            self.s1["shares"] = 7
-            self.s2["shares"] = 8
-        if self.pair == "V-MA":
-            self.s1["shares"] = 5
-            self.s2["shares"] = 3
-        if self.pair == "KO-PEP":
-            self.s1["shares"] = 6
-            self.s2["shares"] = 3
-        if self.pair == "HD-LOW":
-            self.s1["shares"] = 2
-            self.s2["shares"] = 3
-        if self.pair == "XOM-CVX":
-            self.s1["shares"] = 5
-            self.s2["shares"] = 4
             
-        self.features = [self.z_score, self.slope_diff, self.latency, abs(self.s1["ts"] - self.s2["ts"])]
+        self.features = {
+            "z_score": self.z_score,
+            "latency": self.latency,
+            "time_diff": abs(self.s1["ts"] - self.s2["ts"])
+        }
         return signal
         
     def exit_trade(self, signal=None):
-        if self.s1["direction"] == 1 and self.z_score >= self.exit_threshold:
+        if self.position_manager.direction() == 1 and self.z_score >= self.exit_threshold:
             return self.exit()
-        elif self.s1["direction"] == -1 and self.z_score <= -self.exit_threshold:
+        elif self.position_manager.direction() == -1 and self.z_score <= -self.exit_threshold:
             return self.exit()
         return signal
         
@@ -94,12 +77,12 @@ class StatArb(StrategyPair):
             self.ema2 = self.compute_ema(self.ema2, self.mid2, self.ema_window)
             self.rolling_ema2.append(self.ema2)
 
-        if len(self.rolling_ema1) == self.ema_window and len(self.rolling_ema2) == self.ema_window:
-            slope1 = self.ema1 - self.rolling_ema1[0]
-            slope2 = self.ema2 - self.rolling_ema2[0]
-            norm_slope1 = slope1 / np.std(self.rolling_ema1, ddof=1)
-            norm_slope2 = slope2 / np.std(self.rolling_ema2, ddof=1)
-            self.slope_diff = norm_slope1 - norm_slope2
+        # if len(self.rolling_ema1) == self.ema_window and len(self.rolling_ema2) == self.ema_window:
+        #     slope1 = self.ema1 - self.rolling_ema1[0]
+        #     slope2 = self.ema2 - self.rolling_ema2[0]
+        #     norm_slope1 = slope1 / np.std(self.rolling_ema1, ddof=1)
+        #     norm_slope2 = slope2 / np.std(self.rolling_ema2, ddof=1)
+        #     self.slope_diff = norm_slope1 - norm_slope2
 
         spread = self.mid1 - self.mid2
         self.rolling_spread.append(spread)
@@ -113,29 +96,29 @@ class StatArb(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
-            self.dca_count = 10
+            self.position_size = 0.10
         if pair == "GOOG-GOOGL":
             self.entry_threshold = 2.25
-            self.exit_threshold = 1.75
-            self.bid_ask_spread = 0.03
-            self.dca_count = 10
-        if self.pair == "HD-LOW":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.25
-            self.dca_count = 10
-        if self.pair == "KO-PEP":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.10
-            self.dca_count = 10
-        if self.pair == "V-MA":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.25
-            self.dca_count = 10
+            self.exit_threshold = 2.0
+            self.bid_ask_spread = 0.05
+            self.position_size = 0.10
         if self.pair == "XOM-CVX":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
-            self.dca_count = 10
+            self.position_size = 0.10
+        if self.pair == "HD-LOW":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.25
+            self.position_size = 0.10
+        if self.pair == "KO-PEP":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.10
+            self.position_size = 0.10
+        if self.pair == "V-MA":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.25
+            self.position_size = 0.10

@@ -551,39 +551,57 @@ class EquityPairs(Instrument):
         name = strategy.__class__.__name__
         symbol1, symbol2 = strategy.symbol1, strategy.symbol2
         s1, s2 = strategy.s1, strategy.s2
-        
+        position_manager = strategy.position_manager
+        if position_manager.in_trade():
+            leg1, leg2 = position_manager.pairs[-1]
+            direction1 = leg1.direction
+            direction2 = leg2.direction
+            entry_price1 = leg1.entry_price
+            entry_price2 = leg2.entry_price
+            position_size1 = leg1.position_size
+            position_size2 = leg2.position_size
+            shares1 = leg1.shares
+            shares2 = leg2.shares
+
         # --- Enter Long/Short ---
         if signal == 1:
-            fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
-            s1["entry_price"] = fill_price1 if fill_price1 is not None else s1["entry_price"]
-            s2["entry_price"] = fill_price2 if fill_price2 is not None else s2["entry_price"]
-            self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["ask"], fill_price1, None, None, strategy.features)
-            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["bid"], fill_price2, None, None, strategy.features)
+            fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, shares1, shares2)
+            leg1.entry_price = fill_price1
+            leg2.entry_price = fill_price2
+            self.trade_manager.log_entry(name, leg1, symbol1, direction1, position_size1, shares1, s1["ts"], entry_price1, fill_price1, None, None, strategy.features)
+            self.trade_manager.log_entry(name, leg2, symbol2, direction2, position_size2, shares2, s2["ts"], entry_price2, fill_price2, None, None, strategy.features)
 
         # --- Enter Short/Long ---
         elif signal == -1:
-            fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
-            s1["entry_price"] = fill_price1 if fill_price1 is not None else s1["entry_price"]
-            s2["entry_price"] = fill_price2 if fill_price2 is not None else s2["entry_price"]
-            self.trade_manager.log_entry(name, symbol1, symbol1, s1["direction"], 1.0, s1["shares"], s1["ts"], s1["bid"], fill_price1, None, None, strategy.features)
-            self.trade_manager.log_entry(name, symbol2, symbol2, s2["direction"], 1.0, s2["shares"], s2["ts"], s2["ask"], fill_price2, None, None, strategy.features)
-                
+            fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, shares1, shares2)
+            leg1.entry_price = fill_price1
+            leg2.entry_price = fill_price2
+            self.trade_manager.log_entry(name, leg1, symbol1, direction1, position_size1, shares1, s1["ts"], entry_price1, fill_price1, None, None, strategy.features)
+            self.trade_manager.log_entry(name, leg2, symbol2, direction2, position_size2, shares2, s2["ts"], entry_price2, fill_price2, None, None, strategy.features)
+        
         # --- Exit Position --- 
         elif signal == 0:
-            if s1["direction"] == 1:
-                fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
+            shares1, shares2 = position_manager.total_shares()
+            if direction1 == 1:
+                fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, shares1, shares2)
                 exit_price1, exit_price2 = s1["bid"], s2["ask"]
-            elif s1["direction"] == -1:
-                fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, s1["shares"], s2["shares"])
-                exit_price1, exit_price2 = s1["ask"], s2["bid"]
+            elif direction1 == -1:
+                fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, shares1, shares2)
+                exit_price1, exit_price2 = s2["ask"], s2["bid"]
 
-            fill_price1 = fill_price1 if fill_price1 is not None else exit_price1
-            fill_price2 = fill_price2 if fill_price2 is not None else exit_price2
-            self.trade_manager.update_exit(symbol1, s1["ts"], exit_price1, fill_price1)
-            self.trade_manager.update_exit(symbol2, s2["ts"], exit_price2, fill_price2)
-            self.update_pnl(strategy, s1["direction"], s1["entry_price"], fill_price1, s1["shares"])
-            self.update_pnl(strategy, s2["direction"], s2["entry_price"], fill_price2, s2["shares"])
-            strategy.flatten()
+            for leg1, leg2 in position_manager.pairs.copy():
+                entry_price1 = leg1.entry_price
+                entry_price2 = leg2.entry_price
+                shares1 = leg1.shares
+                shares2 = leg2.shares
+                    
+                fill_price1 = fill_price1 if fill_price1 is not None else exit_price1
+                fill_price2 = fill_price2 if fill_price2 is not None else exit_price2
+                self.trade_manager.update_exit(leg1, s1["ts"], exit_price1, fill_price1)
+                self.trade_manager.update_exit(leg2, s2["ts"], exit_price2, fill_price2)
+                self.update_pnl(strategy, direction1, entry_price1, fill_price1, shares1)
+                self.update_pnl(strategy, direction2, entry_price2, fill_price2, shares2)
+                position_manager.remove_pair(leg1, leg2)
 
 class EquityBook(Instrument):
     def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live_eb.json"):
