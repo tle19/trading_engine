@@ -9,7 +9,7 @@ import matplotlib.dates as mdates
 from zoneinfo import ZoneInfo
 import schwabdev
 
-from symbols import SYMBOLS
+from symbols import SYMBOLS, PAIRS
 from core import *
 from metrics import *
 from strategies import *
@@ -18,6 +18,7 @@ from utils import *
 
 timezone = ZoneInfo("America/New_York")
 symbols = SYMBOLS
+pairs = PAIRS
 
 def test_order(symbol="AAPL"):
     eq = Equities(symbol, SMACrossover)
@@ -219,5 +220,34 @@ def pairs_pnl(symbol1, symbol2, start=0, end=None):
     plt.show()
 
 find_new_day_indices()
+pairs_pnl("XOM", "CVX", start=934, end=1238) # -2std, A - B > 0 yes; +2std, A - B < 0 yes
 
-pairs_pnl("SPY", "QQQ", start=330, end=None) # -2std, A - B > 0 yes; +2std, A - B < 0 yes
+for pair in pairs:
+    symbol1 = pair[0]
+    symbol2 = pair[1]
+    with open("market_logs_2026-03-02.jsonl") as f:
+        trade_history = [json.loads(line) for line in f]
+    time_diffs = []
+    synced_packets = 0
+    unsynced_packets = 0
+    for packet in trade_history:
+        symbol_timestamps = {}
+        for quote in packet:
+            match = re.search(r"\[(\w+)\].*timestamp=(\d+)", quote)
+            if match:
+                symbol, ts = match.group(1), int(match.group(2))
+                if symbol in (symbol1, symbol2):
+                    symbol_timestamps[symbol] = ts
+
+        if symbol1 in symbol_timestamps and symbol2 in symbol_timestamps:
+            diff_ms = abs(symbol_timestamps[symbol1] - symbol_timestamps[symbol2])
+            time_diffs.append(diff_ms)
+            synced_packets += 1
+        else:
+            unsynced_packets += 1
+
+    print(pair)
+    print(f"Synced packets: {synced_packets}")
+    print(f"Unsynced packets: {unsynced_packets}")
+    print(f"Average synced timestamp difference: {np.mean(time_diffs):.0f} ms")
+    print(f"Min difference: {min(time_diffs)} ms, Max difference: {max(time_diffs)} ms")
