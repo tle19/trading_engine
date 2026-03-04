@@ -155,8 +155,7 @@ class StrategyPair:
             return HOLD
           
     def exit(self):
-        direction = self.position_manager.direction()
-        if direction:
+        if self.position_manager.direction():
             self.dca_step = 0
             self.ticks = 0
             return EXIT
