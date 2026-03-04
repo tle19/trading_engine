@@ -3,7 +3,6 @@ import numpy as np
 from collections import defaultdict
 from datetime import datetime
 import matplotlib.pyplot as plt
-import seaborn as sns
 import matplotlib.dates as mdates
 
 from zoneinfo import ZoneInfo
@@ -103,21 +102,14 @@ def pairs_pnl(symbol1, symbol2, start=0, end=None):
             pair_times.append(entry_time)
             hold_times.append((exit_time - entry_time).total_seconds())
 
-            entry_latency = th[idx1]["features"][2] + th[idx1]["features"][3]
+            entry_latency = th[idx1]["features"]["latency"] + th[idx1]["features"]["time_diff"]
             fill_1 = abs(th[idx1]["entry_price"] - th[idx1]["entry_fill"])
             fill_2 = abs(th[idx2]["entry_price"] - th[idx2]["entry_fill"])
             latencies.append(entry_latency)
             fill_diffs.append(fill_1 + fill_2)
 
-            z = th[idx1]["features"][0]
+            z = th[idx1]["features"]["z_score"]
             pair_zscores.append(z_bucket(z))
-
-            dir = th[idx1]["direction"]
-            slope_sum = th[idx1]["features"][1]
-            if dir == 1:
-                buy_slopes.append([slope_sum, net_pnl])
-            elif dir == -1:
-                sell_slopes.append([slope_sum, net_pnl])
 
     pnl_by_z = defaultdict(list)
 
@@ -147,7 +139,6 @@ def pairs_pnl(symbol1, symbol2, start=0, end=None):
 
     plt.subplot(1,2,2)
     plt.hist(hold_times, bins=50, weights=cum, color='blue', edgecolor='black', label="Cumulative PnL")
-    # plt.hist(latencies, bins=50, weights=cum, color='blue', edgecolor='black', label="Cumulative PnL")
     plt.xlabel("Hold Times")
     plt.ylabel("Cumulative PnL")
     plt.title("Histogram of Hold Times Weighted by Cumulative PnL")
@@ -158,96 +149,11 @@ def pairs_pnl(symbol1, symbol2, start=0, end=None):
     plt.show()
 
     plt.hist(latencies, bins=50, weights=fill_diffs, color='blue', edgecolor='black', label="Cumulative PnL")
-    # plt.hist(latencies, bins=50, weights=cum, color='blue', edgecolor='black', label="Cumulative PnL")
     plt.legend()
     plt.grid(True)
 
     plt.tight_layout()
     plt.show()
 
-    buy_values, buy_pnl = zip(*buy_slopes) if buy_slopes else ([], [])
-    sell_values, sell_pnl = zip(*sell_slopes) if sell_slopes else ([], [])
-
-    buy_values = np.array(buy_values)
-    buy_pnl = np.array(buy_pnl)
-    sell_values = np.array(sell_values)
-    sell_pnl = np.array(sell_pnl)
-
-    clip_low, clip_high = 0.05, 0.95  # keep 5%-95% percentile
-    all_values = np.concatenate([buy_values, sell_values])
-    vmin, vmax = np.percentile(all_values, [clip_low*100, clip_high*100])
-
-    buy_values_clipped = np.clip(buy_values, vmin, vmax)
-    sell_values_clipped = np.clip(sell_values, vmin, vmax)
-
-    bins = np.linspace(vmin, vmax, 50)
-
-    plt.figure(figsize=(14,6))
-
-    plt.subplot(1,2,1)
-    plt.hist(
-        buy_values_clipped, 
-        bins=bins, 
-        weights=buy_pnl, 
-        alpha=0.7, 
-        color='green', 
-        edgecolor='black', 
-        histtype='stepfilled'
-    )
-    plt.axvline(0, color='black', linestyle='--')
-    plt.title("Buy Spread (-2σ) Slope Sum Weighted by PnL")
-    plt.xlabel("Slope Sum (A-B) at Entry")
-    plt.ylabel("Weighted PnL")
-    plt.grid(True)
-
-    plt.subplot(1,2,2)
-    plt.hist(
-        sell_values_clipped, 
-        bins=bins, 
-        weights=sell_pnl, 
-        alpha=0.7, 
-        color='red', 
-        edgecolor='black', 
-        histtype='stepfilled'
-    )
-    plt.axvline(0, color='black', linestyle='--')
-    plt.title("Sell Spread (+2σ) Slope Sum Weighted by PnL")
-    plt.xlabel("Slope Sum (A-B) at Entry")
-    plt.ylabel("Weighted PnL")
-    plt.grid(True)
-
-    plt.tight_layout()
-    plt.show()
-
 find_new_day_indices()
-pairs_pnl("XOM", "CVX", start=934, end=1238) # -2std, A - B > 0 yes; +2std, A - B < 0 yes
-
-for pair in pairs:
-    symbol1 = pair[0]
-    symbol2 = pair[1]
-    with open("market_logs_2026-03-02.jsonl") as f:
-        trade_history = [json.loads(line) for line in f]
-    time_diffs = []
-    synced_packets = 0
-    unsynced_packets = 0
-    for packet in trade_history:
-        symbol_timestamps = {}
-        for quote in packet:
-            match = re.search(r"\[(\w+)\].*timestamp=(\d+)", quote)
-            if match:
-                symbol, ts = match.group(1), int(match.group(2))
-                if symbol in (symbol1, symbol2):
-                    symbol_timestamps[symbol] = ts
-
-        if symbol1 in symbol_timestamps and symbol2 in symbol_timestamps:
-            diff_ms = abs(symbol_timestamps[symbol1] - symbol_timestamps[symbol2])
-            time_diffs.append(diff_ms)
-            synced_packets += 1
-        else:
-            unsynced_packets += 1
-
-    print(pair)
-    print(f"Synced packets: {synced_packets}")
-    print(f"Unsynced packets: {unsynced_packets}")
-    print(f"Average synced timestamp difference: {np.mean(time_diffs):.0f} ms")
-    print(f"Min difference: {min(time_diffs)} ms, Max difference: {max(time_diffs)} ms")
+pairs_pnl("SPY", "QQQ", start=0, end=None) # -2std, A - B > 0 yes; +2std, A - B < 0 yes

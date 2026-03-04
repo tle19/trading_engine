@@ -1,12 +1,12 @@
 import json
 import pandas as pd
-import datetime
+import re
 from itertools import combinations
 import matplotlib.pyplot as plt
 
 from zoneinfo import ZoneInfo
 
-from symbols import SYMBOLS
+from symbols import SYMBOLS, PAIRS
 from core import *
 from metrics import *
 from strategies import *
@@ -15,6 +15,7 @@ from utils import *
 
 timezone = ZoneInfo("America/New_York")
 symbols = SYMBOLS
+pairs = PAIRS
 
 def compute_share_split(price1, price2, min_pct=0.85, cash=25000, top_n=5):
     cash = cash / 2
@@ -48,7 +49,6 @@ def compute_share_split(price1, price2, min_pct=0.85, cash=25000, top_n=5):
     return top_combos[0][1], top_combos[0][2]
 
 def dca_plan(price1, price2, min_pct=0.85, cash=30000):
-    cash = cash / 2
     shares1, shares2 = compute_share_split(price1, price2, min_pct=min_pct, cash=cash, top_n=5)
 
     plan = []
@@ -72,6 +72,37 @@ def dca_plan(price1, price2, min_pct=0.85, cash=30000):
     print(shares1, shares2)
     print(plan)
     return plan
+
+def packet_sync_check():
+    for pair in pairs:
+        symbol1 = pair[0]
+        symbol2 = pair[1]
+        with open("market_logs_2026-03-02.jsonl") as f:
+            trade_history = [json.loads(line) for line in f]
+        time_diffs = []
+        synced_packets = 0
+        unsynced_packets = 0
+        for packet in trade_history:
+            symbol_timestamps = {}
+            for quote in packet:
+                match = re.search(r"\[(\w+)\].*timestamp=(\d+)", quote)
+                if match:
+                    symbol, ts = match.group(1), int(match.group(2))
+                    if symbol in (symbol1, symbol2):
+                        symbol_timestamps[symbol] = ts
+
+            if symbol1 in symbol_timestamps and symbol2 in symbol_timestamps:
+                diff_ms = abs(symbol_timestamps[symbol1] - symbol_timestamps[symbol2])
+                time_diffs.append(diff_ms)
+                synced_packets += 1
+            else:
+                unsynced_packets += 1
+
+        print(pair)
+        print(f"Synced packets: {synced_packets}")
+        print(f"Unsynced packets: {unsynced_packets}")
+        print(f"Average synced timestamp difference: {np.mean(time_diffs):.0f} ms")
+        print(f"Min difference: {min(time_diffs)} ms, Max difference: {max(time_diffs)} ms")
 
 def find_pair_corr(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
     # INTRADAY
@@ -182,15 +213,15 @@ def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
     df1 = df1.sort_values('timestamp')
     df2 = df2.sort_values('timestamp')
     hedge_ratio = round(df1["close"].iloc[0] / df2["close"].iloc[0], 1)
-    df_merged = pd.merge_asof(df1, df2, on='timestamp', direction='nearest', tolerance=pd.Timedelta('1000ms'), suffixes=('_1','_2'))
-    spread = ((df_merged['close_1'] + df_merged['open_1']) / 2) - ((df_merged['close_2'] * hedge_ratio + df_merged['open_2'] * hedge_ratio) / 2)
+    df_merged = pd.merge_asof(df1, df2, on='timestamp', direction='nearest', tolerance=pd.Timedelta('5000ms'), suffixes=('_1','_2'))
+    df_merged['spread'] = ((df_merged['close_1'] + df_merged['open_1']) / 2) - ((df_merged['close_2'] * hedge_ratio + df_merged['open_2'] * hedge_ratio) / 2)
     x = df_merged['timestamp']
 
-    roll_mean = spread.rolling(window).mean()
-    roll_std = spread.rolling(window).std()
+    df_merged['roll_mean'] = df_merged['spread'].rolling(window).mean()
+    df_merged['roll_std'] = df_merged['spread'].rolling(window).std()
 
-    upper_band = roll_mean + z * roll_std
-    lower_band = roll_mean - z * roll_std
+    df_merged['upper_band'] = df_merged['roll_mean'] + z * df_merged['roll_std']
+    df_merged['lower_band'] = df_merged['roll_mean'] - z * df_merged['roll_std']
 
     in_trade = False
     trades = []
@@ -198,14 +229,15 @@ def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
     above_ub = 0
     below_lb = 0
 
-    for i in range(len(spread)):
-        if i < window:
+    for row in df_merged.itertuples():
+        # Skip first 'window' rows
+        if row.Index < window:
             continue
 
-        s = spread.iloc[i]
-        mean = roll_mean.iloc[i]
-        ub = upper_band.iloc[i]
-        lb = lower_band.iloc[i]
+        s = row.spread
+        mean = row.roll_mean
+        ub = row.upper_band
+        lb = row.lower_band
 
         if s >= ub:
             above_ub += 1
@@ -217,31 +249,26 @@ def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
             if s >= ub:
                 direction = "sell"      # expect spread to fall toward mean
                 entry_spread = s
-                entry_index = spread.index[i]
+                entry_index = row.Index
                 in_trade = True
-
             elif s <= lb:
-                direction = "buy"     # expect spread to rise toward mean
+                direction = "buy"       # expect spread to rise toward mean
                 entry_spread = s
-                entry_index = spread.index[i]
+                entry_index = row.Index
                 in_trade = True
 
         # EXIT
         else:
             exit_spread = s
-            exit_index = spread.index[i]
-            if direction == "buy":
-                if s >= mean: # (ub + mean) / 2, ub
-                    direction = None
-                    profitable = exit_spread > entry_spread
-                    trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
-                    in_trade = False
-            else:
-                if s <= mean: # (lb + mean) / 2, lb
-                    direction = None
-                    profitable = exit_spread < entry_spread
-                    trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
-                    in_trade = False
+            exit_index = row.Index
+            if direction == "buy" and s >= mean:
+                profitable = exit_spread > entry_spread
+                trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
+                in_trade = False
+            elif direction == "sell" and s <= mean:
+                profitable = exit_spread < entry_spread
+                trades.append((entry_index, exit_index, entry_spread, exit_spread, direction, profitable))
+                in_trade = False
 
     plt.figure(figsize=(14, 8))
 
@@ -252,10 +279,10 @@ def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
     plt.legend()
 
     plt.subplot(2,1,2)
-    plt.plot(x, spread, label="Spread")
-    plt.plot(x, roll_mean, linestyle="--", label="Mean", color="gray")
-    plt.plot(x, upper_band, linestyle="--", label=f"+{z} Std", color="lightgray")
-    plt.plot(x, lower_band, linestyle="--", label=f"-{z} Std", color="lightgray")
+    plt.plot(x, df_merged['spread'], label="Spread")
+    plt.plot(x, df_merged['roll_mean'], linestyle="--", label="Mean", color="gray")
+    plt.plot(x, df_merged['upper_band'], linestyle="--", label=f"+{z} Std", color="lightgray")
+    plt.plot(x, df_merged['lower_band'], linestyle="--", label=f"-{z} Std", color="lightgray")
     
     pos_trades = []
     neg_trades = []
@@ -280,7 +307,7 @@ def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
         plt.text(mid_x, mid_y - 0.01*distance, f"{hold_time:.2f}", fontsize=8,
                 ha='center', va='top', color="black")
 
-    print(len(spread), above_ub, below_lb)
+    print(len(df_merged), above_ub, below_lb)
     print(f"POS PNL: {sum(pos_trades)}, POS TRADES: {len(pos_trades)}")
     print(f"NEG PNL: {sum(neg_trades)}, NEG TRADES: {len(neg_trades)}")
 
@@ -320,34 +347,34 @@ def find_proba(df):
                 break
 
 # TICK
-symbol1 = "SPY"
-symbol2 = "QQQ"
-start = "2026-03-03"
-end = "2026-03-03"
-df1 = open_data(symbol1, mode="quote")
-df2 = open_data(symbol2, mode="quote")
-df1 = df1.rename(columns={"bid": "close", "ask": "open"})
-df2 = df2.rename(columns={"bid": "close", "ask": "open"})
-df1['timestamp'] = pd.to_datetime(df1['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
-df2['timestamp'] = pd.to_datetime(df2['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone)
-mask = (df1['timestamp'].dt.date >= pd.to_datetime(start).date()) & \
-        (df1['timestamp'].dt.date <= pd.to_datetime(end).date())
-df1 = df1.loc[mask]
-mask = (df2['timestamp'].dt.date >= pd.to_datetime(start).date()) & \
-        (df2['timestamp'].dt.date <= pd.to_datetime(end).date())
-df2 = df2.loc[mask]
-backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=2.0)
-
-# INTRADAY
 # symbol1 = "SPY"
 # symbol2 = "QQQ"
+# start = "2026-03-02"
+# end = "2026-03-02"
+# df1 = open_data(symbol1, mode="quote")
+# df2 = open_data(symbol2, mode="quote")
+# df1 = df1.rename(columns={"bid": "close", "ask": "open"})
+# df2 = df2.rename(columns={"bid": "close", "ask": "open"})
+# df1['timestamp'] = pd.to_datetime(df1['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
+# df2['timestamp'] = pd.to_datetime(df2['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone)
+# mask = (df1['timestamp'].dt.date >= pd.to_datetime(start).date()) & \
+#         (df1['timestamp'].dt.date <= pd.to_datetime(end).date())
+# df1 = df1.loc[mask]
+# mask = (df2['timestamp'].dt.date >= pd.to_datetime(start).date()) & \
+#         (df2['timestamp'].dt.date <= pd.to_datetime(end).date())
+# df2 = df2.loc[mask]
+# backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=2.0)
+
+# INTRADAY
+# symbol1 = "XLE"
+# symbol2 = "VDE"
 # start = "2026-02-26"
 # end = "2026-02-26"
 # df1 = open_data(symbol1, start_date=start, end_date=end, mode="intraday")
 # df2 = open_data(symbol2, start_date=start, end_date=end, mode="intraday")
 # df1 = df1.set_index("timestamp").between_time("09:30", "16:00").reset_index()
 # df2 = df2.set_index("timestamp").between_time("09:30", "16:00").reset_index()
-# backtest_pairs(symbol1, symbol2, df1, df2, window=15, z=1.75)
+# backtest_pairs(symbol1, symbol2, df1, df2, window=15, z=2.0)
 
 # DAILY
 # symbol1 = "GS"
@@ -369,5 +396,6 @@ backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=2.0)
 #         t2 = trade_history[idx2]["entry_time"]
 #         print(abs(t1 - t2))
 
-# compute_share_split(684.35, 605.85, min_pct=0.50, cash=30000, top_n=5)
-# dca_plan(184.35, 240.85, min_pct=0.50, cash=30000)
+# compute_share_split(468.14, 74.68, min_pct=0.50, cash=10000, top_n=5)
+dca_plan(56.52, 159.38,  min_pct=0.80, cash=2000)
+# find_pair_corr("XLE", "VDE", start="2024-02-03", end="2026-02-03")
