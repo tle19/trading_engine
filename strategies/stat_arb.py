@@ -89,29 +89,19 @@ class StatArb(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
-            self.position_size = 0.10
+        if self.pair == "GLD-SLV":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.05
+        if self.pair == "IBIT-ETHA":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.05
+        if self.pair == "XLE-VDE":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.05
         if pair == "GOOG-GOOGL":
             self.entry_threshold = 2.25
             self.exit_threshold = 2.0
-            self.bid_ask_spread = 0.05
-            self.position_size = 0.10
-        if self.pair == "XOM-CVX":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.05
-            self.position_size = 0.10
-        if self.pair == "HD-LOW":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.25
-            self.position_size = 0.10
-        if self.pair == "KO-PEP":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.10
-            self.position_size = 0.10
-        if self.pair == "V-MA":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.25
-            self.position_size = 0.10
+            self.bid_ask_spread = 0.04

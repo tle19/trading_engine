@@ -176,24 +176,21 @@ class StrategyPair:
                     shares1, shares2 = s1, s2
 
         # TEST MIN SHARES
-        if self.pair == "GOOG-GOOGL":
-            shares1 = 1
-            shares2 = 1
         if self.pair == "SPY-QQQ":
             shares1 = 8
             shares2 = 9
-        if self.pair == "XOM-CVX":
-            shares1 = 5
-            shares2 = 4
-        if self.pair == "V-MA":
-            shares1 = 5
-            shares2 = 3
-        if self.pair == "KO-PEP":
-            shares1 = 6
-            shares2 = 3
-        if self.pair == "HD-LOW":
-            shares1 = 2
-            shares2 = 3
+        if self.pair == "GLD-SLV":
+            shares1 = 10
+            shares2 = 63
+        if self.pair == "IBIT-ETHA":
+            shares1 = 10
+            shares2 = 26
+        if self.pair == "XLE-VDE":
+            shares1 = 17
+            shares2 = 6
+        if self.pair == "GOOG-GOOGL":
+            shares1 = 1
+            shares2 = 1
 
         return shares1, shares2
     
