@@ -587,7 +587,7 @@ class EquityPairs(Instrument):
                 exit_price1, exit_price2 = s1["bid"], s2["ask"]
             elif direction1 == -1:
                 fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, shares1, shares2)
-                exit_price1, exit_price2 = s2["ask"], s2["bid"]
+                exit_price1, exit_price2 = s1["ask"], s2["bid"]
 
             for leg1, leg2 in position_manager.pairs.copy():
                 entry_price1 = leg1.entry_price
