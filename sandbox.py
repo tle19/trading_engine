@@ -1,6 +1,7 @@
 import json
 import pandas as pd
 import re
+import numpy as np
 from itertools import combinations
 import matplotlib.pyplot as plt
 
@@ -212,9 +213,13 @@ def time_dist(symbol1, symbol2):
 def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
     df1 = df1.sort_values('timestamp')
     df2 = df2.sort_values('timestamp')
-    hedge_ratio = round(df1["close"].iloc[0] / df2["close"].iloc[0], 1)
     df_merged = pd.merge_asof(df1, df2, on='timestamp', direction='nearest', tolerance=pd.Timedelta('5000ms'), suffixes=('_1','_2'))
-    df_merged['spread'] = ((df_merged['close_1'] + df_merged['open_1']) / 2) - ((df_merged['close_2'] * hedge_ratio + df_merged['open_2'] * hedge_ratio) / 2)
+    hedge_ratio = (df1['close'].iloc[0] / df2['close'].iloc[0]).round(3)
+    df_merged['hedge_ratio'] = (
+        df_merged['close_1'].rolling(100).mean() /
+        df_merged['close_2'].rolling(100).mean()
+    ).round(3)
+    df_merged['spread'] = ((df_merged['close_1'] + df_merged['open_1']) / 2) - ((df_merged['close_2'] * df_merged['hedge_ratio'] + df_merged['open_2']) / 2)
     x = df_merged['timestamp']
 
     df_merged['roll_mean'] = df_merged['spread'].rolling(window).mean()
@@ -233,7 +238,7 @@ def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
         # Skip first 'window' rows
         if row.Index < window:
             continue
-
+        
         s = row.spread
         mean = row.roll_mean
         ub = row.upper_band
@@ -288,7 +293,7 @@ def backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=1.75):
     neg_trades = []
     for entry_index, exit_index, ep, xp, direction, ok in trades:
         distance = abs(xp - ep)
-        hold_time = xp - ep  # or compute based on timestamps
+        hold_time = exit_index - entry_index
         if ok:
             pos_trades.append(distance)
         else:
@@ -347,10 +352,10 @@ def find_proba(df):
                 break
 
 # TICK
-symbol1 = "GOOG"
-symbol2 = "GOOGL"
-start = "2026-03-03"
-end = "2026-03-03"
+symbol1 = "GLD"
+symbol2 = "SLV"
+start = "2026-03-04"
+end = "2026-03-04"
 df1 = open_data(symbol1, mode="quote")
 df2 = open_data(symbol2, mode="quote")
 df1 = df1.rename(columns={"bid": "close", "ask": "open"})
@@ -366,10 +371,10 @@ df2 = df2.loc[mask]
 backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=2.0)
 
 # INTRADAY
-# symbol1 = "XLE"
-# symbol2 = "VDE"
-# start = "2026-02-26"
-# end = "2026-02-26"
+# symbol1 = "IBIT"
+# symbol2 = "ETHA"
+# start = "2026-02-25"
+# end = "2026-02-25"
 # df1 = open_data(symbol1, start_date=start, end_date=end, mode="intraday")
 # df2 = open_data(symbol2, start_date=start, end_date=end, mode="intraday")
 # df1 = df1.set_index("timestamp").between_time("09:30", "16:00").reset_index()
@@ -396,6 +401,9 @@ backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=2.0)
 #         t2 = trade_history[idx2]["entry_time"]
 #         print(abs(t1 - t2))
 
-# compute_share_split(468.14, 74.68, min_pct=0.50, cash=10000, top_n=5)
+# compute_share_split(471.80, 75.34, min_pct=0.50, cash=10000, top_n=5)
 # dca_plan(56.52, 159.38,  min_pct=0.80, cash=2000)
-# find_pair_corr("XLE", "VDE", start="2024-02-03", end="2026-02-03")
+# find_pair_corr("GLD", "SLV", start="2024-02-03", end="2026-02-03")
+
+# symbols = ["SPY", "QQQ", "GLD", "SLV", "XLE", "VDE", "IBIT", "ETHA"]
+# bid_ask_spread()
