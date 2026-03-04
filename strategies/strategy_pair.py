@@ -99,7 +99,7 @@ class StrategyPair:
             self.latency_check = abs(self.s1["ts"] - self.s2["ts"]) <= self.quote_delta_ms and fresher_quote["latency"] < self.max_latency_ms
 
         self.ticks += 1
-        
+
     def trade_window(self):
         ts = self.s1["ts"] or self.s2["ts"]
         return self.start_time <= (ts % (24 * 3600 * 1000)) <= self.end_time
@@ -158,6 +158,7 @@ class StrategyPair:
         direction = self.position_manager.direction()
         if direction:
             self.dca_step = 0
+            self.ticks = 0
             return EXIT
         return HOLD
     
