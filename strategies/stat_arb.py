@@ -7,7 +7,7 @@ from utils import *
 
 class StatArb(StrategyPair):
     def __init__(self, pair, ema_window=1000, entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.05, 
-                 start_time=(15, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
+                 start_time=(16, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
                  position_size=0.10, stop_loss=0.0001, take_profit=0.0001, 
                  pnl_target=0.01, pnl_loss=-0.0025, trade_max=400):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
@@ -90,19 +90,24 @@ class StatArb(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
-        if self.pair == "GLD-SLV":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.05
-        if self.pair == "IBIT-ETHA":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.05
+            self.position_size = 0.20
         if self.pair == "XLE-VDE":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
+            self.position_size = 0.20
+        if self.pair == "GLD-SLV":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.05
+            self.position_size = 0.20
+        if self.pair == "IBIT-ETHA":
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.05
+            self.position_size = 0.20
         if self.pair == "GOOG-GOOGL":
             self.entry_threshold = 2.0
             self.exit_threshold = 2.0
             self.bid_ask_spread = 0.04
+            self.position_size = 1.0

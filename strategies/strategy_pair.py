@@ -184,15 +184,15 @@ class StrategyPair:
         if self.pair == "SPY-QQQ":
             shares1 = 8
             shares2 = 9
+        if self.pair == "XLE-VDE":
+            shares1 = 17
+            shares2 = 6
         if self.pair == "GLD-SLV":
             shares1 = 10
             shares2 = 63
         if self.pair == "IBIT-ETHA":
             shares1 = 10
             shares2 = 26
-        if self.pair == "XLE-VDE":
-            shares1 = 17
-            shares2 = 6
         if self.pair == "GOOG-GOOGL":
             shares1 = 1
             shares2 = 1
