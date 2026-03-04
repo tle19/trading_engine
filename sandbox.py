@@ -347,23 +347,23 @@ def find_proba(df):
                 break
 
 # TICK
-# symbol1 = "SPY"
-# symbol2 = "QQQ"
-# start = "2026-03-02"
-# end = "2026-03-02"
-# df1 = open_data(symbol1, mode="quote")
-# df2 = open_data(symbol2, mode="quote")
-# df1 = df1.rename(columns={"bid": "close", "ask": "open"})
-# df2 = df2.rename(columns={"bid": "close", "ask": "open"})
-# df1['timestamp'] = pd.to_datetime(df1['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
-# df2['timestamp'] = pd.to_datetime(df2['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone)
-# mask = (df1['timestamp'].dt.date >= pd.to_datetime(start).date()) & \
-#         (df1['timestamp'].dt.date <= pd.to_datetime(end).date())
-# df1 = df1.loc[mask]
-# mask = (df2['timestamp'].dt.date >= pd.to_datetime(start).date()) & \
-#         (df2['timestamp'].dt.date <= pd.to_datetime(end).date())
-# df2 = df2.loc[mask]
-# backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=2.0)
+symbol1 = "GOOG"
+symbol2 = "GOOGL"
+start = "2026-03-03"
+end = "2026-03-03"
+df1 = open_data(symbol1, mode="quote")
+df2 = open_data(symbol2, mode="quote")
+df1 = df1.rename(columns={"bid": "close", "ask": "open"})
+df2 = df2.rename(columns={"bid": "close", "ask": "open"})
+df1['timestamp'] = pd.to_datetime(df1['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
+df2['timestamp'] = pd.to_datetime(df2['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone)
+mask = (df1['timestamp'].dt.date >= pd.to_datetime(start).date()) & \
+        (df1['timestamp'].dt.date <= pd.to_datetime(end).date())
+df1 = df1.loc[mask]
+mask = (df2['timestamp'].dt.date >= pd.to_datetime(start).date()) & \
+        (df2['timestamp'].dt.date <= pd.to_datetime(end).date())
+df2 = df2.loc[mask]
+backtest_pairs(symbol1, symbol2, df1, df2, window=1000, z=2.0)
 
 # INTRADAY
 # symbol1 = "XLE"
@@ -397,5 +397,5 @@ def find_proba(df):
 #         print(abs(t1 - t2))
 
 # compute_share_split(468.14, 74.68, min_pct=0.50, cash=10000, top_n=5)
-dca_plan(56.52, 159.38,  min_pct=0.80, cash=2000)
+# dca_plan(56.52, 159.38,  min_pct=0.80, cash=2000)
 # find_pair_corr("XLE", "VDE", start="2024-02-03", end="2026-02-03")

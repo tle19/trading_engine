@@ -103,6 +103,6 @@ class StatArb(StrategyPair):
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
         if self.pair == "GOOG-GOOGL":
-            self.entry_threshold = 2.25
+            self.entry_threshold = 2.0
             self.exit_threshold = 2.0
             self.bid_ask_spread = 0.04
