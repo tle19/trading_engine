@@ -6,10 +6,12 @@ from models import *
 from utils import *
 
 class DivArb(StrategyPair):
-    def __init__(self, pair, ema_window=5, decay_start=1000, decay_end=2000, start_time=(16, 00), end_time=(20, 00),
-                 stop_loss=0.0001, take_profit=0.00001, pnl_target=0.01, pnl_loss=-0.01, trade_max=400):
-        super().__init__(pair, start_time, end_time, 
-                         stop_loss, take_profit, 
+    def __init__(self, pair, ema_window=5, decay_start=1000, decay_end=2000, 
+                 start_time=(16, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
+                 position_size=1.0, stop_loss=0.0001, take_profit=0.00001, 
+                 pnl_target=0.01, pnl_loss=-0.01, trade_max=400):
+        super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms, 
+                         position_size, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
         self.decay_start = decay_start
@@ -23,19 +25,16 @@ class DivArb(StrategyPair):
 
         if self.risk_manager._day_pause: 
             return None
-        if not self.trade_window() and not self.s1["direction"]:
+        if not self.trade_window() and not self.position_manager.in_trade():
             return None
 
         signal = None
         if self.activated:
             self.compute_indicators(symbol)
             if self.latency_check and self.spread_check:
-                if self.s1["direction"]:
-                    signal = self.exit_trade()
-                else:
+                signal = self.exit_trade()
+                if signal is None:
                     signal = self.enter_trade()
-
-        self.save_data(symbol)
         return signal
     
     def enter_trade(self, signal=None):

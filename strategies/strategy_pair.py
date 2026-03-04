@@ -11,17 +11,21 @@ HOLD = None
 # Winter (EST) start_time=(14, 30), end_time=(21, 00)
 
 class StrategyPair:
-    def __init__(self, pair, start_time=(14, 30), end_time=(21, 00), position_size=0.10,
-                 stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
-        self.pair = pair
+    def __init__(self, pair, 
+                 start_time=(14, 30), end_time=(21, 00), quote_delta_ms=1000, max_latency_ms=500, 
+                 position_size=1.0, stop_loss=0.0001, take_profit=0.0001, 
+                 pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         if "-" not in pair:
             raise ValueError(f"Invalid pair format: '{pair}'. Expected format 'SYMBOL1-SYMBOL2'.")
+        self.pair = pair
         self.symbol1, self.symbol2 = pair.split("-")
         self.start_time = (start_time[0] * 3600 + start_time[1] * 60) * 1000
         self.end_time = (end_time[0] * 3600 + end_time[1] * 60) * 1000
+        self.quote_delta_ms = quote_delta_ms
+        self.max_latency_ms = max_latency_ms
         self.position_size = position_size
-        self.take_profit = take_profit
         self.stop_loss = stop_loss
+        self.take_profit = take_profit
 
         self.data = {
             self.symbol1: {
@@ -31,6 +35,7 @@ class StrategyPair:
                 "last": None,
                 "bid_size": None,
                 "ask_size": None,
+                "latency": 0
             },
             self.symbol2: {
                 "ts": None,
@@ -39,6 +44,7 @@ class StrategyPair:
                 "last": None,
                 "bid_size": None,
                 "ask_size": None,
+                "latency": 0
             }
         }
         
@@ -51,6 +57,7 @@ class StrategyPair:
 
         self.latency_check = False
         self.latency = 0  # network latency in milliseconds
+        self.ticks = 0
 
         self.features = None
 
@@ -60,10 +67,10 @@ class StrategyPair:
     def generate_signal(self, row, symbol):
         raise NotImplementedError
     
-    def enter_trade(self, ms=500):
+    def enter_trade(self):
         raise NotImplementedError
     
-    def exit_trade(self, ms=500):
+    def exit_trade(self):
         return self.exit()
     
     def compute_indicators(self):
@@ -78,6 +85,7 @@ class StrategyPair:
         if row.last is not None: s["last"] = row.last
         if row.bid_size is not None: s["bid_size"] = row.bid_size
         if row.ask_size is not None: s["ask_size"] = row.ask_size
+        s["latency"] = self.latency
 
         if not self.activated:
             for attr in ("ts", "bid", "ask", "last", "bid_size", "ask_size"):
@@ -87,11 +95,11 @@ class StrategyPair:
             shares1, shares2 = self.compute_share_split()
             self.dca_plan = self.compute_dca_plan(shares1, shares2)
         else:
-            if abs(self.s1["ts"] - self.s2["ts"]) <= 1000 and self.latency < 500:
-                self.latency_check = True
-            else:
-                self.latency_check = False
+            fresher_quote = self.s1 if self.s1["ts"] >= self.s2["ts"] else self.s2
+            self.latency_check = abs(self.s1["ts"] - self.s2["ts"]) <= self.quote_delta_ms and fresher_quote["latency"] < self.max_latency_ms
 
+        self.ticks += 1
+        
     def trade_window(self):
         ts = self.s1["ts"] or self.s2["ts"]
         return self.start_time <= (ts % (24 * 3600 * 1000)) <= self.end_time

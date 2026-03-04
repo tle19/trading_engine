@@ -7,10 +7,11 @@ from utils import *
 
 class StatArb(StrategyPair):
     def __init__(self, pair, ema_window=1000, entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.05, 
-                 start_time=(15, 00), end_time=(20, 00), position_size=0.10,
-                 stop_loss=0.0001, take_profit=0.0001, pnl_target=0.01, pnl_loss=-0.0025, trade_max=400):
-        super().__init__(pair, start_time, end_time, position_size,
-                         stop_loss, take_profit, 
+                 start_time=(15, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
+                 position_size=0.10, stop_loss=0.0001, take_profit=0.0001, 
+                 pnl_target=0.01, pnl_loss=-0.0025, trade_max=400):
+        super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
+                         position_size, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
         self.ema_window = ema_window
         self.entry_threshold = entry_threshold
@@ -101,7 +102,7 @@ class StatArb(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
-        if pair == "GOOG-GOOGL":
+        if self.pair == "GOOG-GOOGL":
             self.entry_threshold = 2.25
             self.exit_threshold = 2.0
             self.bid_ask_spread = 0.04
