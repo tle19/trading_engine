@@ -18,7 +18,7 @@ class StatArb(StrategyPair):
         self.exit_threshold = exit_threshold
         self.bid_ask_spread = bid_ask_spread
 
-        self.pair_preset(pair)
+        self.pair_preset()
 
         self.ema1 = None
         self.ema2 = None
@@ -85,7 +85,7 @@ class StatArb(StrategyPair):
 
         self.spread_check = abs(self.s1["ask"] - self.s1["bid"]) < self.bid_ask_spread and abs(self.s2["ask"] - self.s2["bid"]) < self.bid_ask_spread
     
-    def pair_preset(self, pair):
+    def pair_preset(self):
         if self.pair == "SPY-QQQ":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
