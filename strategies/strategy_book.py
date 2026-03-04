@@ -39,10 +39,10 @@ class StrategyBook:
     def generate_signal(self, row, symbol):
         raise NotImplementedError
     
-    def enter_trade(self, ms=500):
+    def enter_trade(self, signal=None):
         raise NotImplementedError
     
-    def exit_trade(self, ms=500):
+    def exit_trade(self, signal=None):
         return self.exit()
     
     def compute_indicators(self):

@@ -64,10 +64,10 @@ class StrategyPair:
     def generate_signal(self, row, symbol):
         raise NotImplementedError
     
-    def enter_trade(self):
+    def enter_trade(self, signal=None):
         raise NotImplementedError
     
-    def exit_trade(self):
+    def exit_trade(self, signal=None):
         return self.exit()
     
     def compute_indicators(self):
