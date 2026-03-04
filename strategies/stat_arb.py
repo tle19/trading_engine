@@ -6,28 +6,30 @@ from models import *
 from utils import *
 
 class StatArb(StrategyPair):
-    def __init__(self, pair, ema_window=1000, entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.05, 
+    def __init__(self, pair, spread_window=1000, entry_threshold=2.0, exit_threshold=0.0, update_interval=200, bid_ask_spread=0.03,
                  start_time=(16, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
                  position_size=0.10, stop_loss=0.0001, take_profit=0.0001, 
-                 pnl_target=0.01, pnl_loss=-0.0025, trade_max=400):
+                 pnl_target=0.01, pnl_loss=-0.0025, trade_max=600):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
                          position_size, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
-        self.ema_window = ema_window
+        self.spread_window = spread_window
         self.entry_threshold = entry_threshold
         self.exit_threshold = exit_threshold
+        self.update_interval = update_interval
         self.bid_ask_spread = bid_ask_spread
 
         self.pair_preset()
 
+        self.hedge_ratio = 1.0
+        self.z_score = 0.0
         self.ema1 = None
         self.ema2 = None
-        self.z_score = 0.0
         self.spread_check = False
         
-        self.rolling_ema1 = deque(maxlen=self.ema_window)
-        self.rolling_ema2 = deque(maxlen=self.ema_window)
-        self.rolling_spread = deque(maxlen=1000)
+        self.rolling_ema1 = deque(maxlen=spread_window)
+        self.rolling_ema2 = deque(maxlen=spread_window)
+        self.rolling_spread = deque(maxlen=spread_window)
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
@@ -71,43 +73,47 @@ class StatArb(StrategyPair):
         self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
-        if self.symbol1 == symbol:
-            self.ema1 = self.compute_ema(self.ema1, self.mid1, self.ema_window)
-            self.rolling_ema1.append(self.ema1)
-        elif self.symbol2 == symbol:
-            self.ema2 = self.compute_ema(self.ema2, self.mid2, self.ema_window)
-            self.rolling_ema2.append(self.ema2)
+        # if self.symbol1 == symbol:
+        #     self.ema1 = self.compute_ema(self.ema1, self.mid1, self.spread_window)
+        #     self.rolling_ema1.append(self.ema1)
+        # elif self.symbol2 == symbol:
+        #     self.ema2 = self.compute_ema(self.ema2, self.mid2, self.spread_window)
+        #     self.rolling_ema2.append(self.ema2)
 
-        spread = self.mid1 - self.mid2
+        self.recompute_hedge_ratio()
+        spread = self.mid1 - self.hedge_ratio * self.mid2
         self.rolling_spread.append(spread)
-        if len(self.rolling_spread) == self.ema_window:
+        if len(self.rolling_spread) == self.spread_window:
             self.z_score = (spread - np.mean(self.rolling_spread)) / np.std(self.rolling_spread, ddof=1)
 
         self.spread_check = abs(self.s1["ask"] - self.s1["bid"]) < self.bid_ask_spread and abs(self.s2["ask"] - self.s2["bid"]) < self.bid_ask_spread
     
+    def recompute_hedge_ratio(self):
+        if self.ticks % self.update_interval == 0:
+            self.hedge_ratio = round(self.mid1 / self.mid2, 3)
+
     def pair_preset(self):
         if self.pair == "SPY-QQQ":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
+            self.hedge_ratio = 1.121
             self.bid_ask_spread = 0.03
-            self.position_size = 0.20
+            self.position_size = 0.10
         if self.pair == "XLE-VDE":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
+            self.hedge_ratio = 0.354
             self.bid_ask_spread = 0.05
-            self.position_size = 0.20
+            self.position_size = 0.10
         if self.pair == "GLD-SLV":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
+            self.hedge_ratio = 6.247
             self.bid_ask_spread = 0.05
-            self.position_size = 0.20
+            self.position_size = 0.10
         if self.pair == "IBIT-ETHA":
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.05
-            self.position_size = 0.20
-        if self.pair == "GOOG-GOOGL":
-            self.entry_threshold = 2.0
-            self.exit_threshold = 2.0
-            self.bid_ask_spread = 0.04
-            self.position_size = 1.0
+            self.hedge_ratio = 2.558
+            self.bid_ask_spread = 0.03
+            self.position_size = 0.10

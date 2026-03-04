@@ -73,9 +73,7 @@ SYMBOLS = [
 
 PAIRS = [
     ["SPY", "QQQ"],
-    ["GOOG", "GOOGL"],
-    ["V", "MA"],
-    ["KO", "PEP"],
-    ["HD", "LOW"],
-    ["XOM", "CVX"]
+    ["XLE", "VDE"],
+    ["GLD", "SLV"],
+    ["IBIT", "ETHA"]
 ]

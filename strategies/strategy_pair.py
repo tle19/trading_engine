@@ -9,7 +9,7 @@ HOLD = None
 
 class StrategyPair:
     def __init__(self, pair, 
-                 start_time=(14, 30), end_time=(21, 00), quote_delta_ms=1000, max_latency_ms=500, 
+                 start_time=(15, 00), end_time=(21, 00), quote_delta_ms=1000, max_latency_ms=500, 
                  position_size=1.0, stop_loss=0.0001, take_profit=0.0001, 
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         if "-" not in pair:
@@ -154,7 +154,6 @@ class StrategyPair:
     def exit(self):
         if self.position_manager.direction():
             self.dca_step = 0
-            self.ticks = 0
             return EXIT
         return HOLD
     
@@ -193,9 +192,6 @@ class StrategyPair:
         if self.pair == "IBIT-ETHA":
             shares1 = 10
             shares2 = 26
-        if self.pair == "GOOG-GOOGL":
-            shares1 = 1
-            shares2 = 1
 
         return shares1, shares2
     
