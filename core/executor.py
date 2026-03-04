@@ -106,7 +106,6 @@ class DataFeedController:
         market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
         time.sleep((market_close - now).total_seconds())
         while self.stream.active:
-            print("ACTIVE")
             time.sleep(5)
         print("[INACTIVE] Market is closed")
 

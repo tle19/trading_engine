@@ -148,12 +148,15 @@ def pairs_pnl(symbol1, symbol2, start=0, end=None):
     plt.tight_layout()
     plt.show()
 
-    plt.hist(latencies, bins=50, weights=fill_diffs, color='blue', edgecolor='black', label="Cumulative PnL")
-    plt.legend()
+    plt.figure(figsize=(14,8))
+    plt.hist(latencies, bins=50, weights=pair_sums,
+         edgecolor='black', alpha=0.7)
+    plt.title("PnL Contribution Across Latencies")
+    plt.xlabel("Latency")
+    plt.ylabel("Weighted PnL (positive or negative)")
     plt.grid(True)
-
     plt.tight_layout()
     plt.show()
 
 find_new_day_indices()
-pairs_pnl("SPY", "QQQ", start=0, end=None) # -2std, A - B > 0 yes; +2std, A - B < 0 yes
+pairs_pnl("XOM", "CVX", start=0, end=None) # -2std, A - B > 0 yes; +2std, A - B < 0 yes
