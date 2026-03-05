@@ -389,6 +389,7 @@ class BacktestPairs:
         print(f"Elapsed Backtest Time: {elapsed_time:.3f} seconds")
 
     def run_simulation(self, pair, df, train, display_stats=True, display_plot=True):
+        last_day = pd.to_datetime(self.start_date).date()
         for row in df.itertuples(index=False):
             for symbol in pair.split("-"):
                 level1_row = self.level1_row.update(
@@ -413,6 +414,11 @@ class BacktestPairs:
                 self.bid_size = level1_row.bid_size
                 self.ask_size = level1_row.ask_size
 
+                current_day = pd.to_datetime(self.ts, unit='ms', utc=True).tz_convert(timezone).date() 
+                if current_day != last_day:
+                    self.risk_manager.reset()
+                    last_day = current_day
+                
                 signal = self.strategy.generate_signal(level1_row, symbol)
                 # self.dynamic_slippage(signal)
                 self.interpret_signal(signal, self.strategy)
