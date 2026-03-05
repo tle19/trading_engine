@@ -68,8 +68,6 @@ def main():
         args.strategy = strategy_map[args.strategy[0]]
         strategy_dict[args.strategy] = symbols
 
-    pairs = True if "-" in args.symbols[0] else False
-    bt = create_backtest(args.symbols, args.strategy, pairs=pairs, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage)
     dh = DataHandler()
 
     if args.live:
@@ -84,11 +82,13 @@ def main():
             print(f"[WAIT] Data not ready. Time remaining: {hours}h {minutes}m {seconds}s")
             time.sleep(wait_seconds)
         dh.intraday_data(symbols)
-        del dh, bt
+        del dh
 
         dfc = DataFeedController(strategy_dict, margin=args.margin)
         dfc.run()
     elif args.backtest:
+        pairs = True if "-" in args.symbols[0] else False
+        bt = create_backtest(args.symbols, args.strategy, pairs=pairs, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage)
         bt.run(start_date=args.start_date, end_date=args.end_date, grid=args.grid, train=args.train, show_trade=args.show_trade)
     elif args.fetch:
         if args.daily:
