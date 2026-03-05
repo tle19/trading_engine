@@ -16,6 +16,7 @@ market_logs_*.jsonl
 trade_logs.json
 pair_correlations.json
 *_grid_search.json
+*_spread.json
 
 # --- Python build/cache files ---
 __pycache__/
