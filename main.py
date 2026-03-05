@@ -68,7 +68,8 @@ def main():
         args.strategy = strategy_map[args.strategy[0]]
         strategy_dict[args.strategy] = symbols
 
-    bt = Backtest(args.symbols, args.strategy, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage) # single strategy
+    pairs = True if "-" in args.symbols[0] else False
+    bt = create_backtest(args.symbols, args.strategy, pairs=pairs, cash=args.cash, margin=args.margin, commission=args.commission, slippage=args.slippage)
     dh = DataHandler()
 
     if args.live:
@@ -83,7 +84,6 @@ def main():
             print(f"[WAIT] Data not ready. Time remaining: {hours}h {minutes}m {seconds}s")
             time.sleep(wait_seconds)
         dh.intraday_data(symbols)
-        # bt.run(end_date=str(date.today()), display=False)
         del dh, bt
 
         dfc = DataFeedController(strategy_dict, margin=args.margin)

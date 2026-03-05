@@ -8,6 +8,8 @@ __all__ = [
     "Level1Row",
     "Level2Row",
     "Backtest",
+    "BacktestPairs",
+    "create_backtest",
     "DataFeedController",
     "Equities",
     "EquityPairs"
