@@ -51,7 +51,7 @@ class Plotting:
         plt.close()
 
     def _plot_equity_and_benchmark(self, ax, dates, equity):
-        if self.symbol == "AGGREGATE":
+        if self.symbol == "AGGREGATE" or "-" in self.symbol:
             df = open_data("SPY", self.start_date, self.end_date, "daily")
             label = "S&P 500"
         else:
@@ -87,7 +87,10 @@ class Plotting:
         ax.fill_between(dates, drawdown_pct, color="salmon", alpha=0.5)
         ax.grid(True, linestyle=":", alpha=0.3)
         ax.set_title("Drawdown (%)")
-        ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
+        if min(drawdown_pct) > -1.0:
+            ax.yaxis.set_major_formatter(PercentFormatter(decimals=2))
+        else:
+            ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
     
     def _plot_monthly_returns(self):
         raise NotImplementedError

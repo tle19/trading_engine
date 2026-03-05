@@ -4,11 +4,15 @@ from collections import deque
 from itertools import product
 import datetime
 
+from zoneinfo import ZoneInfo
+
 from core import *
 from metrics import *
 from strategies import *
 from models import *
 from utils import *
+
+timezone = ZoneInfo("America/New_York")
 
 def create_backtest(symbols, strategy_class, pairs=False, **kwargs):
     if pairs:
@@ -29,8 +33,8 @@ class Backtest:
         self.cash_allocation = round(self.cash / len(self.symbols), 2)
 
         self.spread_window = deque(maxlen=5)
-        self.slip_up = 0
-        self.slip_dn = 0
+        self.slip_up = 1
+        self.slip_dn = 1
 
         self.train_time = 0
         self.train_wait = True
@@ -44,7 +48,7 @@ class Backtest:
         self.trade_history = []
         self.intraday_equity = []
         for symbol in self.symbols:
-            self.initialize(symbol, self.strategy_class)
+            self.initialize(symbol)
             mode = "daily" if self.strategy.swing else "intraday" 
             df = open_data(symbol, start_date, end_date, mode)
             
@@ -181,8 +185,8 @@ class Backtest:
                     if self.show_trade:
                         print(f"[{self.ts}] | EXIT: {fill_price}, PnL: {pnl}")
 
-    def initialize(self, symbol, strategy_class, **params):
-        self.strategy = strategy_class(symbol, **params)
+    def initialize(self, symbol, **params):
+        self.strategy = self.strategy_class(symbol, **params)
         self.train_wait = True
         self.cash = self.cash_allocation
         self.strategy.risk_manager.start_cash = self.cash_allocation
@@ -218,7 +222,7 @@ class Backtest:
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
 
     def sort_trade_history(self, trade_history):
-        trade_history.sort(key=lambda x: datetime.datetime.fromisoformat(x["exit_time"]))
+        trade_history.sort(key=lambda x: datetime.datetime.fromisoformat(x["entry_time"]))
         return trade_history
 
     def combine_equity_dicts(self, dicts):
@@ -246,7 +250,7 @@ class Backtest:
 
         for i, combo in enumerate(combos, 1):
             params = dict(zip(param_grid.keys(), combo))
-            self.initialize(symbol, self.strategy_class, **params)
+            self.initialize(symbol, **params)
             self.run_simulation(symbol, df, train, display_stats=False, display_plot=False)
 
             stats_dict = self.stats.get_data_dict()
@@ -317,11 +321,25 @@ class BacktestPairs:
         self.cash_allocation = round(self.cash / len(self.symbols), 2)
 
         self.spread_window = deque(maxlen=5)
-        self.slip_up = 0
-        self.slip_dn = 0
+        self.slip_up = 1
+        self.slip_dn = 1
 
         self.train_time = 0
         self.train_wait = True
+
+        self.ts = None
+        self.bid = None
+        self.ask = None
+        self.last = None
+        self.bid_size = None
+        self.ask_size = None
+        self.prev_bid = None
+        self.prev_ask = None
+        self.prev_last = None
+        self.prev_bid_size = None
+        self.prev_ask_size = None
+
+        self.level1_row = Level1Row()
 
     def run(self, start_date="2024-1-10", end_date="2026-1-10", 
             grid=False, train=False, display=True, show_trade=False):
@@ -333,14 +351,18 @@ class BacktestPairs:
         self.intraday_equity = []
 
         for pair in self.symbols:
-            self.initialize(pair, self.strategy_class)
+            self.initialize(pair)
 
             symbol1, symbol2 = pair.split("-")
             df1 = open_data(symbol1, start_date, end_date, mode="quote")
             df2 = open_data(symbol2, start_date, end_date, mode="quote")
-            df_merged = pd.merge_asof(df1, df2, on='timestamp', direction='nearest', tolerance=5000, suffixes=('_1','_2'))
+            df1, df2 = self.filter_dates(df1, df2, start_date, end_date)
+            df_merged = pd.merge_asof(df1, df2, on='timestamp', direction='nearest', tolerance=5000, suffixes=(f'_{symbol1}',f'_{symbol2}'))
             
-            self.run_simulation(pair, df_merged, train, display, display)
+            if grid:
+                self.grid_search(pair, df_merged, train)
+            else:
+                self.run_simulation(pair, df_merged, train, display, display)
 
             self.trade_history.extend(self.trade_manager.trade_history)
             self.intraday_equity.append(self.trade_manager.intraday_equity)
@@ -366,35 +388,40 @@ class BacktestPairs:
         
         print(f"Elapsed Backtest Time: {elapsed_time:.3f} seconds")
 
-    def run_simulation(self, symbol, df, train, display_stats=True, display_plot=True):
+    def run_simulation(self, pair, df, train, display_stats=True, display_plot=True):
         for row in df.itertuples(index=False):
-            self.ts = row.timestamp
-            self.bid1 = row.bid1
-            self.ask1 = row.ask1
-            self.last1 = row.last1
-            self.bid_size1 = row.bid_size1
-            self.ask_size1 = row.ask_size1
+            for symbol in pair.split("-"):
+                level1_row = self.level1_row.update(
+                    row.timestamp,
+                    getattr(row, f"bid_{symbol}"),
+                    getattr(row, f"ask_{symbol}"),
+                    getattr(row, f"last_{symbol}"),
+                    getattr(row, f"bid_size_{symbol}"),
+                    getattr(row, f"ask_size_{symbol}")
+                )
 
-            signal = self.strategy.generate_signal(row, symbol)
-            self.interpret_signal(signal, self.strategy)
-            self.update_equity()
+                self.prev_bid = self.bid
+                self.prev_ask = self.ask
+                self.prev_last = self.last
+                self.prev_bid_size = self.bid_size
+                self.prev_ask_size = self.ask_size
 
-            if self.cash * self.margin < self.close:
-                break
+                self.ts = level1_row.timestamp
+                self.bid = level1_row.bid
+                self.ask = level1_row.ask
+                self.last = level1_row.last
+                self.bid_size = level1_row.bid_size
+                self.ask_size = level1_row.ask_size
 
-            self.bid2 = row.bid2
-            self.ask2 = row.ask2
-            self.last2 = row.last2
-            self.bid_size2 = row.bid_size2
-            self.ask_size2 = row.ask_size2
+                signal = self.strategy.generate_signal(level1_row, symbol)
+                # self.dynamic_slippage(signal)
+                self.interpret_signal(signal, self.strategy)
+                self.update_equity(pair, symbol)
 
-            signal = self.strategy.generate_signal(row, symbol)
-            self.interpret_signal(signal, self.strategy)
-            self.update_equity()
-                
-            if self.cash * self.margin < self.close:
-                break
-
+                if self.cash * self.margin < (self.bid + self.ask) / 2:
+                    break
+        
+        self.update_timestamps()
         self.stats.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
         self.stats.summary(display=display_stats)
 
@@ -404,84 +431,74 @@ class BacktestPairs:
 
     def interpret_signal(self, signal, strategy):
         name = strategy.__class__.__name__
-        symbol = strategy.symbol
-        position_manager = self.position_manager
-        direction = position_manager.direction()
-        if direction:
-            leg = position_manager.legs[-1]
-            entry_price = leg.entry_price
-            stop_price = leg.stop_price
-            target_price = leg.target_price
-            position_size = leg.position_size
-            shares = leg.shares * self.margin
+        symbol1, symbol2 = strategy.symbol1, strategy.symbol2
+        s1, s2 = strategy.s1, strategy.s2
+        position_manager = strategy.position_manager
+        if position_manager.in_trade():
+            leg1, leg2 = position_manager.pairs[-1]
+            direction1 = leg1.direction
+            direction2 = leg2.direction
+            entry_price1 = leg1.entry_price
+            entry_price2 = leg2.entry_price
+            position_size1 = leg1.position_size
+            position_size2 = leg2.position_size
+            shares1 = leg1.shares * self.margin
+            shares2 = leg2.shares * self.margin
 
         # --- Enter Long ---
         if signal == 1:
-            fill_price = entry_price * self.slip_up
-            leg.entry_price = fill_price
-            self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
+            fill_price1, fill_price2 = entry_price1 * self.slip_up, entry_price2 * self.slip_dn
+            leg1.entry_price = fill_price1
+            leg2.entry_price = fill_price2
+            self.trade_manager.log_entry(name, leg1, symbol1, direction1, position_size1, shares1, self.ts, entry_price1, fill_price1, None, None, strategy.features)
+            self.trade_manager.log_entry(name, leg2, symbol2, direction2, position_size2, shares2, self.ts, entry_price2, fill_price2, None, None, strategy.features)
             if self.show_trade:
-                print(f"[{self.ts}] | ENTRY (L): {fill_price}, STOP: {stop_price}, TARGET: {target_price}")
+                print(f"[{self.ts}] | ENTRY (L): {fill_price1}")
+                print(f"[{self.ts}] | ENTRY (S): {fill_price2}")
 
         # --- Enter Short ---
         elif signal == -1:
-            fill_price = entry_price * self.slip_dn
-            leg.entry_price = fill_price
-            self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, self.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
+            fill_price1, fill_price2 = entry_price1 * self.slip_dn, entry_price2 * self.slip_up
+            leg1.entry_price = fill_price1
+            leg2.entry_price = fill_price2
+            self.trade_manager.log_entry(name, leg1, symbol1, direction1, position_size1, shares1, self.ts, entry_price1, fill_price1, None, None, strategy.features)
+            self.trade_manager.log_entry(name, leg2, symbol2, direction2, position_size2, shares2, self.ts, entry_price2, fill_price2, None, None, strategy.features)
             if self.show_trade:
-                print(f"[{self.ts}] | ENTRY (S): {fill_price}, STOP: {stop_price}, TARGET: {target_price}")
-
-        # --- Adjust Stops / Targets ---
-        elif signal == 9:
-            raise NotImplementedError
+                print(f"[{self.ts}] | ENTRY (S): {fill_price1}")
+                print(f"[{self.ts}] | ENTRY (L): {fill_price2}")
         
         # --- Exit Position ---
         elif signal == 0:
-            for leg in position_manager.legs.copy():
-                if leg.check_exit(self.ts, self.low, self.high) == 0:
-                    entry_price = leg.entry_price
-                    stop_price = leg.stop_price
-                    target_price = leg.target_price
-                    shares = leg.shares * self.margin
+            shares1, shares2 = position_manager.total_shares()
+            if direction1 == 1:
+                exit_price1 = s1["bid"]
+                exit_price2 = s2["ask"]
+                fill_price1, fill_price2 = exit_price1 * self.slip_dn, exit_price2 * self.slip_up
+            elif direction1 == -1:
+                exit_price1 = s1["ask"]
+                exit_price2 = s2["bid"]
+                fill_price1, fill_price2 = exit_price1 * self.slip_up, exit_price2 * self.slip_dn
 
-                    if direction == 1:
-                        if self.low <= stop_price:
-                            fill_price = stop_price * self.slip_dn
-                            exit_price = stop_price
-                        elif self.high >= target_price:
-                            fill_price = target_price
-                            exit_price = target_price
-                        elif (self.ts.hour, self.ts.minute) >= (15, 58):
-                            fill_price = self.close * self.slip_dn
-                            exit_price = self.close
-                        else:
-                            fill_price = self.close * self.slip_dn
-                            exit_price = self.close
-                        pnl = (fill_price - entry_price) * shares
-            
-                    elif direction == -1:
-                        if self.high >= stop_price:
-                            fill_price = stop_price * self.slip_up
-                            exit_price = stop_price
-                        elif self.low <= target_price:
-                            fill_price = target_price
-                            exit_price = target_price
-                        elif (self.ts.hour, self.ts.minute) >= (15, 58):
-                            fill_price = self.close * self.slip_up
-                            exit_price = self.close
-                        else:
-                            fill_price = self.close * self.slip_up
-                            exit_price = self.close
-                        pnl = (entry_price - fill_price) * shares
-                    
-                    self.trade_manager.update_exit(leg, self.ts, exit_price, fill_price)
-                    self.update_pnl(pnl)
-                    position_manager.remove_leg(leg)
-                    if self.show_trade:
-                        print(f"[{self.ts}] | EXIT: {fill_price}, PnL: {pnl}")
+            for leg1, leg2 in position_manager.pairs.copy():
+                entry_price1 = leg1.entry_price
+                entry_price2 = leg2.entry_price
+                shares1 = leg1.shares * self.margin
+                shares2 = leg2.shares * self.margin
 
-    def initialize(self, symbol, strategy_class, **params):
-        self.strategy = strategy_class(symbol, **params)
+                pnl1 = (entry_price1 - fill_price1) * shares1
+                pnl2 = (entry_price2 - fill_price2) * shares2
+
+                self.trade_manager.update_exit(leg1, self.ts, exit_price1, fill_price1)
+                self.trade_manager.update_exit(leg2, self.ts, exit_price2, fill_price2)
+                self.update_pnl(pnl1)
+                self.update_pnl(pnl2)
+                position_manager.remove_pair(leg1, leg2)
+                if self.show_trade:
+                    print(f"[{self.ts}] | EXIT: {fill_price1}, PnL: {pnl1}")
+                    print(f"[{self.ts}] | EXIT: {fill_price2}, PnL: {pnl2}")
+
+    def initialize(self, symbol, **params):
+        self.strategy = self.strategy_class(symbol, **params)
         self.train_wait = True
         self.cash = self.cash_allocation
         self.strategy.risk_manager.start_cash = self.cash_allocation
@@ -494,7 +511,8 @@ class BacktestPairs:
         self.plotting = Plotting(symbol)
 
     def dynamic_slippage(self, signal):
-        self.spread_window.append((self.high - self.low) / self.close)
+        raise NotImplementedError
+        self.spread_window.append(abs(self.bid - self.ask))
         if signal is not None:
             avg_spread = sum(self.spread_window) / len(self.spread_window)
             slippage = avg_spread * self.slippage
@@ -505,19 +523,55 @@ class BacktestPairs:
         self.cash += pnl
         self.risk_manager.update_trade(pnl)
 
-    def update_equity(self):
+    def update_equity(self, pair, symbol):
         current_equity = self.cash
-        
-        for leg in self.position_manager.legs:
-            if leg.direction == 1:
-                current_equity += (self.close - leg.entry_price) * leg.shares * self.margin
-            elif leg.direction == -1:
-                current_equity += (leg.entry_price - self.close) * leg.shares * self.margin
+
+        symbol1, symbol2 = pair.split("-")
+        for leg1, leg2 in self.position_manager.pairs:
+            if symbol1 == symbol:
+                if leg1.direction == 1:
+                    current_equity += (self.bid - leg1.entry_price) * leg1.shares * self.margin
+                elif leg1.direction == -1:
+                    current_equity += (leg1.entry_price - self.ask) * leg1.shares * self.margin
+                if leg2.direction == 1:
+                    current_equity += (self.prev_bid - leg2.entry_price) * leg2.shares * self.margin
+                elif leg2.direction == -1:
+                    current_equity += (leg2.entry_price - self.prev_ask) * leg2.shares * self.margin
+            elif symbol2 == symbol:
+                if leg1.direction == 1:
+                    current_equity += (self.prev_bid - leg1.entry_price) * leg1.shares * self.margin
+                elif leg1.direction == -1:
+                    current_equity += (leg1.entry_price - self.prev_ask) * leg1.shares * self.margin
+                if leg2.direction == 1:
+                    current_equity += (self.bid - leg2.entry_price) * leg2.shares * self.margin
+                elif leg2.direction == -1:
+                    current_equity += (leg2.entry_price - self.ask) * leg2.shares * self.margin
 
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
 
+    def filter_dates(self, df1, df2, start_date, end_date):
+        df1['date'] = pd.to_datetime(df1['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
+        df2['date'] = pd.to_datetime(df2['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone)
+        mask = (df1['date'].dt.date >= pd.to_datetime(start_date).date()) & \
+                (df1['date'].dt.date <= pd.to_datetime(end_date).date())
+        df1 = df1.loc[mask]
+        mask = (df2['date'].dt.date >= pd.to_datetime(start_date).date()) & \
+                (df2['date'].dt.date <= pd.to_datetime(end_date).date())
+        df2 = df2.loc[mask]
+        df1 = df1.drop(columns=['date'])
+        df2 = df2.drop(columns=['date'])
+        return df1, df2
+    
+    def update_timestamps(self):
+        for trade in self.trade_manager.trade_history:
+            trade["entry_time"] = pd.to_datetime(trade["entry_time"], unit='ms', utc=True).tz_convert(timezone).isoformat()
+            trade["exit_time"] = pd.to_datetime(trade["exit_time"], unit='ms', utc=True).tz_convert(timezone).isoformat()
+        for key, value in self.trade_manager.intraday_equity.copy().items():
+            new_key = pd.to_datetime(key, unit='ms', utc=True).tz_convert(timezone)
+            self.trade_manager.intraday_equity[new_key] = self.trade_manager.intraday_equity.pop(key)
+
     def sort_trade_history(self, trade_history):
-        trade_history.sort(key=lambda x: datetime.datetime.fromisoformat(x["exit_time"]))
+        trade_history.sort(key=lambda x: datetime.datetime.fromisoformat(x["entry_time"]))
         return trade_history
 
     def combine_equity_dicts(self, dicts):
@@ -533,8 +587,8 @@ class BacktestPairs:
                     last_eq = eq
                 combined[ts] += eq
         return combined
-    
-    def grid_search(self, symbol, df, train, optimize_period=100, rebalance_period=50, target_metric="Net Profit", top_n=5):
+
+    def grid_search(self, pair, df, train, optimize_period=100, rebalance_period=50, target_metric="Net Profit", top_n=5):
         param_grid = self.strategy.param_grid()
         combos = list(product(*param_grid.values()))
         total = len(combos)
@@ -545,8 +599,8 @@ class BacktestPairs:
 
         for i, combo in enumerate(combos, 1):
             params = dict(zip(param_grid.keys(), combo))
-            self.initialize(symbol, self.strategy_class, **params)
-            self.run_simulation(symbol, df, train, display_stats=False, display_plot=False)
+            self.initialize(pair, **params)
+            self.run_simulation(pair, df, train, display_stats=False, display_plot=False)
 
             stats_dict = self.stats.get_data_dict()
             if stats_dict[target_metric] > best_score:
@@ -563,41 +617,5 @@ class BacktestPairs:
         for r in top_results:
             print(f"{target_metric}: {r['STATS'][target_metric]:.4f} | Params: {r['PARAMS']}")
 
-        with open(f"{symbol}_{self.strategy.__class__.__name__}_grid_search.json", "w") as f:
+        with open(f"{pair}_{self.strategy.__class__.__name__}_grid_search.json", "w") as f:
             json.dump(results, f, indent=4)
-
-    def train_model(self, symbol, train_period=100, validation_period=100, rebalance_period=3):
-        self.train_time += 1
-        if self.train_wait:
-            required_date = pd.to_datetime(self.start_date) + pd.DateOffset(days=train_period + validation_period)
-            required_date = required_date.tz_localize(self.ts.tz)
-            if self.ts < required_date:
-                return
-            self.train_wait = False
-
-        if self.train_time < rebalance_period:
-            return
-        self.train_time = 0
-
-        curr_date = self.ts.normalize() 
-        start_date = curr_date - pd.DateOffset(days=train_period + validation_period)
-
-        trade_history = self.trade_manager.trade_history
-        self.trade_manager.trade_history = [
-            trade for trade in trade_history
-            if start_date < pd.to_datetime(trade["entry_time"]).normalize() < curr_date
-        ]
-        self.trade_manager.save_logs()
-
-        mdl = XGBModel(symbol=symbol, strategy=self.strategy.__class__.__name__, live=False)
-        # mdl = RFModel(symbol=symbol, strategy=self.strategy.__class__.__name__, live=False)
-        # mdl = KNNModel(symbol=symbol, strategy=self.strategy.__class__.__name__, live=False)
-        mdl.initialize()
-        X_train, X_test, y_train, y_test = train_test_split(mdl.df, n_days=train_period)
-        if validation_period > 0:
-            mdl.grid_search(X_train, X_test, y_train, y_test)
-        else:
-            mdl.train(X_train, y_train)
-        self.strategy.model = mdl
-
-        self.trade_manager.trade_history = trade_history
