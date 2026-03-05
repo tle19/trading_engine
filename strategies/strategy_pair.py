@@ -73,6 +73,9 @@ class StrategyPair:
     def compute_indicators(self):
         raise NotImplementedError
     
+    def param_grid(self):
+        raise NotImplementedError
+    
     def update(self, row, symbol): 
         s = self.data[symbol]
 

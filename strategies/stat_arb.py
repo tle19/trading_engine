@@ -6,29 +6,26 @@ from models import *
 from utils import *
 
 class StatArb(StrategyPair):
-    def __init__(self, pair, spread_window=1000, entry_threshold=2.0, exit_threshold=0.0, update_interval=200, bid_ask_spread=0.03,
-                 start_time=(16, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
+    def __init__(self, pair, ema_window=200, spread_window=1000, 
+                 entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
+                 start_time=(15, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
                  position_size=0.10, stop_loss=0.0001, take_profit=0.0001, 
                  pnl_target=0.01, pnl_loss=-0.0025, trade_max=600):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
                          position_size, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
+        self.ema_window = ema_window
         self.spread_window = spread_window
         self.entry_threshold = entry_threshold
         self.exit_threshold = exit_threshold
-        self.update_interval = update_interval
         self.bid_ask_spread = bid_ask_spread
 
-        self.pair_preset()
-
-        self.hedge_ratio = 1.0
+        self.hedge_ratio = None
         self.z_score = 0.0
-        self.ema1 = None
-        self.ema2 = None
         self.spread_check = False
+
+        self.pair_preset()
         
-        self.rolling_ema1 = deque(maxlen=spread_window)
-        self.rolling_ema2 = deque(maxlen=spread_window)
         self.rolling_spread = deque(maxlen=spread_window)
     
     def generate_signal(self, row, symbol):
@@ -41,7 +38,7 @@ class StatArb(StrategyPair):
 
         signal = None
         if self.activated:
-            self.compute_indicators(symbol)
+            self.compute_indicators()
             if self.latency_check and self.spread_check:
                 signal = self.exit_trade()
                 if signal is None:
@@ -69,29 +66,20 @@ class StatArb(StrategyPair):
             return self.exit()
         return signal
         
-    def compute_indicators(self, symbol):
+    def compute_indicators(self):
         self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
-        # if self.symbol1 == symbol:
-        #     self.ema1 = self.compute_ema(self.ema1, self.mid1, self.spread_window)
-        #     self.rolling_ema1.append(self.ema1)
-        # elif self.symbol2 == symbol:
-        #     self.ema2 = self.compute_ema(self.ema2, self.mid2, self.spread_window)
-        #     self.rolling_ema2.append(self.ema2)
+        hedge_ratio = round(self.mid1 / self.mid2, 3) # hedge_ratio = self.mid1 / self.mid2
+        self.hedge_ratio = self.compute_ema(self.hedge_ratio, hedge_ratio, self.ema_window)
 
-        self.recompute_hedge_ratio()
-        spread = self.mid1 - self.hedge_ratio * self.mid2
+        spread = self.mid1 - (self.hedge_ratio * self.mid2)
         self.rolling_spread.append(spread)
         if len(self.rolling_spread) == self.spread_window:
             self.z_score = (spread - np.mean(self.rolling_spread)) / np.std(self.rolling_spread, ddof=1)
 
         self.spread_check = abs(self.s1["ask"] - self.s1["bid"]) < self.bid_ask_spread and abs(self.s2["ask"] - self.s2["bid"]) < self.bid_ask_spread
     
-    def recompute_hedge_ratio(self):
-        if self.ticks % self.update_interval == 0:
-            self.hedge_ratio = round(self.mid1 / self.mid2, 3)
-
     def pair_preset(self):
         if self.pair == "SPY-QQQ":
             self.entry_threshold = 2.0
@@ -117,3 +105,10 @@ class StatArb(StrategyPair):
             self.hedge_ratio = 2.558
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
+
+    def param_grid(self):
+        params = {
+            "ema_window": [10, 20, 30, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
+            "spread_window": [1000, 2000]
+        }
+        return params
