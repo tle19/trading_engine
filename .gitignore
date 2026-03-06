@@ -4,16 +4,13 @@ api_config.json
 # --- Data folders ---
 data/
 plots/
+market_logs/
+trade_logs/
 
 # --- ML Model Files ---
-*_model.pkl
-
-# --- Live Logs ---
-trade_logs_*.json
-market_logs_*.jsonl
+pkl_files/
 
 # --- Test files ---
-trade_logs.json
 pair_correlations.json
 *_grid_search.json
 *_spread.json

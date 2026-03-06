@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--stream", action="store_true")
     parser.add_argument("--quote", action="store_true")
     parser.add_argument("--stats", action="store_true")
+    parser.add_argument("--backup", action="store_true")
     parser.add_argument("--sync", action="store_true")
 
     parser.add_argument("--strategy", nargs="+", type=str, default=None, help="'eod_reversion stochastic' or 'eod_reversion:SPY spread_diff:SPY-QQQ'")
@@ -41,14 +42,14 @@ def main():
     parser.add_argument("--file", type=str, default="trade_logs.json")
     args = parser.parse_args()
 
-    if not args.live and not args.backtest and not args.fetch and not args.stream and not args.quote and not args.stats and not args.sync:
-        raise ValueError("You must provide one of the following arguments: --live, --backtest, --fetch, --stream, --quote, --stats, --sync")
+    if not args.live and not args.backtest and not args.fetch and not args.stream and not args.quote and not args.stats and not args.backup and not args.sync:
+        raise ValueError("You must provide one of the following arguments: --live, --backtest, --fetch, --stream, --quote, --stats, --backup, --sync")
     if not args.strategy and (args.live or args.backtest):
         raise ValueError(f"You must provide a strategy, e.g., --strategy eod_reversion or eod_reversion:AAPL,MSFT or spread_diff:SPY-QQQ,GOOG-GOOGL")
     colon_used = any(":" in s for s in args.strategy) if args.strategy else None
     if colon_used and args.symbols:
         raise ValueError("Cannot mix colon syntax with --symbol arguments")
-    if not colon_used and not args.symbols and not args.stats and not args.sync:
+    if not colon_used and not args.symbols and not args.stats and not args.backup and not args.sync:
         raise ValueError("Either use colon syntax in --strategy or provide --symbol")
     if args.symbols == ["all"]:
         args.symbols = SYMBOLS
@@ -112,23 +113,24 @@ def main():
         plotting.update_data(trade_manager.trade_history, trade_manager.intraday_equity)
         stats.summary()
         plotting.overview()
-    elif args.sync:
-        source = "data/"
+    elif args.backup:
+        source = "data"
         destination = "/mnt/d/market data"
 
-        type_map = {
-            "daily": "daily data",
-            "intraday": "intraday data",
-            "quote": "quote data",
-            "book": "book data"
-        }
+        for folder in os.listdir(source):
+            src_folder = os.path.join(source, folder)
+            if not os.path.isdir(src_folder):
+                continue
 
-        for f in os.listdir(source):          
-            file_type = f.split("_")[1].split(".")[0]
-            dest_folder = os.path.join(destination, type_map[file_type])
-            os.makedirs(dest_folder, exist_ok=True)
-            shutil.copyfile(os.path.join(source, f), os.path.join(dest_folder, f))
-            print(f"Copied {os.path.join(source, f)} → {dest_folder}")
+            for file in os.listdir(src_folder):          
+                dest_folder = os.path.join(destination, folder)
+                os.makedirs(dest_folder, exist_ok=True)
+                shutil.copyfile(os.path.join(src_folder, file), os.path.join(dest_folder, file))
+                print(f"Copied {os.path.join(src_folder, file)} → {dest_folder}")
+
+    elif args.sync:
+        # TODO: add data pull/sync
+        return
 
 if __name__ == "__main__":
     main()

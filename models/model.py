@@ -36,8 +36,9 @@ class BaseModel:
         print(f"Saved model to {file}")
                 
     def load_model(self, file="ml_model.pkl"):
+        file_path = os.path.join("pkl_files", file)
         try:
-            with open(file, "rb") as f:
+            with open(file_path, "rb") as f:
                 self.model = pickle.load(f)
             print(f"Loaded model from {file}")
             return True

@@ -1,3 +1,4 @@
+import os
 import json
 import pandas as pd
 
@@ -5,7 +6,8 @@ from utils import convert_epoch_ms
 
 class TradeManager:
     def __init__(self, log_file="trade_logs.json", live=False):
-        self.log_file = log_file
+        file_path = os.path.join("trade_logs", log_file)
+        self.log_file = file_path
 
         self.open_trades = {}
         self.trade_history = []
