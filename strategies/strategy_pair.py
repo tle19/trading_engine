@@ -51,10 +51,8 @@ class StrategyPair:
         self.activated = False
         self.dca_plan = []
         self.dca_step = 0
-
         self.latency_check = False
         self.latency = 0  # network latency in milliseconds
-        self.ticks = 0
 
         self.features = None
 
@@ -71,6 +69,9 @@ class StrategyPair:
         return self.exit()
     
     def compute_indicators(self):
+        raise NotImplementedError
+    
+    def config(self):
         raise NotImplementedError
     
     def param_grid(self):
@@ -97,8 +98,6 @@ class StrategyPair:
         else:
             fresher_quote = self.s1 if self.s1["ts"] >= self.s2["ts"] else self.s2
             self.latency_check = abs(self.s1["ts"] - self.s2["ts"]) <= self.quote_delta_ms and fresher_quote["latency"] < self.max_latency_ms
-
-        self.ticks += 1
 
     def trade_window(self):
         ts = self.s1["ts"] or self.s2["ts"]
@@ -186,15 +185,15 @@ class StrategyPair:
         if self.pair == "SPY-QQQ":
             shares1 = 8
             shares2 = 9
+        if self.pair == "GLD-SLV":
+            shares1 = 4
+            shares2 = 25
         if self.pair == "XLE-VDE":
             shares1 = 17
             shares2 = 6
-        if self.pair == "GLD-SLV":
-            shares1 = 10
-            shares2 = 63
         if self.pair == "IBIT-ETHA":
-            shares1 = 10
-            shares2 = 26
+            shares1 = 16
+            shares2 = 41
 
         return shares1, shares2
     

@@ -6,11 +6,11 @@ from models import *
 from utils import *
 
 class StatArb(StrategyPair):
-    def __init__(self, pair, ema_window=200, spread_window=1000, 
+    def __init__(self, pair, ema_window=100, spread_window=2000, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
-                 start_time=(15, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
+                 start_time=(16, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
                  position_size=0.10, stop_loss=0.0001, take_profit=0.0001, 
-                 pnl_target=0.01, pnl_loss=-0.0025, trade_max=600):
+                 pnl_target=0.0025, pnl_loss=-0.005, trade_max=800):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
                          position_size, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
@@ -19,14 +19,16 @@ class StatArb(StrategyPair):
         self.entry_threshold = entry_threshold
         self.exit_threshold = exit_threshold
         self.bid_ask_spread = bid_ask_spread
+        self.config()
 
         self.hedge_ratio = None
         self.z_score = 0.0
         self.spread_check = False
 
-        self.pair_preset()
-        
-        self.rolling_spread = deque(maxlen=spread_window)
+        self.rolling_spread = deque(maxlen=self.spread_window)
+
+        self.history = []
+        self.saved = False
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
@@ -71,44 +73,59 @@ class StatArb(StrategyPair):
         self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
         hedge_ratio = round(self.mid1 / self.mid2, 3) # hedge_ratio = self.mid1 / self.mid2
-        self.hedge_ratio = self.compute_ema(self.hedge_ratio, hedge_ratio, self.ema_window)
+        if not self.position_manager.in_trade():
+            self.hedge_ratio = self.compute_ema(self.hedge_ratio, hedge_ratio, self.ema_window)
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
         self.rolling_spread.append(spread)
+        # self.save_data(spread)
         if len(self.rolling_spread) == self.spread_window:
             self.z_score = (spread - np.mean(self.rolling_spread)) / np.std(self.rolling_spread, ddof=1)
 
-        self.spread_check = abs(self.s1["ask"] - self.s1["bid"]) < self.bid_ask_spread and abs(self.s2["ask"] - self.s2["bid"]) < self.bid_ask_spread
+        self.spread_check = self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread
     
-    def pair_preset(self):
+    def config(self):
         if self.pair == "SPY-QQQ":
+            self.ema_window = 100
+            self.spread_window = 2000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
-            self.hedge_ratio = 1.121
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
-        if self.pair == "XLE-VDE":
+        if self.pair == "GLD-SLV":
+            self.ema_window = 100
+            self.spread_window = 2000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
-            self.hedge_ratio = 0.354
             self.bid_ask_spread = 0.05
             self.position_size = 0.10
-        if self.pair == "GLD-SLV":
+        if self.pair == "XLE-VDE":
+            self.ema_window = 100
+            self.spread_window = 2000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
-            self.hedge_ratio = 6.247
             self.bid_ask_spread = 0.05
             self.position_size = 0.10
         if self.pair == "IBIT-ETHA":
+            self.ema_window = 100
+            self.spread_window = 2000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
-            self.hedge_ratio = 2.558
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
 
+    def save_data(self, spread):
+        if not self.saved:
+            self.history.append(spread)
+            end_time = ((19, 59)[0] * 3600 + (19, 59)[1] * 60) * 1000
+            if self.s1["ts"] % (24 * 3600 * 1000) > end_time:
+                with open(f"{self.pair}_spread.json", "w") as f:
+                    json.dump(self.history, f, indent=2)
+                self.saved = True
+
     def param_grid(self):
         params = {
-            "ema_window": [10, 20, 30, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
-            "spread_window": [1000, 2000]
+            "ema_window": [10, 20, 30, 40, 50, 75, 100, 200, 300], # 10, 20, 30, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000
+            "spread_window": [500, 1000, 1500, 2000] # 500, 1000, 1500, 2000
         }
         return params
