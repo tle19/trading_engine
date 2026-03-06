@@ -16,8 +16,16 @@ class Plotting:
         self.start_date = None
         self.end_date = None
 
-    def update_data(self, intraday_equity):
+    def update_data(self, trade_history, intraday_equity):
         self.intraday_equity = intraday_equity.copy()
+        if self.intraday_equity and isinstance(tuple(self.intraday_equity)[0], int):
+            self.intraday_equity = {convert_epoch_ms(ts): val for ts, val in self.intraday_equity.items()}
+        if self.intraday_equity:
+            self._update_dates(self.intraday_equity)
+        else:
+            return # TODO: Plot equity curve based on trade history
+
+    def _update_dates(self, intraday_equity):
         dates = sorted(intraday_equity)
         self.start_date = dates[0]
         self.end_date = dates[-1]
@@ -64,7 +72,7 @@ class Plotting:
         daily_idx = 0
 
         for ts in dates:
-            ts_date = ts.date()
+            ts_date = ts.date()  # TODO: Fix to work on one date
             if ts_date > daily_dates[daily_idx] and ts_date in daily_dates:
                 daily_idx += 1
             benchmark_intraday.loc[ts] = daily_closes[daily_idx]

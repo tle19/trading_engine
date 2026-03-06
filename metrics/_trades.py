@@ -1,6 +1,7 @@
 import json
-from datetime import datetime
 import pandas as pd
+
+from utils import convert_epoch_ms
 
 class TradeManager:
     def __init__(self, log_file="trade_logs.json", live=False):
@@ -27,7 +28,7 @@ class TradeManager:
             "direction": direction,
             "position_size": position_size,
             "shares": shares,
-            "entry_time": entry_time if isinstance(entry_time, int) else entry_time.isoformat(),
+            "entry_time": entry_time,
             "entry_price": entry_price,
             "entry_fill": entry_price if fill_price is None else round(fill_price, 2),
             "stop_price": stop_price,
@@ -43,7 +44,8 @@ class TradeManager:
     
     def update_exit(self, leg, exit_time, exit_price, fill_price):
         trade = self.open_trades.pop(leg)
-        trade["exit_time"] = exit_time if isinstance(exit_time, (int, float)) else exit_time.isoformat()
+        trade["entry_time"] = trade["entry_time"] if isinstance(trade["entry_time"], int) else trade["entry_time"].isoformat()
+        trade["exit_time"] = exit_time if isinstance(exit_time, int) else exit_time.isoformat()
         trade["exit_price"] = exit_price
         trade["exit_fill"] = exit_price if fill_price is None else round(fill_price, 2)
 
@@ -53,7 +55,14 @@ class TradeManager:
         self.trade_history.append(trade)
 
     def save_logs(self):
-        intraday_equity = {ts.isoformat(): val for ts, val in self.intraday_equity.items()}
+        if isinstance(self.trade_history[0]["entry_time"], int):
+            for trade in self.trade_history:
+                trade["entry_time"] = convert_epoch_ms(trade["entry_time"]).isoformat()
+                trade["exit_time"] = convert_epoch_ms(trade["exit_time"]).isoformat()
+        if self.intraday_equity and isinstance(tuple(self.intraday_equity)[0], int):
+            intraday_equity = {convert_epoch_ms(ts).isoformat(): val for ts, val in self.intraday_equity.items()}
+        else:
+            intraday_equity = {ts.isoformat(): val for ts, val in self.intraday_equity.items()}
 
         with open(self.log_file, "w") as f:
             json.dump({

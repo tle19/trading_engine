@@ -7,9 +7,9 @@ __all__ = [
     "OHLCVRow",
     "Level1Row",
     "Level2Row",
+    "create_backtest",
     "Backtest",
     "BacktestPairs",
-    "create_backtest",
     "DataFeedController",
     "Equities",
     "EquityPairs"

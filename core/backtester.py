@@ -4,15 +4,11 @@ from collections import deque
 from itertools import product
 import datetime
 
-from zoneinfo import ZoneInfo
-
 from core import *
 from metrics import *
 from strategies import *
 from models import *
 from utils import *
-
-timezone = ZoneInfo("America/New_York")
 
 def create_backtest(symbols, strategy_class, pairs=False, **kwargs):
     if pairs:
@@ -73,7 +69,7 @@ class Backtest:
             stats.summary(display=display)
 
             plotting = Plotting("AGGREGATE")
-            plotting.update_data(self.intraday_equity)
+            plotting.update_data(self.trade_history, self.intraday_equity)
             plotting.overview(display=display)
 
         self.trade_manager.update_data(self.trade_history, self.intraday_equity)
@@ -104,7 +100,7 @@ class Backtest:
         self.stats.summary(display=display_stats)
 
         if display_plot:
-            self.plotting.update_data(self.trade_manager.intraday_equity)
+            self.plotting.update_data(self.trade_history, self.trade_manager.intraday_equity)
             self.plotting.overview(display=False)
 
     def interpret_signal(self, signal, strategy):
@@ -380,7 +376,7 @@ class BacktestPairs:
             stats.summary(display=display)
 
             plotting = Plotting("AGGREGATE")
-            plotting.update_data(self.intraday_equity)
+            plotting.update_data(self.trade_history, self.intraday_equity)
             plotting.overview(display=display)
 
         self.trade_manager.update_data(self.trade_history, self.intraday_equity)
@@ -427,12 +423,11 @@ class BacktestPairs:
                 if self.cash * self.margin < (self.bid + self.ask) / 2:
                     break
         
-        self.update_timestamps()
         self.stats.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
         self.stats.summary(display=display_stats)
 
         if display_plot:
-            self.plotting.update_data(self.trade_manager.intraday_equity)
+            self.plotting.update_data(self.trade_history, self.trade_manager.intraday_equity)
             self.plotting.overview(display=False)
 
     def interpret_signal(self, signal, strategy):
@@ -568,16 +563,8 @@ class BacktestPairs:
         df2 = df2.drop(columns=['date'])
         return df1, df2
     
-    def update_timestamps(self):
-        for trade in self.trade_manager.trade_history:
-            trade["entry_time"] = pd.to_datetime(trade["entry_time"], unit='ms', utc=True).tz_convert(timezone).isoformat()
-            trade["exit_time"] = pd.to_datetime(trade["exit_time"], unit='ms', utc=True).tz_convert(timezone).isoformat()
-        for key, value in self.trade_manager.intraday_equity.copy().items():
-            new_key = pd.to_datetime(key, unit='ms', utc=True).tz_convert(timezone)
-            self.trade_manager.intraday_equity[new_key] = self.trade_manager.intraday_equity.pop(key)
-
     def sort_trade_history(self, trade_history):
-        trade_history.sort(key=lambda x: datetime.datetime.fromisoformat(x["entry_time"]))
+        trade_history.sort(key=lambda x: x["entry_time"])
         return trade_history
 
     def combine_equity_dicts(self, dicts):

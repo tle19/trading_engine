@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 
 from symbols import SYMBOLS
 from core import *
+from metrics import *
 from utils import *
 from strategies import strategy_map
 
@@ -16,6 +17,7 @@ def main():
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--stream", action="store_true")
     parser.add_argument("--quote", action="store_true")
+    parser.add_argument("--stats", action="store_true")
     parser.add_argument("--sync", action="store_true")
 
     parser.add_argument("--strategy", nargs="+", type=str, default=None, help="'eod_reversion stochastic' or 'eod_reversion:SPY spread_diff:SPY-QQQ'")
@@ -35,16 +37,18 @@ def main():
 
     parser.add_argument("--service", type=str, default="level1")
     parser.add_argument("--duration", type=int, default=300)
+
+    parser.add_argument("--file", type=str, default="trade_logs.json")
     args = parser.parse_args()
 
-    if not args.live and not args.backtest and not args.fetch and not args.stream and not args.quote and not args.sync:
-        raise ValueError("You must provide one of the following arguments: --live, --backtest, --fetch, --stream, --quote, --sync")
+    if not args.live and not args.backtest and not args.fetch and not args.stream and not args.quote and not args.stats and not args.sync:
+        raise ValueError("You must provide one of the following arguments: --live, --backtest, --fetch, --stream, --quote, --stats, --sync")
     if not args.strategy and (args.live or args.backtest):
         raise ValueError(f"You must provide a strategy, e.g., --strategy eod_reversion or eod_reversion:AAPL,MSFT or spread_diff:SPY-QQQ,GOOG-GOOGL")
     colon_used = any(":" in s for s in args.strategy) if args.strategy else None
     if colon_used and args.symbols:
         raise ValueError("Cannot mix colon syntax with --symbol arguments")
-    if not colon_used and not args.symbols and not args.sync:
+    if not colon_used and not args.symbols and not args.stats and not args.sync:
         raise ValueError("Either use colon syntax in --strategy or provide --symbol")
     if args.symbols == ["all"]:
         args.symbols = SYMBOLS
@@ -99,6 +103,15 @@ def main():
         dh.stream_data(args.symbols, args.service, args.duration)
     elif args.quote:
         dh.get_quote(args.symbols)
+    elif args.stats:
+        trade_manager = TradeManager(log_file=args.file, live=True)
+        trade_manager.load_logs()
+        stats = Stats("AGGREGATE")
+        plotting = Plotting("AGGREGATE")
+        stats.update_data(trade_manager.trade_history, trade_manager.intraday_equity)
+        plotting.update_data(trade_manager.trade_history, trade_manager.intraday_equity)
+        stats.summary()
+        plotting.overview()
     elif args.sync:
         source = "data/"
         destination = "/mnt/d/market data"

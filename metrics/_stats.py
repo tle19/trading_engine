@@ -1,5 +1,8 @@
 import numpy as np
 import pandas as pd
+import copy
+
+from utils import convert_epoch_ms
 
 class Stats:
     def __init__(self, symbol):
@@ -53,9 +56,19 @@ class Stats:
         self.max_day_loss_streak = 0
 
     def update_data(self, trade_history, intraday_equity):
-        self.trade_history = trade_history.copy()
-        self.intraday_equity = [v for k, v in sorted(intraday_equity.items())]
-        self._update_dates(intraday_equity)
+        self.trade_history = copy.deepcopy(trade_history)
+        self.intraday_equity = intraday_equity.copy()
+        if isinstance(self.trade_history[0]["entry_time"], int):
+            for trade in self.trade_history:
+                trade["entry_time"] = convert_epoch_ms(trade["entry_time"]).isoformat()
+                trade["exit_time"] = convert_epoch_ms(trade["exit_time"]).isoformat()
+        if self.intraday_equity and isinstance(tuple(self.intraday_equity)[0], int):
+            self.intraday_equity = {convert_epoch_ms(ts): val for ts, val in self.intraday_equity.items()}
+        if not self.intraday_equity:
+            self.intraday_equity = {self.trade_history[0]["entry_time"]: 25000, self.trade_history[0]["exit_time"]: 0}
+            self.intraday_equity = {pd.Timestamp(ts): val for ts, val in self.intraday_equity.items()}
+        self._update_dates(self.intraday_equity)
+        self.intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
 
     def summary(self, display=True):
         self._calculate_pnls()
@@ -129,10 +142,10 @@ class Stats:
         self.duration = self.end_date - self.start_date
 
     def _calculate_pnls(self):
-        self.equity_initial = self.intraday_equity[0]
-        self.equity_final = self.intraday_equity[-1]
         self.gross_profit = sum(trade["pnl"] for trade in self.trade_history if trade["pnl"] > 0)
         self.gross_loss = sum(-trade["pnl"] for trade in self.trade_history if trade["pnl"] < 0)
+        self.equity_initial = self.intraday_equity[0]
+        self.equity_final = self.intraday_equity[0] + self.gross_profit - self.gross_loss
         self.net_profit = self.gross_profit - self.gross_loss
         self.net_profit_pct = (self.net_profit / self.equity_initial)
         self.profit_factor = abs(self.gross_profit / self.gross_loss) if self.gross_loss != 0 else np.inf
@@ -218,9 +231,10 @@ class Stats:
         self.short_win_rate = short_wins / self.short_trades if self.short_trades > 0 else 0
 
     def _calculate_drawdown(self):
-        cum_max = np.maximum.accumulate(self.intraday_equity)
-        drawdowns = (cum_max - self.intraday_equity) / cum_max
-        self.max_drawdown = np.max(drawdowns)
+        if len(self.intraday_equity) > 2:
+            cum_max = np.maximum.accumulate(self.intraday_equity)
+            drawdowns = (cum_max - self.intraday_equity) / cum_max
+            self.max_drawdown = np.max(drawdowns)
 
     def _calculate_sharpe_ratio(self, risk_free_rate=0.05):
         daily_returns = np.array(self.daily_pnls) / self.equity_initial
