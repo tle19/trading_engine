@@ -18,22 +18,34 @@ def save_data(df, symbol, mode="intraday"):
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
         df["timestamp"] = df["timestamp"].dt.tz_convert(timezone)
 
-    file_path = os.path.join(data_path, f"{symbol}_{mode}.csv")
+    folder = os.path.join(data_path, mode)
+    os.makedirs(folder, exist_ok=True)
+    file_path = os.path.join(folder, f"{symbol}_{mode}.csv")
+
     df.to_csv(file_path, index=False)
     print(f"Saved data to {file_path}")
 
 def open_data(symbol, start_date=None, end_date=None, mode="intraday"):
-    file_path = os.path.join(data_path, f"{symbol}_{mode}.csv")
+    folder = os.path.join(data_path, mode)
+    file_path = os.path.join(folder, f"{symbol}_{mode}.csv")
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"[WARN] Missing CSV for {symbol}: {file_path}")
+    
     df = pd.read_csv(file_path)
+
     if mode == "intraday" or mode == "daily":
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert(timezone)
-
         if start_date is not None and end_date is not None:
             mask = (df['timestamp'].dt.date >= pd.to_datetime(start_date).date()) & \
                     (df['timestamp'].dt.date <= pd.to_datetime(end_date).date())
             df = df.loc[mask]
+    elif mode == "quote" or mode == "book":
+        df['date'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
+        if start_date is not None and end_date is not None:
+            mask = (df['date'].dt.date >= pd.to_datetime(start_date).date()) & \
+                    (df['date'].dt.date <= pd.to_datetime(end_date).date())
+            df = df.loc[mask]
+        df = df.drop(columns=['date'])
 
     return df
 

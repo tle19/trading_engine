@@ -14,7 +14,6 @@ from utils import *
 class DataHandler:
     def __init__(self):
         config = load_config()
-        os.makedirs("data", exist_ok=True)
 
         self.polygon_client = RESTClient(config['api_key'])
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])

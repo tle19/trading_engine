@@ -352,7 +352,6 @@ class BacktestPairs:
             symbol1, symbol2 = pair.split("-")
             df1 = open_data(symbol1, start_date, end_date, mode="quote")
             df2 = open_data(symbol2, start_date, end_date, mode="quote")
-            df1, df2 = self.filter_dates(df1, df2, start_date, end_date)
             df_merged = pd.merge_asof(df1, df2, on='timestamp', direction='nearest', tolerance=5000, suffixes=(f'_{symbol1}',f'_{symbol2}'))
             
             if grid:
@@ -549,19 +548,6 @@ class BacktestPairs:
                     current_equity += (leg2.entry_price - self.ask) * leg2.shares * self.margin
 
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
-
-    def filter_dates(self, df1, df2, start_date, end_date):
-        df1['date'] = pd.to_datetime(df1['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
-        df2['date'] = pd.to_datetime(df2['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone)
-        mask = (df1['date'].dt.date >= pd.to_datetime(start_date).date()) & \
-                (df1['date'].dt.date <= pd.to_datetime(end_date).date())
-        df1 = df1.loc[mask]
-        mask = (df2['date'].dt.date >= pd.to_datetime(start_date).date()) & \
-                (df2['date'].dt.date <= pd.to_datetime(end_date).date())
-        df2 = df2.loc[mask]
-        df1 = df1.drop(columns=['date'])
-        df2 = df2.drop(columns=['date'])
-        return df1, df2
     
     def sort_trade_history(self, trade_history):
         trade_history.sort(key=lambda x: x["entry_time"])
