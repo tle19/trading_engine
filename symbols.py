@@ -73,7 +73,7 @@ SYMBOLS = [
 
 PAIRS = [
     ["SPY", "QQQ"],
-    ["XLE", "VDE"],
     ["GLD", "SLV"],
+    ["XLE", "VDE"],
     ["IBIT", "ETHA"]
 ]
