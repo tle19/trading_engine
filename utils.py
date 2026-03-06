@@ -1,6 +1,7 @@
 import os
 import json
 import pandas as pd
+import datetime
 from zoneinfo import ZoneInfo
 
 data_path = "data"
@@ -35,6 +36,9 @@ def open_data(symbol, start_date=None, end_date=None, mode="intraday"):
             df = df.loc[mask]
 
     return df
+
+def convert_epoch_ms(ts):
+    return datetime.datetime.fromtimestamp(ts / 1000, tz=timezone)
 
 def resample_data(df, type="1D"):
     df = df.set_index("timestamp")
