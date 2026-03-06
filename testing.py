@@ -127,7 +127,6 @@ def pairs_pnl(symbol1, symbol2, start=0, end=None):
 
     plt.figure(figsize=(14,8))
 
-    plt.subplot(1,2,1)
     plt.plot(pair_times, cum, color='blue', linewidth=2, label="Cumulative PnL")
     plt.xlabel("Exit Time")
     plt.ylabel("PnL %")
@@ -136,15 +135,6 @@ def pairs_pnl(symbol1, symbol2, start=0, end=None):
     plt.grid(True)
     plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S', tz=timezone))
     plt.gcf().autofmt_xdate()
-
-    plt.subplot(1,2,2)
-    plt.hist(hold_times, bins=50, weights=cum, color='blue', edgecolor='black', label="Cumulative PnL")
-    plt.xlabel("Hold Times")
-    plt.ylabel("Cumulative PnL")
-    plt.title("Histogram of Hold Times Weighted by Cumulative PnL")
-    plt.legend()
-    plt.grid(True)
-
     plt.tight_layout()
     plt.show()
 
@@ -159,4 +149,4 @@ def pairs_pnl(symbol1, symbol2, start=0, end=None):
     plt.show()
 
 find_new_day_indices()
-pairs_pnl("XOM", "CVX", start=0, end=None) # -2std, A - B > 0 yes; +2std, A - B < 0 yes
+pairs_pnl("SPY", "QQQ", start=0, end=None) # -2std, A - B > 0 yes; +2std, A - B < 0 yes

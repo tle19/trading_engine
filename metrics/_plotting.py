@@ -23,7 +23,8 @@ class Plotting:
         if self.intraday_equity:
             self._update_dates(self.intraday_equity)
         else:
-            return # TODO: Plot equity curve based on trade history
+            # TODO: Plot equity curve based on trade history
+            return
 
     def _update_dates(self, intraday_equity):
         dates = sorted(intraday_equity)
@@ -68,11 +69,14 @@ class Plotting:
 
         benchmark_intraday = pd.Series(index=dates, dtype=float)
         daily_dates = pd.to_datetime(df["timestamp"]).dt.date.tolist()
+        if not daily_dates:
+            print("No benchmark data to plot.")
+            return
         daily_closes = df['close'].values
         daily_idx = 0
 
         for ts in dates:
-            ts_date = ts.date()  # TODO: Fix to work on one date
+            ts_date = ts.date()
             if ts_date > daily_dates[daily_idx] and ts_date in daily_dates:
                 daily_idx += 1
             benchmark_intraday.loc[ts] = daily_closes[daily_idx]
