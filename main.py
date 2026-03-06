@@ -113,9 +113,13 @@ def main():
         plotting.update_data(trade_manager.trade_history, trade_manager.intraday_equity)
         stats.summary()
         plotting.overview()
-    elif args.backup:
-        source = "data"
-        destination = "/mnt/d/market data"
+    elif args.backup or args.sync:
+        if args.backup:
+            source = "data"
+            destination = "/mnt/d/market data"
+        elif args.sync:
+            source = "/mnt/d/market data"
+            destination = "data"
 
         for folder in os.listdir(source):
             src_folder = os.path.join(source, folder)
@@ -127,10 +131,6 @@ def main():
                 os.makedirs(dest_folder, exist_ok=True)
                 shutil.copyfile(os.path.join(src_folder, file), os.path.join(dest_folder, file))
                 print(f"Copied {os.path.join(src_folder, file)} → {dest_folder}")
-
-    elif args.sync:
-        # TODO: add data pull/sync
-        return
 
 if __name__ == "__main__":
     main()
