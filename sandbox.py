@@ -1,14 +1,16 @@
 import json
+import time
+import numpy as np
 import pandas as pd
 import re
-import numpy as np
 from itertools import combinations
 import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import coint
 
 from zoneinfo import ZoneInfo
+import schwabdev
 
-from symbols import SYMBOLS, PAIRS
+from symbols import SP500, PAIRS
 from core import *
 from metrics import *
 from strategies import *
@@ -16,8 +18,61 @@ from models import *
 from utils import *
 
 timezone = ZoneInfo("America/New_York")
-symbols = SYMBOLS
+sp500 = SP500
 pairs = PAIRS
+
+def test_order(symbol="AAPL"):
+    eq = Equities(symbol, SMACrossover)
+
+    fill_price = eq.buy(1, symbol, 1)
+    order_id = eq.sell_oco(symbol, 1, 333.0, 333.5)
+    time.sleep(20)
+    fill_price = eq.get_fill_price(order_id, 1, instruction="oco", timeout=1)
+    print(fill_price)
+
+def acc_latency():
+    config = load_config()
+    client = schwabdev.Client(config['app_key'], config['app_secret'])
+    hash = client.linked_accounts().json()[0].get('hashValue')
+
+    start = time.perf_counter()
+    details = client.account_details(hash)
+    details_json = details.json()
+    cash_balance = details_json["securitiesAccount"]["currentBalances"]["cashBalance"]
+    end = time.perf_counter()
+    print(f"Execution time: {end - start:.6f} seconds")
+    print(cash_balance)
+
+def find_new_day_indices(file="trade_logs_live_pt.json"):
+    with open(file) as f:
+        trade_history = json.load(f)["trade_history"]
+
+    new_day_indices = [0, len(trade_history) - 1]
+    prev_day = None
+
+    for i, trade in enumerate(trade_history):
+        current_day = convert_epoch_ms(trade["entry_time"]).date()
+        if prev_day is None:
+            prev_day = current_day
+            continue
+        if current_day != prev_day:
+            new_day_indices.append(i)
+        prev_day = current_day
+
+    new_day_indices = sorted(new_day_indices)
+
+    print("Available Indices:", new_day_indices)
+    start_idx = int(input("Enter starting index: ").strip())
+    end_idx = int(input("Enter ending index: ").strip())
+
+    trade_history = trade_history[start_idx:end_idx]
+    save_file = f"trade_logs_subset_{start_idx}-{end_idx}.json"
+    with open(save_file, "w") as f:
+        json.dump({
+            "trade_history": trade_history,
+            "intraday_equity": {}
+        }, f, indent=4)
+        print(f"Saved {len(trade_history)} trades to {save_file}")
 
 def compute_share_split(price1, price2, min_pct=0.85, cash=25000, top_n=5):
     cash = cash / 2
@@ -109,7 +164,7 @@ def find_pair_stats(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
 
     return avg_intraday_corr, long_term_corr, pvalue
 
-def find_pair_corr_combos():
+def find_pair_stats_combos(symbols):
     pair_corrs = []
     for x, y in combinations(symbols, 2):
         avg_intraday_corr, long_term_corr, pvalue = find_pair_stats(x, y)
@@ -121,10 +176,10 @@ def find_pair_corr_combos():
             "coint_pvalue": pvalue
         })
 
-    with open("pair_correlations.json", "w") as f:
+    with open("pair_stats.json", "w") as f:
         json.dump(pair_corrs, f, indent=4)
 
-def check_packet_sync(symbol1, symbol2, log_file="market_logs_2026-03-02.jsonl"):
+def check_packet_sync(symbol1, symbol2, log_file="market_logs/market_logs_2026-03-02.jsonl"):
     with open(log_file) as f:
         trade_history = [json.loads(line) for line in f]
 
@@ -229,18 +284,20 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
     plt.legend()
     plt.show()
 
+# symbols = ["SPY", "QQQ", "GLD", "SLV"]
+symbols = ["VOO","IVV","DIA","XLK","VGT","XLF","VFH","XBI","XLY","VNQ","IWM","SCHX","MDY","XLV","XLI","XLE","VDE","QQQM"]
 
-
-# symbols = ["SPY", "QQQ", "GLD", "SLV", "XLE", "VDE", "IBIT", "ETHA"]
-
+# test_order("AAPL")
+# acc_latency()
+# find_new_day_indices(file="trade_logs_live_pt.json")
 
 # compute_share_split(687.12, 602.37, min_pct=0.85, cash=25000, top_n=5)
 # dca_plan(687.12, 602.37, min_pct=0.85, cash=30000)
 
 # find_pair_stats("XLE", "VDE")
-# find_pair_corr_combos()
+# find_pair_stats_combos(symbols)
 
-# check_packet_sync("XLE", "VDE", log_file="market_logs_2026-03-04.jsonl")
+# check_packet_sync("XLE", "VDE", log_file="market_logs/market_logs_2026-03-04.jsonl")
 # visualize_bid_ask_spread("GLD")
 # visualize_latency("GLD", "SLV")
 # visualize_spread("GLD", "SLV")

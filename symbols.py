@@ -1,79 +1,58 @@
-SYMBOLS = [
-    # ===== INDEX / MACRO =====
-    "SPY",   # S&P 500 ETF
-    "VOO",   # S&P 500 ETF
-    "QQQ",   # Nasdaq-100 ETF
-    "QQQM",  # Nasdaq-100 ETF
-    "IWM",   # Russell 2000 ETF
+SP500 = [
+    # ===== Information Technology =====
+    "AAPL", "MSFT", "NVDA", "ADBE", "CRM", "ORCL", "CSCO", "ACN", "IBM",
+    "TXN", "AVGO", "QCOM", "AMD", "NOW", "ADSK", "ANSS", "CTSH", "CDNS",
+    "INTU", "PAYX", "VRSN", "PYPL", "ANET", "SNOW", "FTNT", "V", "MA", "FIS",
+    "FISV", "INTC", "BLK", "SCHW",
 
-    # ===== TECH =====
-    "AAPL",  # Apple
-    "MSFT",  # Microsoft
-    "NVDA",  # NVIDIA
-    "AMD",   # AMD
-    "GOOG",  # Alphabet (Class A)
-    "GOOGL", # Alphabet (Class C)
-    "META",  # Meta Platforms
-    "ADBE",  # Adobe
-    "CRM",   # Salesforce
-    "INTC",  # Intel
-    "AVGO",  # Broadcom
-    "NFLX",  # Netflix
+    # ===== Financials =====
+    "JPM", "BAC", "BRK.B", "C", "MS", "GS", "AXP", "PNC", "WFC", "USB",
+    "COF", "TFC", "BK", "AIG", "MMC", "ICE", "CME", "MSCI", "SPGI", "SCHW",
+    "BLK", "ICE", "CME",
 
-    # ===== CONSUMER =====
-    "TSLA",  # Tesla
-    "AMZN",  # Amazon
-    "HD",    # Home Depot
-    "LOW",   # Lowe's
-    "MCD",   # McDonald's
-    "NKE",   # Nike
-    "SBUX",  # Starbucks
-    "COST",  # Costco
-    "WMT",   # Walmart
-    "PG",    # Procter & Gamble
-    "KO",    # Coca-Cola
-    "PEP",   # PepsiCo
+    # ===== Health Care =====
+    "UNH", "JNJ", "PFE", "MRK", "LLY", "ABT", "AMGN", "MDT", "DHR", "BMY",
+    "ISRG", "CI", "HCA", "ZTS", "SYK", "BDX", "EW", "DGX", "ABC", "PKI",
 
-    # ===== FINANCIALS =====
-    "V",     # Visa
-    "MA",     # Mastercard
-    "JPM",   # JPMorgan Chase
-    "GS",    # Goldman Sachs
-    "BAC",   # Bank of America
-    "MS",    # Morgan Stanley
-    "C",     # Citigroup
-    "AXP",   # American Express
-    "SCHW",  # Charles Schwab
-    "WFC",   # Wells Fargo
-    "COF",   # Capital One
+    # ===== Consumer Discretionary =====
+    "AMZN", "TSLA", "HD", "MCD", "NKE", "SBUX", "LOW", "BKNG", "TJX",
+    "ROST", "LVS", "CCL", "DAL", "MAR", "SYY", "LEG", "DG", "CMG", "DHI",
 
-    # ===== INDUSTRIALS / ENERGY =====
-    "XOM",   # ExxonMobil
-    "CVX",   # Chevron
-    "SLB",   # Schlumberger
-    "CAT",   # Caterpillar
-    "DE",    # Deere & Co
-    "GE",    # General Electric
-    "BA",    # Boeing
-    "LMT",   # Lockheed Martin
-    "RTX",   # RTX
-    "HON",   # Honeywell
-    "UPS",   # United Parcel Service
+    # ===== Communication Services =====
+    "GOOGL", "GOOG", "META", "NFLX", "VZ", "T", "DIS", "CMCSA", "ATVI",
+    "EA", "TGT", "FTNT",
 
-    # ===== HEALTHCARE =====
-    "UNH",   # UnitedHealth Group
-    "LLY",   # Eli Lilly
-    "ABBV",  # AbbVie
-    "JNJ",   # Johnson & Johnson
-    "MRK",   # Merck
-    "PFE",   # Pfizer
-    "TMO",   # Thermo Fisher Scientific
-    "AMGN"   # Amgen
+    # ===== Industrials =====
+    "BA", "CAT", "DE", "UPS", "EMR", "HON", "GD", "LMT", "RTX", "PCAR",
+    "CSX", "NSC", "EXPD", "FDX", "ROK", "ITW", "NOC", "WM", "PNR", "ETN",
+    "MLM", "AAL",
+
+    # ===== Consumer Staples =====
+    "PG", "KO", "PEP", "WMT", "COST", "MO", "EL", "CL", "KMB", "SJM",
+
+    # ===== Energy =====
+    "XOM", "CVX", "COP", "SLB", "OXY", "MPC", "PSX", "VLO", "EOG", "DVN",
+
+    # ===== Utilities =====
+    "NEE", "DUK", "SO", "EXC", "DTE", "AEP", "PNW", "PPL", "SRE", "ES",
+
+    # ===== Materials =====
+    "LIN", "DD", "ECL", "PPG", "LYB", "NEM", "APD", "CF", "SEE", "WRK",
+
+    # ===== Real Estate =====
+    "AMT", "PLD", "SPG", "EQIX", "PSA", "O", "DRE", "WELL", "DLR", "CBRE",
 ]
 
 PAIRS = [
-    ["SPY", "QQQ"],
-    ["GLD", "SLV"],
-    ["XLE", "VDE"],
-    ["IBIT", "ETHA"]
+    # Broad Market vs Tech
+    ["SPY", "QQQ"],   # S&P 500 ETF vs Nasdaq-100 ETF
+
+    # Precious Metals
+    ["GLD", "SLV"],   # Gold ETF vs Silver ETF
+
+    # Energy Sector
+    ["XLE", "VDE"],   # Energy Select Sector SPDR vs Vanguard Energy ETF
+
+    # Crypto ETPs
+    ["IBIT", "ETHA"], # Bitcoin ETP vs Ethereum ETP
 ]

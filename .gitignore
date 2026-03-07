@@ -11,7 +11,7 @@ trade_logs/
 pkl_files/
 
 # --- Test files ---
-pair_correlations.json
+pair_stats.json
 *_grid_search.json
 *_spread.json
 

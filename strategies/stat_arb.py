@@ -6,7 +6,7 @@ from models import *
 from utils import *
 
 class StatArb(StrategyPair):
-    def __init__(self, pair, ema_window=100, spread_window=2000, 
+    def __init__(self, pair, ema_window=100, spread_window=1500, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
                  start_time=(16, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
                  position_size=0.10, stop_loss=0.0001, take_profit=0.0001, 
@@ -71,9 +71,9 @@ class StatArb(StrategyPair):
     def compute_indicators(self):
         self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
-
-        hedge_ratio = round(self.mid1 / self.mid2, 3) # hedge_ratio = self.mid1 / self.mid2
+        
         if not self.position_manager.in_trade():
+            hedge_ratio = round(self.mid1 / self.mid2, 3) # hedge_ratio = self.mid1 / self.mid2
             self.hedge_ratio = self.compute_ema(self.hedge_ratio, hedge_ratio, self.ema_window)
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
@@ -87,28 +87,28 @@ class StatArb(StrategyPair):
     def config(self):
         if self.pair == "SPY-QQQ":
             self.ema_window = 100
-            self.spread_window = 2000
+            self.spread_window = 1500
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "GLD-SLV":
             self.ema_window = 100
-            self.spread_window = 2000
+            self.spread_window = 1500
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
             self.position_size = 0.10
         if self.pair == "XLE-VDE":
             self.ema_window = 100
-            self.spread_window = 2000
+            self.spread_window = 1500
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
             self.position_size = 0.10
         if self.pair == "IBIT-ETHA":
             self.ema_window = 100
-            self.spread_window = 2000
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
@@ -125,7 +125,7 @@ class StatArb(StrategyPair):
 
     def param_grid(self):
         params = {
-            "ema_window": [10, 20, 30, 40, 50, 75, 100, 200, 300], # 10, 20, 30, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000
+            "ema_window": [10, 20, 30, 40, 50, 75, 100, 200, 300, 500], # 10, 20, 30, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000
             "spread_window": [500, 1000, 1500, 2000] # 500, 1000, 1500, 2000
         }
         return params
