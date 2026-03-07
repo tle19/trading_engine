@@ -1,6 +1,6 @@
+import copy
 import numpy as np
 import pandas as pd
-import copy
 
 from utils import convert_epoch_ms
 
@@ -65,9 +65,9 @@ class Stats:
         if self.intraday_equity and isinstance(tuple(self.intraday_equity)[0], int):
             self.intraday_equity = {convert_epoch_ms(ts): val for ts, val in self.intraday_equity.items()}
         if not self.intraday_equity:
-            self.intraday_equity = {self.trade_history[0]["entry_time"]: 25000, self.trade_history[0]["exit_time"]: 0}
-            self.intraday_equity = {pd.Timestamp(ts): val for ts, val in self.intraday_equity.items()}
-        self._update_dates(self.intraday_equity)
+            self.intraday_equity = {pd.Timestamp(self.trade_history[0]["entry_time"]): 25000, 
+                                    pd.Timestamp(self.trade_history[-1]["exit_time"]): 0}
+        self._update_dates()
         self.intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
 
     def summary(self, display=True):
@@ -135,8 +135,8 @@ class Stats:
         print(f"Consecutive Daily Losses:   {self.day_loss_streak} (${self.max_day_loss_streak:.2f})")
         print("-" * 50)
 
-    def _update_dates(self, intraday_equity):
-        dates = sorted(intraday_equity)
+    def _update_dates(self):
+        dates = sorted(self.intraday_equity)
         self.start_date = dates[0]
         self.end_date = dates[-1]
         self.duration = self.end_date - self.start_date

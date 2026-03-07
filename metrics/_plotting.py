@@ -1,11 +1,12 @@
 import os
+import copy
+import numpy as np
+import pandas as pd
 from itertools import accumulate
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
-import pandas as pd
-import numpy as np
 
-from utils import *
+from utils import convert_epoch_ms, open_data
 
 class Plotting:
     def __init__(self, symbol, img_path="plots"):
@@ -17,28 +18,33 @@ class Plotting:
         self.end_date = None
 
     def update_data(self, trade_history, intraday_equity):
+        self.trade_history = copy.deepcopy(trade_history)
         self.intraday_equity = intraday_equity.copy()
+        if isinstance(self.trade_history[0]["entry_time"], int):
+            for trade in self.trade_history:
+                trade["entry_time"] = convert_epoch_ms(trade["entry_time"]).isoformat()
+                trade["exit_time"] = convert_epoch_ms(trade["exit_time"]).isoformat()
         if self.intraday_equity and isinstance(tuple(self.intraday_equity)[0], int):
             self.intraday_equity = {convert_epoch_ms(ts): val for ts, val in self.intraday_equity.items()}
-        if self.intraday_equity:
-            self._update_dates(self.intraday_equity)
-        else:
-            # TODO: Plot equity curve based on trade history
-            return
+        if not self.intraday_equity:
+            equity = 25000
+            for trade in self.trade_history:
+                equity += trade.get("pnl", 0)
+                self.intraday_equity[pd.Timestamp(trade["exit_time"])] = equity
+        self._update_dates()
+        self.intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
 
-    def _update_dates(self, intraday_equity):
-        dates = sorted(intraday_equity)
-        self.start_date = dates[0]
-        self.end_date = dates[-1]
+    def _update_dates(self):
+        self.dates = sorted(self.intraday_equity)
+        self.start_date = self.dates[0]
+        self.end_date = self.dates[-1]
 
     def overview(self, display=True):
-        intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
-        if not intraday_equity:
-            print("No equity data to plot.")
-            return
-        
-        equity = np.array(intraday_equity)
-        dates = pd.date_range(self.start_date, self.end_date, periods=len(equity)) 
+        equity = np.array(self.intraday_equity)
+        if len(equity) <= ((self.end_date - self.start_date).days + 1) * 385:
+            dates = self.dates
+        else:
+            dates = pd.date_range(self.start_date, self.end_date, periods=len(equity))
 
         max_points = 20000
         if len(equity) > max_points:

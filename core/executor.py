@@ -22,7 +22,7 @@ class DataFeedController:
         self.timezone = ZoneInfo("America/New_York")
         self.initialize(strategy_dict, margin)
 
-        self.log_file = open(f"market_logs_{datetime.datetime.now(self.timezone).date()}.jsonl", "ab")
+        self.log_file = open(f"market_logs/market_logs_{datetime.datetime.now(self.timezone).date()}.jsonl", "ab")
 
         self.ohlcv_row = OHLCVRow()
         self.level1_row = Level1Row()
@@ -134,7 +134,7 @@ class DataFeedController:
                     self.strategy_dict[symbol] = eb
 
     def construct_quote(self):
-        with open(f"market_logs_{datetime.datetime.now(self.timezone).date()}.jsonl") as f:
+        with open(f"market_logs/market_logs_{datetime.datetime.now(self.timezone).date()}.jsonl") as f:
             market_logs = [json.loads(line) for line in f]
         market_logs = [item for packet in market_logs for item in packet]
 
