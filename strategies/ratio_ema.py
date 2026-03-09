@@ -66,7 +66,7 @@ class RatioEMA(StrategyPair):
             return self.exit()
         elif direction == -1 and self.z_score <= -self.exit_threshold:
             return self.exit()
-        if direction and self.compute_position_value() < self.stop_loss:
+        elif direction and self.compute_position_value() < self.stop_loss:
             return self.exit()
         return signal
         
