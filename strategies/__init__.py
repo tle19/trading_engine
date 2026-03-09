@@ -13,7 +13,7 @@ from .div_arb import DivArb
 from .rsi_swing import RSISwing
 from .eod_reversion import EODReversion
 from .eod_reversion2 import EODReversion2
-from .stat_arb import StatArb
+from .ratio_ema import RatioEMA
 
 __all__ = [
     "Strategy",
@@ -31,7 +31,7 @@ __all__ = [
     "EODReversion",
     "EODReversion2",
     "DivArb",
-    "StatArb",
+    "RatioEMA",
     "strategy_map"
 ]
 
@@ -47,6 +47,6 @@ strategy_map = {
     "rsi_swing": RSISwing,
     "eod_reversion": EODReversion,
     "eod_reversion2": EODReversion2,
-    "stat_arb": StatArb
+    "ratio_ema": RatioEMA
 }
 

@@ -100,7 +100,7 @@ class Backtest:
         self.stats.summary(display=display_stats)
 
         if display_plot:
-            self.plotting.update_data(self.trade_history, self.trade_manager.intraday_equity)
+            self.plotting.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
             self.plotting.overview(display=False)
 
     def interpret_signal(self, signal, strategy):
@@ -353,7 +353,7 @@ class BacktestPairs:
             df1 = open_data(symbol1, start_date, end_date, mode="quote")
             df2 = open_data(symbol2, start_date, end_date, mode="quote")
             df_merged = pd.merge_asof(df1, df2, on='timestamp', direction='nearest', tolerance=5000, suffixes=(f'_{symbol1}',f'_{symbol2}'))
-            
+
             if grid:
                 self.grid_search(pair, df_merged, train)
             else:
@@ -426,7 +426,7 @@ class BacktestPairs:
         self.stats.summary(display=display_stats)
 
         if display_plot:
-            self.plotting.update_data(self.trade_history, self.trade_manager.intraday_equity)
+            self.plotting.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
             self.plotting.overview(display=False)
 
     def interpret_signal(self, signal, strategy):

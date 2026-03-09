@@ -5,12 +5,12 @@ from strategies import StrategyPair
 from models import *
 from utils import *
 
-class StatArb(StrategyPair):
+class RatioEMA(StrategyPair):
     def __init__(self, pair, ema_window=100, spread_window=1500, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
                  start_time=(16, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
                  position_size=0.10, stop_loss=0.0001, take_profit=0.0001, 
-                 pnl_target=0.0025, pnl_loss=-0.005, trade_max=800):
+                 pnl_target=0.005, pnl_loss=-0.005, trade_max=600):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
                          position_size, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
@@ -73,7 +73,7 @@ class StatArb(StrategyPair):
         self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
         
         if not self.position_manager.in_trade():
-            hedge_ratio = round(self.mid1 / self.mid2, 3) # hedge_ratio = self.mid1 / self.mid2
+            hedge_ratio = round(self.mid1 / self.mid2, 3)
             self.hedge_ratio = self.compute_ema(self.hedge_ratio, hedge_ratio, self.ema_window)
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
@@ -99,16 +99,23 @@ class StatArb(StrategyPair):
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
             self.position_size = 0.10
-        if self.pair == "XLE-VDE":
+        if self.pair == "VOO-SCHX":
             self.ema_window = 100
             self.spread_window = 1500
             self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.05
+            self.exit_threshold = 2.0
+            self.bid_ask_spread = 0.03
             self.position_size = 0.10
-        if self.pair == "IBIT-ETHA":
+        if self.pair == "IVV-IWM":
             self.ema_window = 100
-            self.spread_window = 1000
+            self.spread_window = 1500
+            self.entry_threshold = 2.0
+            self.exit_threshold = 1.0
+            self.bid_ask_spread = 0.03
+            self.position_size = 0.10
+        if self.pair == "XLV-XBI":
+            self.ema_window = 100
+            self.spread_window = 1500
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
@@ -117,7 +124,7 @@ class StatArb(StrategyPair):
     def save_data(self, spread):
         if not self.saved:
             self.history.append(spread)
-            end_time = ((19, 59)[0] * 3600 + (19, 59)[1] * 60) * 1000
+            end_time = ((19, 55)[0] * 3600 + (19, 55)[1] * 60) * 1000
             if self.s1["ts"] % (24 * 3600 * 1000) > end_time:
                 with open(f"{self.pair}_spread.json", "w") as f:
                     json.dump(self.history, f, indent=2)
@@ -125,7 +132,7 @@ class StatArb(StrategyPair):
 
     def param_grid(self):
         params = {
-            "ema_window": [10, 20, 30, 40, 50, 75, 100, 200, 300, 500], # 10, 20, 30, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000
+            "ema_window": [10, 20, 30, 40, 50, 75, 100, 200], # 10, 20, 30, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000
             "spread_window": [500, 1000, 1500, 2000] # 500, 1000, 1500, 2000
         }
         return params

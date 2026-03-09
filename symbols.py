@@ -44,15 +44,29 @@ SP500 = [
 ]
 
 PAIRS = [
-    # Broad Market vs Tech
-    ["SPY", "QQQ"],   # S&P 500 ETF vs Nasdaq-100 ETF
+    # Broad Market Index ETFs
+    ["SPY", "QQQ"],   # S&P 500 ETF vs Nasdaq-100 ETF (Large-Cap / Tech-Heavy)
+    ["VOO", "SCHX"],  # S&P 500 ETF vs Schwab 750 ETF (Large-Cap)
+    ["IVV", "IWM"],   # S&P 500 ETF vs Russell 2000 ETF (Small-Cap)
+
+    # Sector / Thematic ETFs
+    ["XLV", "XBI"],   # Healthcare ETF vs Biotech ETF
 
     # Precious Metals
     ["GLD", "SLV"],   # Gold ETF vs Silver ETF
+]
 
-    # Energy Sector
-    ["XLE", "VDE"],   # Energy Select Sector SPDR vs Vanguard Energy ETF
+CRYPTO = [
+    "IBIT",   # Bitcoin-based ETF
+    "ETHA",   # Ethereum-based ETF
+    "FBTC",   # Fidelity Bitcoin ETF
+    "FETH"    # Fidelity Ethereum ETF
+]
 
-    # Crypto ETPs
-    ["IBIT", "ETHA"], # Bitcoin ETP vs Ethereum ETP
+EXTRA = [
+    "DIA",    # Dow Jones Industrial Average ETF
+    "QQQM",   # Nasdaq-100 ETF (smaller version, lower AUM)
+    "XLK",    # Technology Sector ETF
+    "XLI",    # Industrials Sector ETF
+    "XLE"     # Energy Sector ETF
 ]

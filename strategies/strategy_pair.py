@@ -186,14 +186,17 @@ class StrategyPair:
             shares1 = 8
             shares2 = 9
         if self.pair == "GLD-SLV":
-            shares1 = 4
-            shares2 = 25
-        if self.pair == "XLE-VDE":
-            shares1 = 17
-            shares2 = 6
-        if self.pair == "IBIT-ETHA":
-            shares1 = 16
-            shares2 = 41
+            shares1 = 9
+            shares2 = 56
+        if self.pair == "VOO-SCHX":
+            shares1 = 8
+            shares2 = 187
+        if self.pair == "IVV-IWM":
+            shares1 = 7
+            shares2 = 19
+        if self.pair == "XLV-XBI":
+            shares1 = 10
+            shares2 = 62
 
         return shares1, shares2
     
