@@ -222,6 +222,20 @@ class StrategyPair:
 
         return plan
     
+    def compute_position_value(self):
+        direction = self.position_manager.direction()
+        shares1, shares2 = self.position_manager.total_shares()
+
+        entry1, entry2 = self.position_manager.average_entry()
+
+        exit1 = self.s1["bid"] if direction > 0 else self.s1["ask"]
+        exit2 = self.s2["bid"] if direction > 0 else self.s2["ask"]
+
+        pnl = (direction * (exit1 - entry1) * shares1) - (direction * (exit2 - entry2) * shares2)
+        position_value = shares1 * entry1 + shares2 * entry2
+
+        return pnl / position_value
+
     def compute_ema(self, prev_ema, new_value, window=10):
         if prev_ema is None:
             return new_value
@@ -271,17 +285,15 @@ class PositionManager:
     def direction(self):
         return self.pairs[0][0].direction if self.pairs else 0
     
-    def average_entry(self, symbol):
-        total = 0.0
-        weighted_sum = 0.0
+    def average_entry(self):
+        total1 = total2 = 0
+        weighted_sum1 = weighted_sum2 = 0
         for leg1, leg2 in self.pairs:
-            if leg1.symbol == symbol:
-                weighted_sum += leg1.entry_price * leg1.position_size
-                total += leg1.position_size
-            elif leg2.symbol == symbol:
-                weighted_sum += leg2.entry_price * leg2.position_size
-                total += leg2.position_size
-        return weighted_sum / total if total > 0 else 0
+            weighted_sum1 += leg1.entry_price * leg1.position_size
+            total1 += leg1.position_size
+            weighted_sum2 += leg2.entry_price * leg2.position_size
+            total2 += leg2.position_size
+        return weighted_sum1 / total1 if total1 > 0 else 0, weighted_sum2 / total2 if total2 > 0 else 0
     
     def total_shares(self):
         shares1 = shares2 = 0

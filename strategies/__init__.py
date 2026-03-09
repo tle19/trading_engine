@@ -9,7 +9,6 @@ from .volume_decay import VolumeDecay
 from .rsi_scalp import RSIScalp
 from .record_book import RecordBook
 from .record_quote import RecordQuote
-from .div_arb import DivArb
 from .rsi_swing import RSISwing
 from .eod_reversion import EODReversion
 from .eod_reversion2 import EODReversion2
@@ -30,7 +29,6 @@ __all__ = [
     "RSISwing",
     "EODReversion",
     "EODReversion2",
-    "DivArb",
     "RatioEMA",
     "strategy_map"
 ]
@@ -41,7 +39,6 @@ strategy_map = {
     "orb": ORBIndicator,
     "volume": VolumeDecay,
     "rsi": RSIScalp,
-    "div_arb": DivArb,
     "record_book": RecordBook,
     "record_quote": RecordQuote,
     "rsi_swing": RSISwing,

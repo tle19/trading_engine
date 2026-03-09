@@ -6,11 +6,11 @@ from models import *
 from utils import *
 
 class RatioEMA(StrategyPair):
-    def __init__(self, pair, ema_window=100, spread_window=1500, 
+    def __init__(self, pair, ema_window=100, spread_window=1000, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
                  start_time=(16, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
-                 position_size=0.10, stop_loss=0.0001, take_profit=0.0001, 
-                 pnl_target=0.005, pnl_loss=-0.005, trade_max=600):
+                 position_size=0.10, stop_loss=-0.0025, take_profit=0.001, 
+                 pnl_target=0.005, pnl_loss=-0.005, trade_max=800):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
                          position_size, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
@@ -66,6 +66,8 @@ class RatioEMA(StrategyPair):
             return self.exit()
         elif direction == -1 and self.z_score <= -self.exit_threshold:
             return self.exit()
+        if direction and self.compute_position_value() < self.stop_loss:
+            return self.exit()
         return signal
         
     def compute_indicators(self):
@@ -87,35 +89,35 @@ class RatioEMA(StrategyPair):
     def config(self):
         if self.pair == "SPY-QQQ":
             self.ema_window = 100
-            self.spread_window = 1500
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "GLD-SLV":
             self.ema_window = 100
-            self.spread_window = 1500
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
             self.position_size = 0.10
         if self.pair == "VOO-SCHX":
             self.ema_window = 100
-            self.spread_window = 1500
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 2.0
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "IVV-IWM":
             self.ema_window = 100
-            self.spread_window = 1500
+            self.spread_window = 1000
             self.entry_threshold = 2.0
-            self.exit_threshold = 1.0
+            self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "XLV-XBI":
             self.ema_window = 100
-            self.spread_window = 1500
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
