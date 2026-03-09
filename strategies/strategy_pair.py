@@ -9,7 +9,7 @@ HOLD = None
 
 class StrategyPair:
     def __init__(self, pair, 
-                 start_time=(15, 00), end_time=(21, 00), quote_delta_ms=1000, max_latency_ms=500, 
+                 start_time=(14, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
                  position_size=1.0, stop_loss=0.0001, take_profit=0.0001, 
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         if "-" not in pair:
@@ -194,9 +194,6 @@ class StrategyPair:
         if self.pair == "IVV-IWM":
             shares1 = 7
             shares2 = 19
-        if self.pair == "XLV-XBI":
-            shares1 = 10
-            shares2 = 62
 
         return shares1, shares2
     

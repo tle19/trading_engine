@@ -8,8 +8,8 @@ from utils import *
 class RatioEMA(StrategyPair):
     def __init__(self, pair, ema_window=100, spread_window=1000, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
-                 start_time=(16, 00), end_time=(20, 00), quote_delta_ms=1000, max_latency_ms=500, 
-                 position_size=0.10, stop_loss=-0.0025, take_profit=0.001, 
+                 start_time=(15, 00), end_time=(19, 00), quote_delta_ms=1000, max_latency_ms=500, 
+                 position_size=0.10, stop_loss=-0.005, take_profit=0.001, 
                  pnl_target=0.005, pnl_loss=-0.005, trade_max=800):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
                          position_size, stop_loss, take_profit, 
@@ -68,6 +68,8 @@ class RatioEMA(StrategyPair):
             return self.exit()
         elif direction and self.compute_position_value() < self.stop_loss:
             return self.exit()
+        # elif direction and self.compute_position_value() > self.take_profit:
+        #     return self.exit()
         return signal
         
     def compute_indicators(self):
@@ -80,7 +82,7 @@ class RatioEMA(StrategyPair):
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
         self.rolling_spread.append(spread)
-        # self.save_data(spread)
+        self.save_data(spread)
         if len(self.rolling_spread) == self.spread_window:
             self.z_score = (spread - np.mean(self.rolling_spread)) / np.std(self.rolling_spread, ddof=1)
 
@@ -107,15 +109,8 @@ class RatioEMA(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 2.0
             self.bid_ask_spread = 0.03
-            self.position_size = 0.10
+            self.position_size = 0.20
         if self.pair == "IVV-IWM":
-            self.ema_window = 100
-            self.spread_window = 1000
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.03
-            self.position_size = 0.10
-        if self.pair == "XLV-XBI":
             self.ema_window = 100
             self.spread_window = 1000
             self.entry_threshold = 2.0
@@ -126,7 +121,7 @@ class RatioEMA(StrategyPair):
     def save_data(self, spread):
         if not self.saved:
             self.history.append(spread)
-            end_time = ((19, 55)[0] * 3600 + (19, 55)[1] * 60) * 1000
+            end_time = ((18, 55)[0] * 3600 + (18, 55)[1] * 60) * 1000
             if self.s1["ts"] % (24 * 3600 * 1000) > end_time:
                 with open(f"{self.pair}_spread.json", "w") as f:
                     json.dump(self.history, f, indent=2)

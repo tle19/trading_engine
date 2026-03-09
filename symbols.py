@@ -49,9 +49,6 @@ PAIRS = [
     ["VOO", "SCHX"],  # S&P 500 ETF vs Schwab 750 ETF (Large-Cap)
     ["IVV", "IWM"],   # S&P 500 ETF vs Russell 2000 ETF (Small-Cap)
 
-    # Sector / Thematic ETFs
-    ["XLV", "XBI"],   # Healthcare ETF vs Biotech ETF
-
     # Precious Metals
     ["GLD", "SLV"],   # Gold ETF vs Silver ETF
 ]
@@ -69,4 +66,6 @@ EXTRA = [
     "XLK",    # Technology Sector ETF
     "XLI",    # Industrials Sector ETF
     "XLE"     # Energy Sector ETF
+    "XLV",    # Healthcare ETF
+    "XBI"     # Biotech ETF
 ]
