@@ -9,7 +9,7 @@ class RatioEMA(StrategyPair):
     def __init__(self, pair, ema_window=100, spread_window=1000, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
                  start_time=(15, 00), end_time=(19, 00), quote_delta_ms=1000, max_latency_ms=500, 
-                 position_size=0.10, stop_loss=-0.005, take_profit=0.001, 
+                 position_size=0.10, stop_loss=-0.005, take_profit=0.00005, 
                  pnl_target=0.005, pnl_loss=-0.005, trade_max=800):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
                          position_size, stop_loss, take_profit, 
@@ -90,32 +90,32 @@ class RatioEMA(StrategyPair):
     
     def config(self):
         if self.pair == "SPY-QQQ":
-            self.ema_window = 100
-            self.spread_window = 1000
+            # self.ema_window = 100
+            # self.spread_window = 1000
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.03
+            self.position_size = 0.10
+        if self.pair == "VOO-SCHX":
+            # self.ema_window = 100
+            # self.spread_window = 1000
+            self.entry_threshold = 2.0
+            self.exit_threshold = 2.0
+            self.bid_ask_spread = 0.03
+            self.position_size = 0.25
+        if self.pair == "IVV-IWM":
+            # self.ema_window = 100
+            # self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "GLD-SLV":
             self.ema_window = 100
-            self.spread_window = 1000
+            self.spread_window = 1500
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
-            self.position_size = 0.10
-        if self.pair == "VOO-SCHX":
-            self.ema_window = 100
-            self.spread_window = 1000
-            self.entry_threshold = 2.0
-            self.exit_threshold = 2.0
-            self.bid_ask_spread = 0.03
-            self.position_size = 0.20
-        if self.pair == "IVV-IWM":
-            self.ema_window = 100
-            self.spread_window = 1000
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.03
             self.position_size = 0.10
 
     def save_data(self, spread):
@@ -129,7 +129,7 @@ class RatioEMA(StrategyPair):
 
     def param_grid(self):
         params = {
-            "ema_window": [10, 20, 30, 40, 50, 75, 100, 200], # 10, 20, 30, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000
-            "spread_window": [500, 1000, 1500, 2000] # 500, 1000, 1500, 2000
+            "ema_window": [30, 40, 50, 75, 100, 200, 500], 
+            "spread_window": [500, 1000, 1500, 2000]
         }
         return params
