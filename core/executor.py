@@ -191,7 +191,7 @@ class Instrument:
         self.timezone = ZoneInfo("America/New_York")
         self.cash = self.get_cash_balance() * margin
         day_trading_power = self.get_day_trading_power()
-        if day_trading_power < self.cash:
+        if day_trading_power < self.cash and margin > 4.0:
             raise ValueError(f"Insufficient day trading power: available ${day_trading_power}")
         
         if "-" in symbols[0]:
