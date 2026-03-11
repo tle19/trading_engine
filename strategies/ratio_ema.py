@@ -22,7 +22,10 @@ class RatioEMA(StrategyPair):
         self.config()
 
         self.hedge_ratio = None
-        self.z_score = 0.0
+        self.hedge_ratio_live = None
+        self.z_score = 0
+        self.spread_mean = 0
+        self.spread_std = 1
         self.spread_check = False
 
         self.rolling_spread = deque(maxlen=self.spread_window)
@@ -48,16 +51,20 @@ class RatioEMA(StrategyPair):
         return signal
    
     def enter_trade(self, signal=None):
+        if not self.position_manager.in_trade():
+            self.features = {
+                "z_score": self.z_score,
+                "spread_mean": self.spread_mean,
+                "spread_std": self.spread_std,
+                "latency": self.latency,
+                "time_diff": abs(self.s1["ts"] - self.s2["ts"]),
+            }
+
         if self.z_score < -self.entry_threshold:
             signal = self.buy_pair()
         elif self.z_score > self.entry_threshold:
             signal = self.sell_pair()
-            
-        self.features = {
-            "z_score": self.z_score,
-            "latency": self.latency,
-            "time_diff": abs(self.s1["ts"] - self.s2["ts"])
-        }
+
         return signal
         
     def exit_trade(self, signal=None):
@@ -70,21 +77,28 @@ class RatioEMA(StrategyPair):
             return self.exit()
         # elif direction and self.compute_position_value() > self.take_profit:
         #     return self.exit()
+        elif direction and self.features:
+            anchored_z = (self.rolling_spread[-1] - self.features["spread_mean"]) / self.features["spread_std"]
+            if abs(anchored_z) > 8.0:
+                return self.exit()
         return signal
-        
+
     def compute_indicators(self):
         self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
-        
+
+        hedge_ratio = round(self.mid1 / self.mid2, 3)
+        self.hedge_ratio_live = self.compute_ema(self.hedge_ratio_live, hedge_ratio, self.ema_window)
         if not self.position_manager.in_trade():
-            hedge_ratio = round(self.mid1 / self.mid2, 3)
-            self.hedge_ratio = self.compute_ema(self.hedge_ratio, hedge_ratio, self.ema_window)
+            self.hedge_ratio = self.hedge_ratio_live
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
         self.rolling_spread.append(spread)
         self.save_data(spread)
         if len(self.rolling_spread) == self.spread_window:
-            self.z_score = (spread - np.mean(self.rolling_spread)) / np.std(self.rolling_spread, ddof=1)
+            self.spread_mean = np.mean(self.rolling_spread)
+            self.spread_std = np.std(self.rolling_spread, ddof=1)
+            self.z_score = (spread - self.spread_mean) / self.spread_std
 
         self.spread_check = self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread
     
@@ -129,7 +143,7 @@ class RatioEMA(StrategyPair):
 
     def param_grid(self):
         params = {
-            "ema_window": [30, 40, 50, 75, 100, 200, 500], 
+            "ema_window": [25, 50, 75, 100, 200, 500], 
             "spread_window": [500, 1000, 1500, 2000]
         }
         return params
