@@ -20,11 +20,7 @@ class Plotting:
     def update_data(self, trade_history, intraday_equity):
         self.trade_history = copy.deepcopy(trade_history)
         self.intraday_equity = intraday_equity.copy()
-        if isinstance(self.trade_history[0]["entry_time"], int):
-            for trade in self.trade_history:
-                trade["entry_time"] = convert_epoch_ms(trade["entry_time"]).isoformat()
-                trade["exit_time"] = convert_epoch_ms(trade["exit_time"]).isoformat()
-        if self.intraday_equity and isinstance(tuple(self.intraday_equity)[0], int):
+        if self.intraday_equity and isinstance(next(iter(self.intraday_equity)), int):
             self.intraday_equity = {convert_epoch_ms(ts): val for ts, val in self.intraday_equity.items()}
         if not self.intraday_equity:
             equity = 25000

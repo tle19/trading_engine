@@ -283,10 +283,10 @@ class Instrument:
     
     def market_order(self, symbol, quantity, instruction="BUY"):
         order = {
-            "orderStrategyType": "SINGLE",
-            "orderType": "MARKET",
             "session": "NORMAL",
             "duration": "DAY",
+            "orderType": "MARKET",
+            "orderStrategyType": "SINGLE",
             "orderLegCollection": [
                 {
                     "instruction": instruction,
@@ -300,14 +300,15 @@ class Instrument:
         }
 
         response = self.client.place_order(self.hash, order)
+        self.log_buffer.append(self.get_order_details(self.get_order_id(response)).get('status')) # DEBUG
         return response
     
     def limit_order(self, symbol, price, quantity, instruction="BUY"):
         order = {
-            "orderStrategyType": "SINGLE",
-            "orderType": "LIMIT",
             "session": "NORMAL",
             "duration": "DAY",
+            "orderType": "LIMIT",
+            "orderStrategyType": "SINGLE",
             "price": str(price),
             "orderLegCollection": [
                 {
@@ -329,10 +330,10 @@ class Instrument:
             "orderStrategyType": "OCO",
             "childOrderStrategies": [
                 {
-                    "orderStrategyType": "SINGLE",
-                    "orderType": "LIMIT",
                     "session": "NORMAL",
                     "duration": "DAY",
+                    "orderType": "LIMIT",
+                    "orderStrategyType": "SINGLE",
                     "price": str(target_price),
                     "orderLegCollection": [
                         {
@@ -346,10 +347,10 @@ class Instrument:
                     ]
                 },
                 {
-                    "orderStrategyType": "SINGLE",
-                    "orderType": "STOP",
                     "session": "NORMAL",
                     "duration": "DAY",
+                    "orderType": "STOP",
+                    "orderStrategyType": "SINGLE",
                     "stopPrice": str(stop_price),
                     "orderLegCollection": [
                         {
@@ -371,10 +372,10 @@ class Instrument:
     def cancel_order(self, order_id, timeout=1, polling_rate=0.2, settle_delay=0.1):
         start = time.time()
         while True:
-            print(self.get_order_details(order_id)['status']) # DEBUG
+            self.log_buffer.append(self.get_order_details(order_id).get('status')) # DEBUG
             response = self.client.cancel_order(self.hash, order_id)
             status_code = response.status_code # 200 == success; 500 == failed
-            print(self.get_order_details(order_id)['status']) # DEBUG
+            self.log_buffer.append(self.get_order_details(order_id).get('status')) # DEBUG
 
             if status_code == 200:
                 time.sleep(settle_delay)

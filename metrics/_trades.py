@@ -46,8 +46,8 @@ class TradeManager:
     
     def update_exit(self, leg, exit_time, exit_price, fill_price):
         trade = self.open_trades.pop(leg)
-        trade["entry_time"] = trade["entry_time"] if isinstance(trade["entry_time"], int) else trade["entry_time"].isoformat()
-        trade["exit_time"] = exit_time if isinstance(exit_time, int) else exit_time.isoformat()
+        trade["entry_time"] = convert_epoch_ms(trade["entry_time"]).isoformat() if isinstance(trade["entry_time"], int) else trade["entry_time"].isoformat()
+        trade["exit_time"] = convert_epoch_ms(exit_time).isoformat() if isinstance(exit_time, int) else exit_time.isoformat()
         trade["exit_price"] = exit_price
         trade["exit_fill"] = exit_price if fill_price is None else round(fill_price, 2)
 
@@ -57,11 +57,7 @@ class TradeManager:
         self.trade_history.append(trade)
 
     def save_logs(self):
-        if isinstance(self.trade_history[0]["entry_time"], int):
-            for trade in self.trade_history:
-                trade["entry_time"] = convert_epoch_ms(trade["entry_time"]).isoformat()
-                trade["exit_time"] = convert_epoch_ms(trade["exit_time"]).isoformat()
-        if self.intraday_equity and isinstance(tuple(self.intraday_equity)[0], int):
+        if self.intraday_equity and isinstance(next(iter(self.intraday_equity)), int):
             intraday_equity = {convert_epoch_ms(ts).isoformat(): val for ts, val in self.intraday_equity.items()}
         else:
             intraday_equity = {ts.isoformat(): val for ts, val in self.intraday_equity.items()}
@@ -78,12 +74,12 @@ class TradeManager:
             with open(self.log_file, "r") as f:
                 data = json.load(f)
 
+            self.trade_history = data.get("trade_history", [])
+            
             self.intraday_equity = {
                 pd.Timestamp(ts): val
                 for ts, val in data.get("intraday_equity", {}).items()
             }
-
-            self.trade_history = data.get("trade_history", [])
 
         except (FileNotFoundError, json.JSONDecodeError):
             self.trade_history = []

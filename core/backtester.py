@@ -4,7 +4,7 @@ from collections import deque
 from itertools import product
 import datetime
 
-from core import *
+from core import OHLCVRow, Level1Row, Level2Row
 from metrics import *
 from strategies import *
 from models import *
