@@ -58,11 +58,9 @@ class Stats:
     def update_data(self, trade_history, intraday_equity):
         self.trade_history = copy.deepcopy(trade_history)
         self.intraday_equity = intraday_equity.copy()
-        if self.intraday_equity and isinstance(next(iter(self.intraday_equity)), int):
-            self.intraday_equity = {convert_epoch_ms(ts): val for ts, val in self.intraday_equity.items()}
         if not self.intraday_equity:
-            self.intraday_equity = {pd.Timestamp(self.trade_history[0]["entry_time"]): 25000, 
-                                    pd.Timestamp(self.trade_history[-1]["exit_time"]): 0}
+            self.intraday_equity = {self.trade_history[0]["entry_time"]: 25000, 
+                                    self.trade_history[-1]["exit_time"]: 25000}
         self._update_dates()
         self.intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
 
@@ -133,8 +131,8 @@ class Stats:
 
     def _update_dates(self):
         dates = sorted(self.intraday_equity)
-        self.start_date = dates[0]
-        self.end_date = dates[-1]
+        self.start_date = pd.Timestamp(dates[0])
+        self.end_date = pd.Timestamp(dates[-1])
         self.duration = self.end_date - self.start_date
 
     def _calculate_pnls(self):
@@ -235,7 +233,10 @@ class Stats:
     def _calculate_sharpe_ratio(self, risk_free_rate=0.05):
         daily_returns = np.array(self.daily_pnls) / self.equity_initial
         daily_rf = (1 + risk_free_rate) ** (1/252) - 1
-        
+
+        if len(daily_returns) == 1:
+            return
+
         excess_mean = np.mean(daily_returns) - daily_rf
         std = np.std(daily_returns, ddof=1)
 

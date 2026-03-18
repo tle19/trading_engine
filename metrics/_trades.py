@@ -21,6 +21,7 @@ class TradeManager:
         self.intraday_equity = intraday_equity
 
     def update_intraday_equity(self, ts, equity):
+        ts = convert_epoch_ms(ts).isoformat() if isinstance(ts, int) else ts.isoformat()
         self.intraday_equity[ts] = equity
 
     def log_entry(self, name, leg, symbol, direction, position_size, shares, entry_time, entry_price, fill_price, stop_price, target_price, features=None):
@@ -57,15 +58,10 @@ class TradeManager:
         self.trade_history.append(trade)
 
     def save_logs(self):
-        if self.intraday_equity and isinstance(next(iter(self.intraday_equity)), int):
-            intraday_equity = {convert_epoch_ms(ts).isoformat(): val for ts, val in self.intraday_equity.items()}
-        else:
-            intraday_equity = {ts.isoformat(): val for ts, val in self.intraday_equity.items()}
-
         with open(self.log_file, "w") as f:
             json.dump({
                 "trade_history": self.trade_history,
-                "intraday_equity": intraday_equity
+                "intraday_equity": self.intraday_equity
             }, f, indent=4)
             print(f"Saved {len(self.trade_history)} trades to {self.log_file}")
     
@@ -75,11 +71,7 @@ class TradeManager:
                 data = json.load(f)
 
             self.trade_history = data.get("trade_history", [])
-            
-            self.intraday_equity = {
-                pd.Timestamp(ts): val
-                for ts, val in data.get("intraday_equity", {}).items()
-            }
+            self.intraday_equity = data.get("intraday_equity", [])
 
         except (FileNotFoundError, json.JSONDecodeError):
             self.trade_history = []

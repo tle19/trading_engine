@@ -20,20 +20,18 @@ class Plotting:
     def update_data(self, trade_history, intraday_equity):
         self.trade_history = copy.deepcopy(trade_history)
         self.intraday_equity = intraday_equity.copy()
-        if self.intraday_equity and isinstance(next(iter(self.intraday_equity)), int):
-            self.intraday_equity = {convert_epoch_ms(ts): val for ts, val in self.intraday_equity.items()}
         if not self.intraday_equity:
             equity = 25000
             for trade in self.trade_history:
                 equity += trade.get("pnl", 0)
-                self.intraday_equity[pd.Timestamp(trade["exit_time"])] = equity
+                self.intraday_equity[trade["exit_time"]] = equity
         self._update_dates()
         self.intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
 
     def _update_dates(self):
         self.dates = sorted(self.intraday_equity)
-        self.start_date = self.dates[0]
-        self.end_date = self.dates[-1]
+        self.start_date = pd.Timestamp(self.dates[0])
+        self.end_date = pd.Timestamp(self.dates[-1])
 
     def overview(self, display=True):
         equity = np.array(self.intraday_equity)
@@ -69,25 +67,23 @@ class Plotting:
             df = open_data(self.symbol, self.start_date, self.end_date, "daily")
             label = f"{self.symbol}"
 
-        benchmark_intraday = pd.Series(index=dates, dtype=float)
-        daily_dates = pd.to_datetime(df["timestamp"]).dt.date.tolist()
-        if not daily_dates:
-            print("No benchmark data to plot.")
-            return
-        daily_closes = df['close'].values
-        daily_idx = 0
+        if not df.empty:
+            benchmark_intraday = pd.Series(index=dates, dtype=float)
+            daily_dates = pd.to_datetime(df["timestamp"]).dt.date.tolist()
+            daily_closes = df['close'].values
+            daily_idx = 0
 
-        for ts in dates:
-            ts_date = ts.date()
-            if ts_date > daily_dates[daily_idx] and ts_date in daily_dates:
-                daily_idx += 1
-            benchmark_intraday.loc[ts] = daily_closes[daily_idx]
+            for ts in dates:
+                ts_date = ts.date()
+                if ts_date > daily_dates[daily_idx] and ts_date in daily_dates:
+                    daily_idx += 1
+                benchmark_intraday.loc[ts] = daily_closes[daily_idx]
 
-        shares = equity[0] / benchmark_intraday.iloc[0]
-        benchmark_intraday = benchmark_intraday * shares
+            shares = equity[0] / benchmark_intraday.iloc[0]
+            benchmark_intraday = benchmark_intraday * shares
+            ax.plot(dates, benchmark_intraday, label=label, color="gray", linewidth=2.0, alpha=0.8)
 
         ax.plot(dates, equity, label="Strategy", color="mediumseagreen", linewidth=2.0, alpha=0.8)
-        ax.plot(dates, benchmark_intraday, label=label, color="gray", linewidth=2.0, alpha=0.8)
         ax.axhline(y=equity[0], color='black', linestyle='--', linewidth=1.0, alpha=0.8)
         ax.grid(True, linestyle=":", alpha=0.3)
         ax.set_title(f"Strategy Performance ({self.symbol})")

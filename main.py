@@ -107,10 +107,19 @@ def main():
     elif args.stats:
         trade_manager = TradeManager(log_file=args.file, live=True)
         trade_manager.load_logs()
+        trade_history = [
+            t for t in trade_manager.trade_history
+            if args.start_date <= t["entry_time"].split("T")[0] <= args.end_date
+        ]
+        intraday_equity = {
+            ts: v
+            for ts, v in trade_manager.intraday_equity.items()
+            if args.start_date <= ts.split("T")[0] <= args.end_date
+        }
         stats = Stats("AGGREGATE")
         plotting = Plotting("AGGREGATE")
-        stats.update_data(trade_manager.trade_history, trade_manager.intraday_equity)
-        plotting.update_data(trade_manager.trade_history, trade_manager.intraday_equity)
+        stats.update_data(trade_history, intraday_equity)
+        plotting.update_data(trade_history, intraday_equity)
         stats.summary()
         plotting.overview()
     elif args.backup or args.sync:
