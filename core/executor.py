@@ -2,13 +2,13 @@ import sys
 import re
 import time
 import datetime
-
 import orjson
+
 import schwabdev
 
 from strategies import Strategy, StrategyPair, StrategyBook
 from core import OHLCVRow, Level1Row, Level2Row
-from metrics import *
+from metrics import TradeManager
 from utils import *
 
 class DataFeedController:
@@ -41,7 +41,7 @@ class DataFeedController:
                     if service == "CHART_EQUITY":
                         ts = item.get("7") or timestamp
                         row = self.ohlcv_row.update(
-                            datetime.datetime.fromtimestamp(ts / 1000, tz=timezone),
+                            convert_epoch_ms(ts),
                             item.get("2"),
                             item.get("3"),
                             item.get("4"),
@@ -63,6 +63,7 @@ class DataFeedController:
                             item.get("2"),
                             item.get("3")
                         )
+                    self.log_buffer.append(str(timestamp)) # DEBUG
                     self.log_buffer.append(f"[{symbol}] {row}")
 
                     if service != "CHART_EQUITY":
@@ -297,6 +298,7 @@ class Instrument:
         }
 
         response = self.client.place_order(self.hash, order)
+        self.log_buffer.append(str(response.status_code)) # DEBUG
         self.log_buffer.append(self.get_order_details(self.get_order_id(response)).get('status')) # DEBUG
         return response
     
@@ -372,6 +374,7 @@ class Instrument:
             self.log_buffer.append(self.get_order_details(order_id).get('status')) # DEBUG
             response = self.client.cancel_order(self.hash, order_id)
             status_code = response.status_code # 200 == success; 500 == failed
+            self.log_buffer.append(str(status_code)) # DEBUG
             self.log_buffer.append(self.get_order_details(order_id).get('status')) # DEBUG
 
             if status_code == 200:

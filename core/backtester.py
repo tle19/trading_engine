@@ -158,7 +158,6 @@ class Backtest:
                         else:
                             fill_price = self.close * self.slip_dn
                             exit_price = self.close
-                        pnl = (fill_price - entry_price) * shares
             
                     elif direction == -1:
                         if self.high >= stop_price:
@@ -173,8 +172,8 @@ class Backtest:
                         else:
                             fill_price = self.close * self.slip_up
                             exit_price = self.close
-                        pnl = (entry_price - fill_price) * shares
-                    
+
+                    pnl = direction * (fill_price - entry_price) * shares
                     self.trade_manager.update_exit(leg, self.ts, exit_price, fill_price)
                     self.update_pnl(pnl)
                     position_manager.remove_leg(leg)
@@ -210,15 +209,12 @@ class Backtest:
         current_equity = self.cash
         
         for leg in self.position_manager.legs:
-            if leg.direction == 1:
-                current_equity += (self.close - leg.entry_price) * leg.shares * self.margin
-            elif leg.direction == -1:
-                current_equity += (leg.entry_price - self.close) * leg.shares * self.margin
+            current_equity += leg.direction * (self.close - leg.entry_price) * leg.shares * self.margin
 
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
 
     def sort_trade_history(self, trade_history):
-        trade_history.sort(key=lambda x: datetime.datetime.fromisoformat(x["entry_time"]))
+        trade_history.sort(key=lambda x: x["entry_time"])
         return trade_history
 
     def combine_equity_dicts(self, dicts):
@@ -270,7 +266,7 @@ class Backtest:
     def train_model(self, symbol, train_period=100, validation_period=100, rebalance_period=3):
         self.train_time += 1
         if self.train_wait:
-            required_date = pd.to_datetime(self.start_date) + pd.DateOffset(days=train_period + validation_period)
+            required_date = pd.Timestamp(self.start_date) + pd.DateOffset(days=train_period + validation_period)
             required_date = required_date.tz_localize(self.ts.tz)
             if self.ts < required_date:
                 return
@@ -286,7 +282,7 @@ class Backtest:
         trade_history = self.trade_manager.trade_history
         self.trade_manager.trade_history = [
             trade for trade in trade_history
-            if start_date < pd.to_datetime(trade["entry_time"]).normalize() < curr_date
+            if start_date < pd.Timestamp(trade["entry_time"]).normalize() < curr_date
         ]
         self.trade_manager.save_logs()
 
@@ -384,7 +380,7 @@ class BacktestPairs:
         print(f"Elapsed Backtest Time: {elapsed_time:.3f} seconds")
 
     def run_simulation(self, pair, df, train, display_stats=True, display_plot=True):
-        last_day = pd.to_datetime(self.start_date).date()
+        last_day = pd.Timestamp(self.start_date).date()
         for row in df.itertuples(index=False):
             for symbol in pair.split("-"):
                 level1_row = self.level1_row.update(
@@ -409,7 +405,7 @@ class BacktestPairs:
                 self.bid_size = level1_row.bid_size
                 self.ask_size = level1_row.ask_size
 
-                current_day = pd.to_datetime(self.ts, unit='ms', utc=True).tz_convert(timezone).date() 
+                current_day = convert_epoch_ms(self.ts).date() 
                 if current_day != last_day:
                     self.risk_manager.reset()
                     last_day = current_day
@@ -485,8 +481,8 @@ class BacktestPairs:
                 shares1 = leg1.shares * self.margin
                 shares2 = leg2.shares * self.margin
 
-                pnl1 = (entry_price1 - fill_price1) * shares1
-                pnl2 = (entry_price2 - fill_price2) * shares2
+                pnl1 = direction1 * (fill_price1 - entry_price1) * shares1
+                pnl2 = direction2 * (fill_price2 - entry_price2) * shares2
 
                 self.trade_manager.update_exit(leg1, self.ts, exit_price1, fill_price1)
                 self.trade_manager.update_exit(leg2, self.ts, exit_price2, fill_price2)
@@ -527,26 +523,19 @@ class BacktestPairs:
         current_equity = self.cash
 
         symbol1, symbol2 = pair.split("-")
+
+        def leg_pnl(leg, bid_price, ask_price):
+            current_price = bid_price if leg.direction > 0 else ask_price
+            return leg.direction * (current_price - leg.entry_price) * leg.shares * self.margin
+
         for leg1, leg2 in self.position_manager.pairs:
             if symbol1 == symbol:
-                if leg1.direction == 1:
-                    current_equity += (self.bid - leg1.entry_price) * leg1.shares * self.margin
-                elif leg1.direction == -1:
-                    current_equity += (leg1.entry_price - self.ask) * leg1.shares * self.margin
-                if leg2.direction == 1:
-                    current_equity += (self.prev_bid - leg2.entry_price) * leg2.shares * self.margin
-                elif leg2.direction == -1:
-                    current_equity += (leg2.entry_price - self.prev_ask) * leg2.shares * self.margin
+                current_equity += leg_pnl(leg1, self.bid, self.ask)
+                current_equity += leg_pnl(leg2, self.prev_bid, self.prev_ask)
             elif symbol2 == symbol:
-                if leg1.direction == 1:
-                    current_equity += (self.prev_bid - leg1.entry_price) * leg1.shares * self.margin
-                elif leg1.direction == -1:
-                    current_equity += (leg1.entry_price - self.prev_ask) * leg1.shares * self.margin
-                if leg2.direction == 1:
-                    current_equity += (self.bid - leg2.entry_price) * leg2.shares * self.margin
-                elif leg2.direction == -1:
-                    current_equity += (leg2.entry_price - self.ask) * leg2.shares * self.margin
-
+                current_equity += leg_pnl(leg1, self.prev_bid, self.prev_ask)
+                current_equity += leg_pnl(leg2, self.bid, self.ask)
+                
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
     
     def sort_trade_history(self, trade_history):

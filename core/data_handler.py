@@ -1,12 +1,10 @@
-import os
 import json
 import time
 import pandas as pd
 import datetime
-
-from zoneinfo import ZoneInfo
-from polygon import RESTClient
 import orjson
+
+import polygon
 import schwabdev
 
 from utils import *
@@ -15,11 +13,9 @@ class DataHandler:
     def __init__(self):
         config = load_config()
 
-        self.polygon_client = RESTClient(config['api_key'])
+        self.polygon_client = polygon.RESTClient(config['api_key'])
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])
         self.stream = schwabdev.Stream(self.client)
-
-        self.timezone = ZoneInfo("America/New_York")
         
         self.ohlcv_row = OHLCVRow()
         self.level1_row = Level1Row()
@@ -29,7 +25,7 @@ class DataHandler:
                                 timespan='minute', multiplier=1, max_iter=10):
         start_time = time.perf_counter()
 
-        now = datetime.datetime.now(self.timezone)
+        now = datetime.datetime.now(timezone)
         to_date = str((now - datetime.timedelta(days=1)).date())
         
         for symbol in symbols:
@@ -93,7 +89,7 @@ class DataHandler:
             if data_list:
                 new_df = pd.DataFrame(data_list)
                 new_df['timestamp'] = pd.to_datetime(new_df['timestamp'], unit='ms', utc=True)
-                new_df['timestamp'] = new_df['timestamp'].dt.tz_convert(self.timezone)
+                new_df['timestamp'] = new_df['timestamp'].dt.tz_convert(timezone)
                 df = pd.concat([df, new_df], ignore_index=True)
                 df.drop_duplicates(subset='timestamp', inplace=True)
                 df.sort_values('timestamp', inplace=True)
@@ -134,7 +130,7 @@ class DataHandler:
             new_df = pd.DataFrame(data.get("candles", []))
             new_df.rename(columns={"datetime": "timestamp"}, inplace=True)
             new_df['timestamp'] = pd.to_datetime(new_df['timestamp'], unit='ms', utc=True)
-            new_df['timestamp'] = new_df['timestamp'].dt.tz_convert(self.timezone)
+            new_df['timestamp'] = new_df['timestamp'].dt.tz_convert(timezone)
             df = pd.concat([df, new_df], ignore_index=True)
             df.drop_duplicates(subset='timestamp', inplace=True)
             df.sort_values('timestamp', inplace=True)
@@ -161,7 +157,7 @@ class DataHandler:
                     if service == "CHART_EQUITY":
                         ts = item.get("7") or timestamp
                         row = self.ohlcv_row.update(
-                            datetime.datetime.fromtimestamp(ts / 1000, tz=self.timezone),
+                            convert_epoch_ms(ts),
                             item.get("2"),
                             item.get("3"),
                             item.get("4"),
@@ -227,7 +223,7 @@ class DataHandler:
             quote = data.get(symbol, {}).get("quote", {})
 
             row = self.level1_row.update(
-                datetime.datetime.fromtimestamp(quote['quoteTime'] / 1000, tz=self.timezone),
+                convert_epoch_ms(quote['quoteTime']),
                 quote['bidPrice'],
                 quote['askPrice'],
                 quote['lastPrice'],
