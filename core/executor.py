@@ -3,7 +3,6 @@ import re
 import time
 import datetime
 
-from zoneinfo import ZoneInfo
 import orjson
 import schwabdev
 
@@ -19,10 +18,9 @@ class DataFeedController:
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])
         self.stream = schwabdev.Stream(self.client)
         
-        self.timezone = ZoneInfo("America/New_York")
         self.initialize(strategy_dict, margin)
 
-        self.log_file = open(f"market_logs/market_logs_{datetime.datetime.now(self.timezone).date()}.jsonl", "ab")
+        self.log_file = open(f"market_logs/market_logs_{datetime.datetime.now(timezone).date()}.jsonl", "ab")
 
         self.ohlcv_row = OHLCVRow()
         self.level1_row = Level1Row()
@@ -43,7 +41,7 @@ class DataFeedController:
                     if service == "CHART_EQUITY":
                         ts = item.get("7") or timestamp
                         row = self.ohlcv_row.update(
-                            datetime.datetime.fromtimestamp(ts / 1000, tz=self.timezone),
+                            datetime.datetime.fromtimestamp(ts / 1000, tz=timezone),
                             item.get("2"),
                             item.get("3"),
                             item.get("4"),
@@ -102,7 +100,7 @@ class DataFeedController:
         print("[ACTIVE] Market is open")
 
     def stream_duration(self):
-        now = datetime.datetime.now(self.timezone)
+        now = datetime.datetime.now(timezone)
         market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
         time.sleep((market_close - now).total_seconds())
         while self.stream.active:
@@ -134,7 +132,7 @@ class DataFeedController:
                     self.strategy_dict[symbol] = eb
 
     def construct_quote(self):
-        with open(f"market_logs/market_logs_{datetime.datetime.now(self.timezone).date()}.jsonl") as f:
+        with open(f"market_logs/market_logs_{datetime.datetime.now(timezone).date()}.jsonl") as f:
             market_logs = [json.loads(line) for line in f]
         market_logs = [item for packet in market_logs for item in packet]
 
@@ -188,7 +186,6 @@ class Instrument:
         self.hash = self.client.linked_accounts().json()[0].get('hashValue')
         self.stream = stream or schwabdev.Stream(self.client)
 
-        self.timezone = ZoneInfo("America/New_York")
         self.cash = self.get_cash_balance() * margin
         day_trading_power = self.get_day_trading_power()
         if day_trading_power < self.cash and margin > 4.0:
