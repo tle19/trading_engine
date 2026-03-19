@@ -63,7 +63,7 @@ class Stats:
             self.intraday_equity = {self.trade_history[0]["entry_time"]: 25000, 
                                     self.trade_history[-1]["exit_time"]: 25000}
         self._update_dates()
-        self.intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
+        self.intraday_equity = np.array([v for k, v in sorted(self.intraday_equity.items())])
 
     def summary(self, display=True):
         self._calculate_pnls()

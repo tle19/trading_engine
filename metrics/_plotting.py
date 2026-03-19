@@ -26,7 +26,7 @@ class Plotting:
                 equity += trade.get("pnl", 0)
                 self.intraday_equity[trade["exit_time"]] = equity
         self._update_dates()
-        self.intraday_equity = [v for k, v in sorted(self.intraday_equity.items())]
+        self.intraday_equity = np.array([v for k, v in sorted(self.intraday_equity.items())])
 
     def _update_dates(self):
         self.dates = pd.to_datetime(sorted(self.intraday_equity), format="ISO8601").tz_convert(timezone)
@@ -34,7 +34,7 @@ class Plotting:
         self.end_date = self.dates[-1]
 
     def overview(self, display=True):
-        equity = np.array(self.intraday_equity)
+        equity = self.intraday_equity
         if len(equity) <= ((self.end_date - self.start_date).days + 1) * 385:
             dates = self.dates
         else:
