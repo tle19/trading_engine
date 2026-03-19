@@ -1,6 +1,7 @@
 import copy
 import numpy as np
 import pandas as pd
+import datetime
 
 from utils import timezone
 
@@ -130,9 +131,9 @@ class Stats:
         print("-" * 50)
 
     def _update_dates(self):
-        dates = sorted(self.intraday_equity)
-        self.start_date = pd.Timestamp(dates[0]).tz_convert(timezone)
-        self.end_date = pd.Timestamp(dates[-1]).tz_convert(timezone)
+        self.dates = pd.to_datetime(sorted(self.intraday_equity), format="ISO8601").tz_convert(timezone)
+        self.start_date = self.dates[0]
+        self.end_date = self.dates[-1]
         self.duration = self.end_date - self.start_date
 
     def _calculate_pnls(self):
@@ -276,8 +277,8 @@ class Stats:
         total_duration = 0
         time_weighted_exposure = 0
         for trade in self.trade_history:
-            entry_time = pd.Timestamp(trade["entry_time"])
-            exit_time = pd.Timestamp(trade["exit_time"])
+            entry_time = datetime.datetime.fromisoformat(trade["entry_time"])
+            exit_time = datetime.datetime.fromisoformat(trade["exit_time"])
             duration_sec = (exit_time - entry_time).total_seconds()
 
             total_duration += duration_sec

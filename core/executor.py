@@ -63,7 +63,6 @@ class DataFeedController:
                             item.get("2"),
                             item.get("3")
                         )
-                    self.log_buffer.append(str(timestamp)) # DEBUG
                     self.log_buffer.append(f"[{symbol}] {row}")
 
                     if service != "CHART_EQUITY":
