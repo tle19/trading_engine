@@ -43,7 +43,7 @@ def acc_latency():
     print(f"Execution time: {end - start:.6f} seconds")
     print(cash_balance)
 
-def find_new_day_indices(file="trade_logs_live_pt.json"):
+def find_new_day_indices(file="trade_logs/trade_logs_live_pt.json"):
     with open(file) as f:
         trade_history = json.load(f)["trade_history"]
 
@@ -73,6 +73,23 @@ def find_new_day_indices(file="trade_logs_live_pt.json"):
             "intraday_equity": {}
         }, f, indent=4)
         print(f"Saved {len(trade_history)} trades to {save_file}")
+
+def find_num_orders(file="trade_logs/trade_logs.json"):
+    with open(file) as f:
+        trade_history = json.load(f)["trade_history"]
+
+    orders = 0
+    seen_exits = set()
+
+    for trade in trade_history:
+        orders += 1
+        
+        exit_key = (trade["exit_time"], trade["symbol"])
+        if exit_key not in seen_exits:
+            orders += 1
+            seen_exits.add(exit_key)
+
+    print(f"TOTAL ORDERS: {orders}")
 
 def compute_share_split(price1, price2, min_pct=0.85, cash=25000, top_n=5):
     cash = cash / 2
@@ -141,7 +158,7 @@ def find_pair_stats(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
     daily_corr_intraday = returns_intraday.groupby(returns_intraday.index.date).apply(
         lambda x: x['a'].corr(x['b'])
     )
-    avg_intraday_corr = daily_corr_intraday.mean()
+    intraday_corr = daily_corr_intraday.mean()
 
     # DAILY CORRELATION
     df1 = open_data(symbol1, start_date=start, end_date=end, mode="daily")
@@ -153,31 +170,38 @@ def find_pair_stats(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
     df_daily.columns = ['date', 'a', 'b']
 
     returns_daily = df_daily[['a','b']].pct_change().dropna()
-    long_term_corr = returns_daily['a'].corr(returns_daily['b'])
+    daily_corr = returns_daily['a'].corr(returns_daily['b'])
 
     # DAILY COINTEGRATION
     score, pvalue, _ = coint(df_daily['a'], df_daily['b'])
 
-    print(f"{symbol1}-{symbol2} Intraday Correlation: {avg_intraday_corr:.4f}")
-    print(f"{symbol1}-{symbol2} Daily Correlation: {long_term_corr:.4f}")
+    print(f"{symbol1}-{symbol2} Intraday Correlation: {intraday_corr:.4f}")
+    print(f"{symbol1}-{symbol2} Daily Correlation: {daily_corr:.4f}")
     print(f"{symbol1}-{symbol2} Cointegration p-value: {pvalue:.4f}")
 
-    return avg_intraday_corr, long_term_corr, pvalue
+    return intraday_corr, daily_corr, pvalue
 
 def find_pair_stats_combos(symbols):
     pair_corrs = []
     for x, y in combinations(symbols, 2):
-        avg_intraday_corr, long_term_corr, pvalue = find_pair_stats(x, y)
+        intraday_corr, daily_corr, pvalue = find_pair_stats(x, y)
         pair_corrs.append({
             "symbol1": x,
             "symbol2": y,
-            "avg_intraday_corr": avg_intraday_corr,
-            "long_term_corr": long_term_corr,
+            "intraday_corr": intraday_corr,
+            "daily_corr": daily_corr,
             "coint_pvalue": pvalue
         })
 
     with open("pair_stats.json", "w") as f:
         json.dump(pair_corrs, f, indent=4)
+
+def top_pairs(top_n=20):
+    with open("pair_stats.json", "r") as f:
+        pair_stats = json.load(f)
+    pairs = sorted(pair_stats, key=lambda x: x["intraday_corr"], reverse=True)[:top_n]
+    for i, pair in enumerate(pairs, 1):
+        print(f"{i}. {pair["symbol1"]}-{pair["symbol2"]} - Intraday Corr: {pair['intraday_corr']}")
 
 def check_packet_sync(symbol1, symbol2, log_file="market_logs/market_logs_2026-03-02.jsonl"):
     with open(log_file) as f:
@@ -284,20 +308,54 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
     plt.legend()
     plt.show()
 
-# symbols = ["SPY", "QQQ", "GLD", "SLV"]
-symbols = ["VOO","IVV","DIA","XLK","VGT","XLF","VFH","XBI","XLY","VNQ","IWM","SCHX","MDY","XLV","XLI","XLE","VDE","QQQM"]
+# TODO: Quick backtester to show spreads
 
 # test_order("AAPL")
 # acc_latency()
-# find_new_day_indices(file="trade_logs_live_pt.json")
+# find_new_day_indices(file="trade_logs/trade_logs_live_pt.json")
 
-# compute_share_split(687.12, 602.37, min_pct=0.85, cash=25000, top_n=5)
+# compute_share_split(674.23, 250.36, min_pct=0.85, cash=10000, top_n=5)
 # dca_plan(687.12, 602.37, min_pct=0.85, cash=30000)
 
-# find_pair_stats("XLE", "VDE")
+# for pair in pairs:
+#     symbol1, symbol2 = pair[0], pair[1]
+#     find_pair_stats(symbol1, symbol2)
+# find_pair_stats("VOO", "VXUS")
 # find_pair_stats_combos(symbols)
+# top_pairs(top_n=20)
 
-# check_packet_sync("XLE", "VDE", log_file="market_logs/market_logs_2026-03-04.jsonl")
-# visualize_bid_ask_spread("GLD")
-# visualize_latency("GLD", "SLV")
-# visualize_spread("GLD", "SLV")
+# check_packet_sync("XLV", "XBI", log_file="market_logs/market_logs_2026-03-06.jsonl")
+# visualize_bid_ask_spread("XBI")
+# visualize_latency("XLV", "XBI")
+visualize_spread("IVV", "IWM")
+
+# find_num_orders(file="trade_logs/trade_logs_live_pt.json")
+
+# for pair in pairs:
+#     symbol1, symbol2 = pair[0], pair[1]
+#     check_packet_sync(symbol1, symbol2, log_file="market_logs/market_logs_2026-03-06.jsonl")
+#     visualize_latency(symbol1, symbol2)
+
+
+# from collections import Counter
+
+# with open("GLD-SLV_RatioEMA_grid_search.json") as f:
+#     grid = json.load(f)
+
+# # sort by profitability
+# sorted_grid = sorted(grid, key=lambda x: x["STATS"]["Net Profit"], reverse=True)
+
+# # take top 25%
+# top = sorted_grid[: len(sorted_grid)//4]
+
+# ema_vals = [x["PARAMS"]["ema_window"] for x in top]
+# spread_vals = [x["PARAMS"]["spread_window"] for x in top]
+
+# print("Top EMA counts:")
+# print(Counter(ema_vals))
+
+# print("\nTop Spread counts:")
+# print(Counter(spread_vals))
+
+# print("\nRobust EMA range:", min(ema_vals), "-", max(ema_vals))
+# print("Robust Spread range:", min(spread_vals), "-", max(spread_vals))

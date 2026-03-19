@@ -2,7 +2,7 @@ import copy
 import numpy as np
 import pandas as pd
 
-from utils import convert_epoch_ms
+from utils import timezone
 
 class Stats:
     def __init__(self, symbol):
@@ -131,8 +131,8 @@ class Stats:
 
     def _update_dates(self):
         dates = sorted(self.intraday_equity)
-        self.start_date = pd.Timestamp(dates[0])
-        self.end_date = pd.Timestamp(dates[-1])
+        self.start_date = pd.Timestamp(dates[0]).tz_convert(timezone)
+        self.end_date = pd.Timestamp(dates[-1]).tz_convert(timezone)
         self.duration = self.end_date - self.start_date
 
     def _calculate_pnls(self):

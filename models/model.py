@@ -4,12 +4,11 @@ import numpy as np
 import pandas as pd
 import pickle
 from itertools import product
-from zoneinfo import ZoneInfo
 
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
-timezone = ZoneInfo("America/New_York")
+from utils import timezone
 
 class BaseModel:
     def __init__(self, symbol=None, strategy=None, live=False):

@@ -6,7 +6,7 @@ from itertools import accumulate
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 
-from utils import convert_epoch_ms, open_data
+from utils import open_data, timezone
 
 class Plotting:
     def __init__(self, symbol, img_path="plots"):
@@ -30,8 +30,8 @@ class Plotting:
 
     def _update_dates(self):
         self.dates = sorted(self.intraday_equity)
-        self.start_date = pd.Timestamp(self.dates[0])
-        self.end_date = pd.Timestamp(self.dates[-1])
+        self.start_date = pd.Timestamp(self.dates[0]).tz_convert(timezone)
+        self.end_date = pd.Timestamp(self.dates[-1]).tz_convert(timezone)
 
     def overview(self, display=True):
         equity = np.array(self.intraday_equity)
