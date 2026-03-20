@@ -191,6 +191,9 @@ class StrategyPair:
         if self.pair == "GLD-SLV":
             shares1 = 9
             shares2 = 56
+        if self.pair == "VOO-SCHX":
+            shares1 = 8
+            shares2 = 187
 
         return shares1, shares2
     

@@ -130,7 +130,7 @@ class RatioEMA(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 2.0
             self.bid_ask_spread = 0.03
-            self.position_size = 0.25
+            self.position_size = 0.10
 
     def save_data(self, spread):
         if not self.saved:
