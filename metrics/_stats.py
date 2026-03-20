@@ -250,7 +250,7 @@ class Stats:
         excess_returns = daily_returns - daily_rf
         downside_returns = excess_returns[excess_returns < 0]
 
-        if len(downside_returns) == 0:
+        if len(downside_returns) == 1:
             return
 
         downside_std = np.std(downside_returns, ddof=1)

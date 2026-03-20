@@ -349,6 +349,7 @@ class BacktestPairs:
             df1 = open_data(symbol1, start_date, end_date, mode="quote")
             df2 = open_data(symbol2, start_date, end_date, mode="quote")
             df_merged = pd.merge_asof(df1, df2, on='timestamp', direction='nearest', tolerance=5000, suffixes=(f'_{symbol1}',f'_{symbol2}'))
+            df_merged.dropna(axis=0, inplace=True)
 
             if grid:
                 self.grid_search(pair, df_merged, train)
