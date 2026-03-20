@@ -1,5 +1,4 @@
 from strategies import StrategyPair
-from utils import *
 
 class RecordQuote(StrategyPair):
     def __init__(self, pair):

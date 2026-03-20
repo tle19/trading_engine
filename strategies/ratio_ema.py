@@ -1,9 +1,8 @@
+import json
 import numpy as np
 from collections import deque
 
 from strategies import StrategyPair
-from models import *
-from utils import *
 
 class RatioEMA(StrategyPair):
     def __init__(self, pair, ema_window=100, spread_window=1000, 

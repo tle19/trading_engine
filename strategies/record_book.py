@@ -1,5 +1,4 @@
 from strategies import StrategyBook
-from utils import *
 
 class RecordBook(StrategyBook):
     def __init__(self, symbol, start_time=(14, 30), end_time=(20, 59)):

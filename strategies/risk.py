@@ -1,6 +1,3 @@
-import numpy as np
-import pandas as pd
-
 class RiskManager:
     def __init__(self, pnl_target=0.02, pnl_loss=-0.01, trade_max=3):
         self.pnl_target = pnl_target
