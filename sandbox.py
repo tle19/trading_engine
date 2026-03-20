@@ -7,7 +7,6 @@ from itertools import combinations
 import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import coint
 
-from zoneinfo import ZoneInfo
 import schwabdev
 
 from symbols import SP500, PAIRS
@@ -17,7 +16,6 @@ from strategies import *
 from models import *
 from utils import *
 
-timezone = ZoneInfo("America/New_York")
 sp500 = SP500
 pairs = PAIRS
 
@@ -42,37 +40,6 @@ def acc_latency():
     end = time.perf_counter()
     print(f"Execution time: {end - start:.6f} seconds")
     print(cash_balance)
-
-def find_new_day_indices(file="trade_logs/trade_logs_live_pt.json"):
-    with open(file) as f:
-        trade_history = json.load(f)["trade_history"]
-
-    new_day_indices = [0, len(trade_history) - 1]
-    prev_day = None
-
-    for i, trade in enumerate(trade_history):
-        current_day = convert_epoch_ms(trade["entry_time"]).date()
-        if prev_day is None:
-            prev_day = current_day
-            continue
-        if current_day != prev_day:
-            new_day_indices.append(i)
-        prev_day = current_day
-
-    new_day_indices = sorted(new_day_indices)
-
-    print("Available Indices:", new_day_indices)
-    start_idx = int(input("Enter starting index: ").strip())
-    end_idx = int(input("Enter ending index: ").strip())
-
-    trade_history = trade_history[start_idx:end_idx]
-    save_file = f"trade_logs_subset_{start_idx}-{end_idx}.json"
-    with open(save_file, "w") as f:
-        json.dump({
-            "trade_history": trade_history,
-            "intraday_equity": {}
-        }, f, indent=4)
-        print(f"Saved {len(trade_history)} trades to {save_file}")
 
 def find_num_orders(file="trade_logs/trade_logs.json"):
     with open(file) as f:
@@ -145,52 +112,95 @@ def dca_plan(price1, price2, min_pct=0.85, cash=30000):
     return plan
 
 def find_pair_stats(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
-    # INTRADAY CORRELATION
-    df1 = open_data(symbol1, start_date=start, end_date=end)
-    df2 = open_data(symbol2, start_date=start, end_date=end)
-    df1 = df1.set_index("timestamp").between_time("09:30", "16:00")
-    df2 = df2.set_index("timestamp").between_time("09:30", "16:00")
+    def prepare_df(symbol, mode):
+        df = open_data(symbol, start_date=start, end_date=end, mode=mode)
+        if mode == "intraday":
+            df = df.set_index("timestamp").between_time("09:30", "16:00").reset_index()
+        return df[['timestamp', 'close']]
 
-    df_intraday = pd.concat([df1['close'], df2['close']], axis=1, join="inner")
-    df_intraday.columns = ['a', 'b']
+    df_intraday1 = prepare_df(symbol1, "intraday")
+    df_intraday2 = prepare_df(symbol2, "intraday")
+    df_intraday = pd.merge(df_intraday1, df_intraday2, on='timestamp')
+    
+    df_daily1 = prepare_df(symbol1, "daily")
+    df_daily2 = prepare_df(symbol2, "daily")
+    df_daily = pd.merge(df_daily1, df_daily2, on='timestamp')
 
-    returns_intraday = df_intraday.pct_change().dropna()
-    daily_corr_intraday = returns_intraday.groupby(returns_intraday.index.date).apply(
-        lambda x: x['a'].corr(x['b'])
-    )
-    intraday_corr = daily_corr_intraday.mean()
+    def compute_spread_move(df, window=10, mode="intraday"):
+        df['date'] = df['timestamp'].dt.date
 
-    # DAILY CORRELATION
-    df1 = open_data(symbol1, start_date=start, end_date=end, mode="daily")
-    df2 = open_data(symbol2, start_date=start, end_date=end, mode="daily")
-    df1['date'] = pd.to_datetime(df1['timestamp']).dt.date
-    df2['date'] = pd.to_datetime(df2['timestamp']).dt.date
+        beta = (df['close_x'] / df['close_y']).ewm(span=window, adjust=False).mean()
+        spread = df['close_x'] - beta * df['close_y']
+        mean = spread.rolling(window).mean()
+        std = spread.rolling(window).std()
 
-    df_daily = pd.merge(df1[['date', 'close']], df2[['date', 'close']], on='date')
-    df_daily.columns = ['date', 'a', 'b']
+        in_trade = False
+        entry_price = 0
+        spread_moves = []
+        curr_date = df['date'][0]
 
-    returns_daily = df_daily[['a','b']].pct_change().dropna()
-    daily_corr = returns_daily['a'].corr(returns_daily['b'])
+        for i in range(len(spread)):
+            if mode == "intraday" and df['date'].iloc[i] != curr_date:
+                in_trade = False
+                entry_price = 0
+                curr_date = df['date'].iloc[i]
 
-    # DAILY COINTEGRATION
-    score, pvalue, _ = coint(df_daily['a'], df_daily['b'])
+            if not in_trade:
+                if spread.iloc[i] > mean.iloc[i] + 2 * std.iloc[i]:
+                    in_trade = "short"
+                    entry_price = spread.iloc[i]
+                elif spread.iloc[i] < mean.iloc[i] - 2 * std.iloc[i]:
+                    in_trade = "long"
+                    entry_price = spread.iloc[i]
+            else:
+                if in_trade == "short" and spread.iloc[i] <= mean.iloc[i]:
+                    spread_moves.append(entry_price - spread.iloc[i])
+                    in_trade = False
+                elif in_trade == "long" and spread.iloc[i] >= mean.iloc[i]:
+                    spread_moves.append(spread.iloc[i] - entry_price)
+                    in_trade = False
 
-    print(f"{symbol1}-{symbol2} Intraday Correlation: {intraday_corr:.4f}")
-    print(f"{symbol1}-{symbol2} Daily Correlation: {daily_corr:.4f}")
-    print(f"{symbol1}-{symbol2} Cointegration p-value: {pvalue:.4f}")
+        return np.mean(spread_moves), len(spread_moves)
+    
+    intraday_corr = df_intraday.groupby(df_intraday['timestamp'].dt.date).apply(
+        lambda x: x['close_x'].pct_change().corr(x['close_y'].pct_change())).mean()
+    daily_corr = df_daily['close_x'].pct_change().corr(df_daily['close_y'].pct_change())
+    _, pvalue, _ = coint(df_daily['close_x'], df_daily['close_y'])
+    intraday_spread, intraday_moves = compute_spread_move(df_intraday, mode="intraday")
+    daily_spread, daily_moves = compute_spread_move(df_daily, mode="daily")
 
-    return intraday_corr, daily_corr, pvalue
+    print(f"{"=" * 10} {symbol1}-{symbol2} {"=" * 10}")
+    print("INTRADAY STATS")
+    print(f"Intraday Corr: {intraday_corr:.4f}")
+    print(f"Average Spread Move: ${intraday_spread:.2f}")
+    print(f"Number of Signals: {intraday_moves}\n")
+
+    print("DAILY STATS")
+    print(f"Daily Corr: {daily_corr:.4f}")
+    print(f"Average Spread Move: ${daily_spread:.2f}")
+    print(f"Number of Signals: {daily_moves}")
+    print(f"Cointegration p-value: {pvalue:.4f}\n")
+
+    return {
+        "intraday_corr": intraday_corr,
+        "daily_corr": daily_corr,
+        "cointegration_p": pvalue,
+        "intraday_profit_cents": intraday_spread,
+        "intraday_moves": intraday_moves,
+        "daily_profit_cents": daily_spread,
+        "daily_moves": daily_moves
+    }
 
 def find_pair_stats_combos(symbols):
     pair_corrs = []
     for x, y in combinations(symbols, 2):
-        intraday_corr, daily_corr, pvalue = find_pair_stats(x, y)
+        stats = find_pair_stats(x, y)
         pair_corrs.append({
             "symbol1": x,
             "symbol2": y,
-            "intraday_corr": intraday_corr,
-            "daily_corr": daily_corr,
-            "coint_pvalue": pvalue
+            "intraday_corr": stats["intraday_corr"],
+            "daily_corr": stats["daily_corr"],
+            "coint_pvalue": stats["cointegration_p"]
         })
 
     with open("pair_stats.json", "w") as f:
@@ -201,7 +211,8 @@ def top_pairs(top_n=20):
         pair_stats = json.load(f)
     pairs = sorted(pair_stats, key=lambda x: x["intraday_corr"], reverse=True)[:top_n]
     for i, pair in enumerate(pairs, 1):
-        print(f"{i}. {pair["symbol1"]}-{pair["symbol2"]} - Intraday Corr: {pair['intraday_corr']}")
+        print(f"{"=" * 10} {pair["symbol1"]}-{pair["symbol2"]} {"=" * 10}")
+        print(f"{i}. Intraday Corr: {pair['intraday_corr']}")
 
 def check_packet_sync(symbol1, symbol2, log_file="market_logs/market_logs_2026-03-02.jsonl"):
     with open(log_file) as f:
@@ -229,30 +240,12 @@ def check_packet_sync(symbol1, symbol2, log_file="market_logs/market_logs_2026-0
 
     total_packets = synced_packets + unsynced_packets
 
+    print(f"{"=" * 10} {symbol1}-{symbol2} {"=" * 10}")
     print(f"Synced packets: {synced_packets} ({synced_packets / total_packets:.2%})")
     print(f"Unsynced packets: {unsynced_packets} ({unsynced_packets / total_packets:.2%})")
     print(f"Average difference: {np.mean(time_diffs):.0f} ms")
     print(f"Min difference: {min(time_diffs)} ms") 
     print(f"Max difference: {max(time_diffs)} ms") 
-
-def visualize_bid_ask_spread(symbol):
-    try:
-        df = open_data(symbol, mode="quote")
-    except FileNotFoundError:
-        return
-
-    spread = df["ask"] - df["bid"]
-    
-    print(f"Average bid-ask spread: {spread.mean():.4f}")
-    print(f"Min bid-ask spread: {max(0, min(spread)):.4f}") 
-    print(f"Max bid-ask spread: {max(spread):.4f}")   
-
-    plt.figure(figsize=(10, 5))
-    plt.hist(spread, bins=30, edgecolor='black')
-    plt.title(f"{symbol} Bid-Ask Spread Distribution")
-    plt.xlabel("Bid-Ask Spread")
-    plt.ylabel("Count")
-    plt.show()
 
 def visualize_latency(symbol1, symbol2):
     try:
@@ -280,6 +273,7 @@ def visualize_latency(symbol1, symbol2):
     latency = (merged["timestamp"] - merged["timestamp_2"]).abs()
     latency_ms = latency.dt.total_seconds() * 1000
 
+    print(f"{"=" * 10} {symbol1}-{symbol2} {"=" * 10}")
     print(f"Mean Latency: {latency_ms.mean():.0f} ms")
     print(f"95th percentile latency: {latency_ms.quantile(0.95):.0f} ms")
 
@@ -287,6 +281,30 @@ def visualize_latency(symbol1, symbol2):
     plt.hist(latency_ms, bins=30, edgecolor="black")
     plt.title(f"Latency Distribution ({symbol1} vs {symbol2})")
     plt.xlabel("Milliseconds")
+    plt.ylabel("Count")
+    plt.show()
+
+def visualize_bid_ask_spread(symbol):
+    try:
+        df = open_data(symbol, mode="quote")
+    except FileNotFoundError:
+        return
+
+    spread = (df["ask"] - df["bid"]).round(10)
+
+    print(f"{"=" * 10} {symbol} {"=" * 10}")
+    print(f"Average bid-ask spread: {spread.mean():.4f}")
+    print(f"Min bid-ask spread: {max(0, min(spread)):.4f}") 
+    print(f"Max bid-ask spread: {max(spread):.4f}")   
+
+    lower = spread.quantile(0.001)
+    upper = spread.quantile(0.999)
+    spread = spread[(spread >= lower) & (spread <= upper)]
+
+    plt.figure(figsize=(10, 5))
+    plt.hist(spread, bins=30, edgecolor='black')
+    plt.title(f"{symbol} Bid-Ask Spread Distribution")
+    plt.xlabel("Bid-Ask Spread")
     plt.ylabel("Count")
     plt.show()
 
@@ -308,11 +326,9 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
     plt.legend()
     plt.show()
 
-# TODO: Quick backtester to show spreads
-
 # test_order("AAPL")
 # acc_latency()
-# find_new_day_indices(file="trade_logs/trade_logs_live_pt.json")
+# find_num_orders(file="trade_logs/trade_logs_live_pt.json")
 
 # compute_share_split(674.23, 250.36, min_pct=0.85, cash=10000, top_n=5)
 # dca_plan(687.12, 602.37, min_pct=0.85, cash=30000)
@@ -320,21 +336,17 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
 # for pair in pairs:
 #     symbol1, symbol2 = pair[0], pair[1]
 #     find_pair_stats(symbol1, symbol2)
-# find_pair_stats("VOO", "VXUS")
+# find_pair_stats("SPY", "QQQ")
 # find_pair_stats_combos(symbols)
 # top_pairs(top_n=20)
 
 # check_packet_sync("XLV", "XBI", log_file="market_logs/market_logs_2026-03-06.jsonl")
-# visualize_bid_ask_spread("XBI")
 # visualize_latency("XLV", "XBI")
-visualize_spread("IVV", "IWM")
 
-# find_num_orders(file="trade_logs/trade_logs_live_pt.json")
+# visualize_bid_ask_spread("VTI")
+# visualize_spread("SPY", "QQQ")
 
-# for pair in pairs:
-#     symbol1, symbol2 = pair[0], pair[1]
-#     check_packet_sync(symbol1, symbol2, log_file="market_logs/market_logs_2026-03-06.jsonl")
-#     visualize_latency(symbol1, symbol2)
+
 
 
 # from collections import Counter
