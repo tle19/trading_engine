@@ -185,9 +185,6 @@ class StrategyPair:
         if self.pair == "SPY-QQQ":
             shares1 = 8
             shares2 = 9
-        if self.pair == "VOO-SCHX":
-            shares1 = 8
-            shares2 = 187
         if self.pair == "IVV-IWM":
             shares1 = 7
             shares2 = 19
