@@ -43,29 +43,61 @@ SP500 = [
     "AMT", "PLD", "SPG", "EQIX", "PSA", "O", "DRE", "WELL", "DLR", "CBRE",
 ]
 
-PAIRS = [
-    # Broad Market Index ETFs
-    ["SPY", "QQQ"],   # S&P 500 ETF vs Nasdaq-100 ETF (Large-Cap / Tech-Heavy)
-    ["VOO", "SCHX"],  # S&P 500 ETF vs Schwab 750 ETF (Large-Cap)
-    ["IVV", "IWM"],   # S&P 500 ETF vs Russell 2000 ETF (Small-Cap)
+MACRO = [
+    "SPY",    # S&P 500 ETF
+    "IVV",    # S&P 500 ETF
+    "VOO",    # S&P 500 ETF
+    "DIA",    # Dow Jones 30 ETF
+    "QQQ",    # Nasdaq 100 ETF
+    "QQQM",   # Nasdaq 100 ETF
+    "SCHX",   # Schwab 750 ETF
+    "IWM",    # Russell 2000 ETF
+    "VTI",    # Total US Market ETF
+    "ITOT",   # Total US Market ETF
+    "VXUS",   # Total International Market ETF
+    "IXUS",   # Total International Market ETF
+    "VT",     # Total World Market ETF
+    "TLT"     # 20+ Year Treasury Bond ETF
+]
 
-    # Precious Metals
-    ["GLD", "SLV"],   # Gold ETF vs Silver ETF
+SECTORS = [
+    "XLK",    # Technology ETF
+    "XLF",    # Financials ETF
+    "XLI",    # Industrials ETF
+    "XLE",    # Energy ETF
+    "XLV",    # Healthcare ETF
+    "XBI",    # Biotech ETF
+    "XLY",    # Consumer Discretionary ETF
+    "XLP"     # Consumer Staples ETF
+]
+
+PRECIOUS_METALS = [
+    "GLD",    # Gold ETF
+    "IAU",    # Gold ETF
+    "SLV",    # Silver ETF
+    "SIVR",   # Silver ETF
+    "PALL",   # Palladium ETF
+    "PLTM"    # Platinum ETF
 ]
 
 CRYPTO = [
-    "IBIT",   # Bitcoin-based ETF
-    "ETHA",   # Ethereum-based ETF
-    "FBTC",   # Fidelity Bitcoin ETF
-    "FETH"    # Fidelity Ethereum ETF
+    "IBIT",   # Bitcoin ETF
+    "FBTC",   # Bitcoin ETF
+    "ETHA",   # Ethereum ETF
+    "FETH"    # Ethereum ETF
 ]
 
-EXTRA = [
-    "DIA",    # Dow Jones Industrial Average ETF
-    "QQQM",   # Nasdaq-100 ETF (smaller version, lower AUM)
-    "XLK",    # Technology Sector ETF
-    "XLI",    # Industrials Sector ETF
-    "XLE"     # Energy Sector ETF
-    "XLV",    # Healthcare ETF
-    "XBI"     # Biotech ETF
+SYMBOL_MAP = {
+    "SP500": SP500,
+    "MACRO": MACRO,
+    "SECTORS": SECTORS,
+    "PRECIOUS_METALS": PRECIOUS_METALS,
+    "CRYPTO": CRYPTO
+}
+
+
+PAIRS = [
+    ["SPY", "QQQ"],   # S&P 500 vs Nasdaq 100 (Broad vs Tech)
+    ["IVV", "IWM"],   # S&P 500 vs Russell 2000 (Large vs Small)
+    ["GLD", "SLV"],   # Gold vs Silver (Precious Metals)
 ]

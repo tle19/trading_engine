@@ -4,7 +4,7 @@ import shutil
 import time
 from datetime import date, datetime, timedelta
 
-from symbols import SP500
+from symbols import *
 from core import *
 from metrics import *
 from utils import *
@@ -51,8 +51,8 @@ def main():
         raise ValueError("Cannot mix colon syntax with --symbol arguments")
     if not colon_used and not args.symbols and not args.stats and not args.backup and not args.sync:
         raise ValueError("Either use colon syntax in --strategy or provide --symbol")
-    if args.symbols == ["all"]:
-        args.symbols = SP500
+    if len(args.symbols) == 1 and args.symbols[0] in SYMBOL_MAP:
+        args.symbols = SYMBOL_MAP[args.symbols[0]]
 
     strategy_dict = {}
     symbols = args.symbols if args.symbols else []
