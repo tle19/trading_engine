@@ -55,6 +55,7 @@ class RatioEMA(StrategyPair):
                 "z_score": self.z_score,
                 "spread_mean": self.spread_mean,
                 "spread_std": self.spread_std,
+                "spread_dist": abs(self.rolling_spread[-1] - self.spread_mean),
                 "latency": self.latency,
                 "time_diff": abs(self.s1["ts"] - self.s2["ts"]),
             }
@@ -122,13 +123,6 @@ class RatioEMA(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
-            self.position_size = 0.10
-        if self.pair == "VOO-SCHX":
-            # self.ema_window = 100
-            # self.spread_window = 1000
-            self.entry_threshold = 2.0
-            self.exit_threshold = 2.0
-            self.bid_ask_spread = 0.03
             self.position_size = 0.10
 
     def save_data(self, spread):
