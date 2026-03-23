@@ -5,7 +5,6 @@ from .risk import RiskManager
 from .example import SMACrossover
 from .stochastic import StochasticIndicator
 from .orb import ORBIndicator
-from .volume_decay import VolumeDecay
 from .rsi_scalp import RSIScalp
 from .record_book import RecordBook
 from .record_quote import RecordQuote
@@ -22,14 +21,13 @@ __all__ = [
     "SMACrossover",
     "StochasticIndicator",
     "ORBIndicator",
-    "VolumeDecay",
     "RSIScalp",
-    "RecordBook",
-    "RecordQuote",
     "RSISwing",
     "EODReversion",
     "EODReversion2",
     "RatioEMA",
+    "RecordBook",
+    "RecordQuote",
     "strategy_map"
 ]
 
@@ -37,13 +35,12 @@ strategy_map = {
     "sma": SMACrossover,
     "stochastic": StochasticIndicator,
     "orb": ORBIndicator,
-    "volume": VolumeDecay,
     "rsi": RSIScalp,
-    "record_book": RecordBook,
-    "record_quote": RecordQuote,
     "rsi_swing": RSISwing,
     "eod_reversion": EODReversion,
     "eod_reversion2": EODReversion2,
-    "ratio_ema": RatioEMA
+    "ratio_ema": RatioEMA,
+    "record_book": RecordBook,
+    "record_quote": RecordQuote
 }
 
