@@ -2,7 +2,6 @@ import time
 import numpy as np
 from collections import deque
 from itertools import product
-import datetime
 
 from core import OHLCVRow, Level1Row, Level2Row
 from metrics import *

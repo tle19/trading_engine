@@ -2,10 +2,10 @@ import os
 import json
 import pandas as pd
 import datetime
-from zoneinfo import ZoneInfo
+import zoneinfo
 
 data_path = "data"
-timezone = ZoneInfo("America/New_York")
+timezone = zoneinfo.ZoneInfo("America/New_York")
 
 def load_config(config_path="configs/api_config.json"):
     with open(config_path) as f:

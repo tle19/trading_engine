@@ -76,7 +76,7 @@ def main():
     dh = DataHandler()
 
     if args.live:
-        now = datetime.datetime.now(ZoneInfo("America/New_York"))
+        now = datetime.datetime.now(timezone)
         market_close = now.replace(hour=20, minute=0, second=0, microsecond=0)
         midnight = (now + timedelta(days=1)).replace(hour=0, minute=15, second=0, microsecond=0)
         target = midnight if market_close <= now < midnight else None

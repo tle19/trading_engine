@@ -81,9 +81,10 @@ class DataFeedController:
 
         self.stream.start_auto(
             receiver=response_handler, 
-            start_time=datetime.time(9, 30, 0), 
+            start_time=datetime.time(9, 29, 0), 
             stop_time=datetime.time(16, 0, 0), 
-            on_days=(0,1,2,3,4))
+            on_days=[0,1,2,3,4],
+            now_timzeone=timezone)
         self.await_market_open()
         for feed in self.feeds:
             feed.subscribe_symbols()
@@ -94,9 +95,9 @@ class DataFeedController:
         self.construct_quote()
     
     def await_market_open(self):
-        print("[WAIT] Market open pending")
+        print("[PENDING] Market open pending")
         while not self.stream.active:
-            time.sleep(5)
+            time.sleep(1)
         print("[ACTIVE] Market is open")
 
     def stream_duration(self):
@@ -104,7 +105,7 @@ class DataFeedController:
         market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
         time.sleep((market_close - now).total_seconds())
         while self.stream.active:
-            time.sleep(5)
+            time.sleep(1)
         print("[INACTIVE] Market is closed")
 
     def initialize(self, strategy_dict, margin):
@@ -421,7 +422,7 @@ class Instrument:
             if time.time() - start > timeout:
                 return None
             time.sleep(polling_rate)
-            
+
     def debug_order(self, response=None, order_id=None):
         if response:
             self.log_buffer.append(str(response.status_code))
