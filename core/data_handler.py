@@ -50,8 +50,6 @@ class DataHandler:
                 pass  # equity or already formatted
 
             for i in range(max_iter):
-                time.sleep(13) # Polygon.io rate limit (5 calls/minute)
-
                 aggs = self.polygon_client.get_aggs(
                     symbol,
                     multiplier,
@@ -60,7 +58,8 @@ class DataHandler:
                     to_date,
                     limit=50000
                 )
-                
+                time.sleep(13) # Polygon.io rate limit (5 calls/minute)
+
                 rows = list(aggs)
                 if not rows:
                     break
@@ -84,6 +83,8 @@ class DataHandler:
 
                 current_from = last_ts.strftime("%Y-%m-%d")
                 if current_from >= pd.to_datetime(to_date).strftime("%Y-%m-%d"):
+                    break
+                if current_from == pd.to_datetime(last_date).strftime("%Y-%m-%d"):
                     break
             
             if data_list:
