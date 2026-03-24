@@ -225,6 +225,8 @@ class Instrument:
         order_id2 = self.get_order_id(response2)
         fill_price1 = self.get_fill_price(order_id1, shares1)
         fill_price2 = self.get_fill_price(order_id2, shares2)
+        self.debug_order(response1, order_id1) # DEBUG
+        self.debug_order(response2, order_id2) # DEBUG
 
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[BOT] +{shares1} {symbol1} @ {fill_price1}")
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[SOLD] -{shares2} {symbol2} @ {fill_price2}")
@@ -239,6 +241,8 @@ class Instrument:
         order_id2 = self.get_order_id(response2)
         fill_price1 = self.get_fill_price(order_id1, shares1)
         fill_price2 = self.get_fill_price(order_id2, shares2)
+        self.debug_order(response1, order_id1) # DEBUG
+        self.debug_order(response2, order_id2) # DEBUG
 
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[SOLD] -{shares1} {symbol1} @ {fill_price1}")
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[BOT] +{shares2} {symbol2} @ {fill_price2}")
@@ -297,8 +301,6 @@ class Instrument:
         }
 
         response = self.client.place_order(self.hash, order)
-        self.log_buffer.append(str(response.status_code)) # DEBUG
-        self.log_buffer.append(self.get_order_details(self.get_order_id(response)).get('status')) # DEBUG
         return response
     
     def limit_order(self, symbol, price, quantity, instruction="BUY"):
@@ -370,11 +372,10 @@ class Instrument:
     def cancel_order(self, order_id, timeout=1, polling_rate=0.2, settle_delay=0.1):
         start = time.time()
         while True:
-            self.log_buffer.append(self.get_order_details(order_id).get('status')) # DEBUG
+            self.debug_order(None, order_id) # DEBUG
             response = self.client.cancel_order(self.hash, order_id)
-            status_code = response.status_code # 200 == success; 500 == failed
-            self.log_buffer.append(str(status_code)) # DEBUG
-            self.log_buffer.append(self.get_order_details(order_id).get('status')) # DEBUG
+            status_code = response.status_code
+            self.debug_order(response, order_id) # DEBUG
 
             if status_code == 200:
                 time.sleep(settle_delay)
@@ -420,6 +421,12 @@ class Instrument:
             if time.time() - start > timeout:
                 return None
             time.sleep(polling_rate)
+            
+    def debug_order(self, response=None, order_id=None):
+        if response:
+            self.log_buffer.append(str(response.status_code))
+        if order_id:
+            self.log_buffer.append(self.get_order_details(order_id).get('status'))
 
     def get_cash_balance(self):
         details = self.client.account_details(self.hash)
