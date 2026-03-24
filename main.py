@@ -109,7 +109,10 @@ def main():
         trade_manager.load_logs()
         trade_history = [
             t for t in trade_manager.trade_history
-            if args.start_date <= t["entry_time"].split("T")[0] <= args.end_date
+            if (
+                args.start_date <= t["entry_time"].split("T")[0] <= args.end_date
+                and (not symbols or t["symbol"] in symbols)
+            )
         ]
         intraday_equity = {
             ts: v
