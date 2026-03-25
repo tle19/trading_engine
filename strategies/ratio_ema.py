@@ -28,9 +28,6 @@ class RatioEMA(StrategyPair):
         self.spread_check = False
 
         self.rolling_spread = deque(maxlen=self.spread_window)
-
-        self.history = []
-        self.saved = False
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
@@ -124,15 +121,6 @@ class RatioEMA(StrategyPair):
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
             self.position_size = 0.10
-
-    def save_data(self, spread):
-        if not self.saved:
-            self.history.append(spread)
-            end_time = ((18, 55)[0] * 3600 + (18, 55)[1] * 60) * 1000
-            if self.s1["ts"] % (24 * 3600 * 1000) > end_time:
-                with open(f"{self.pair}_spread.json", "w") as f:
-                    json.dump(self.history, f, indent=2)
-                self.saved = True
 
     def param_grid(self):
         params = {

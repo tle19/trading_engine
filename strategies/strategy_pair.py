@@ -1,3 +1,5 @@
+import json
+
 from .risk import RiskManager
 
 LONG = 1
@@ -55,6 +57,9 @@ class StrategyPair:
         self.latency = 0  # network latency in milliseconds
 
         self.features = None
+
+        self.history = []
+        self.saved = False
 
         self.position_manager = PositionManager()
         self.risk_manager = RiskManager(pnl_target=pnl_target, pnl_loss=pnl_loss, trade_max=trade_max)
@@ -229,6 +234,15 @@ class StrategyPair:
         position_value = shares1 * entry1 + shares2 * entry2
 
         return pnl / position_value
+    
+    def save_data(self, spread):
+        if not self.saved:
+            self.history.append(spread)
+            end_time = ((18, 55)[0] * 3600 + (18, 55)[1] * 60) * 1000
+            if self.s1["ts"] % (24 * 3600 * 1000) > end_time:
+                with open(f"{self.pair}_spread.json", "w") as f:
+                    json.dump(self.history, f, indent=2)
+                self.saved = True
 
     def compute_ema(self, prev_ema, new_value, window=10):
         if prev_ema is None:

@@ -3,7 +3,7 @@ from collections import deque
 
 from strategies import StrategyPair
 
-class RatioEMA2(StrategyPair):
+class KalmanFilter(StrategyPair):
     def __init__(self, pair, ema_window=100, spread_window=1000, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
                  start_time=(15, 00), end_time=(19, 00), quote_delta_ms=1000, max_latency_ms=500, 
@@ -25,10 +25,6 @@ class RatioEMA2(StrategyPair):
         self.spread_mean = 0
         self.spread_std = 1
         self.spread_check = False
-        
-        self.frozen_spread = False
-        self.frozen_mean = 0
-        self.frozen_std = 1
 
         self.rolling_spread = deque(maxlen=self.spread_window)
     
@@ -50,30 +46,9 @@ class RatioEMA2(StrategyPair):
         return signal
    
     def enter_trade(self, signal=None):
-        if not self.position_manager.in_trade():
-            self.features = {
-                "z_score": self.z_score,
-                "spread_mean": self.spread_mean,
-                "spread_std": self.spread_std,
-                "latency": self.latency,
-                "time_diff": abs(self.s1["ts"] - self.s2["ts"]),
-            }
-
         if self.z_score < -self.entry_threshold:
-            # signal = self.buy_pair()
-            self.frozen_spread = True
-            self.frozen_mean = self.spread_mean
-            self.frozen_std = self.spread_std
-        elif self.z_score > self.entry_threshold:
-            # signal = self.sell_pair()
-            self.frozen_spread = True
-            self.frozen_mean = self.spread_mean
-            self.frozen_std = self.spread_std
-        
-        anchored_z = (self.rolling_spread[-1] - self.frozen_mean) / self.frozen_std
-        if self.frozen_spread and anchored_z < -3.0:
             signal = self.buy_pair()
-        elif self.frozen_spread and anchored_z > 3.0:
+        elif self.z_score > self.entry_threshold:
             signal = self.sell_pair()
 
         return signal
@@ -81,21 +56,11 @@ class RatioEMA2(StrategyPair):
     def exit_trade(self, signal=None):
         direction = self.position_manager.direction()
         if direction == 1 and self.z_score >= self.exit_threshold:
-            self.frozen_spread = False
             return self.exit()
         elif direction == -1 and self.z_score <= -self.exit_threshold:
-            self.frozen_spread = False
             return self.exit()
         elif direction and self.compute_position_value() < self.stop_loss:
-            self.frozen_spread = False
             return self.exit()
-        # elif direction and self.compute_position_value() > self.take_profit:
-        #     return self.exit()
-        # elif direction and self.features:
-        #     anchored_z = (self.rolling_spread[-1] - self.features["spread_mean"]) / self.features["spread_std"]
-        #     if abs(anchored_z) > 8.0:
-        #         self.frozen_spread = False
-        #         return self.exit()
         return signal
 
     def compute_indicators(self):
@@ -104,12 +69,12 @@ class RatioEMA2(StrategyPair):
 
         hedge_ratio = round(self.mid1 / self.mid2, 3)
         self.hedge_ratio_live = self.compute_ema(self.hedge_ratio_live, hedge_ratio, self.ema_window)
-        if not self.position_manager.in_trade() or not self.frozen_spread:
+        if not self.position_manager.in_trade():
             self.hedge_ratio = self.hedge_ratio_live
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
         self.rolling_spread.append(spread)
-        self.save_data(spread)
+        # self.save_data(spread)
         if len(self.rolling_spread) == self.spread_window:
             self.spread_mean = np.mean(self.rolling_spread)
             self.spread_std = np.std(self.rolling_spread, ddof=1)
@@ -138,13 +103,6 @@ class RatioEMA2(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
-            self.position_size = 0.10
-        if self.pair == "VOO-SCHX":
-            # self.ema_window = 100
-            # self.spread_window = 1000
-            self.entry_threshold = 2.0
-            self.exit_threshold = 2.0
-            self.bid_ask_spread = 0.03
             self.position_size = 0.10
 
     def param_grid(self):
