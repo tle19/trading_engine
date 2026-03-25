@@ -84,7 +84,7 @@ class DataFeedController:
             start_time=datetime.time(9, 29, 0), 
             stop_time=datetime.time(16, 0, 0), 
             on_days=[0,1,2,3,4],
-            now_timzeone=timezone)
+            now_timezone=timezone)
         self.await_market_open()
         for feed in self.feeds:
             feed.subscribe_symbols()
