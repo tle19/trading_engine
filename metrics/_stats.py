@@ -44,6 +44,9 @@ class Stats:
         self.avg_market_exposure = 0
         self.avg_trade_duration = 0
         self.time_in_market = 0
+        self.total_entry_slippage = 0
+        self.total_exit_slippage = 0
+        self.slippage_impact = 0
 
         self.daily_win_rate = 0
         self.avg_day = 0
@@ -117,6 +120,9 @@ class Stats:
         print(f"Average Trade Duration:     {self.avg_trade_duration:.2f} minutes")
         print(f"Average Market Exposure:    {self.avg_market_exposure:.2%}")
         print(f"Time in Market:             {self.time_in_market:.2%}")
+        print(f"Entry Slippage:             ${self.total_entry_slippage:.2f} (AVG: ${self.total_entry_slippage/self.total_trades:.3f})")
+        print(f"Exit Slippage:              ${self.total_exit_slippage:.2f} (AVG: ${self.total_exit_slippage/self.total_trades:.3f})")
+        print(f"Slippage Impact:            {self.slippage_impact:.2%}")
         print("-" * 50)
 
         # --- Daily Performance ---
@@ -233,7 +239,7 @@ class Stats:
         daily_returns = np.array(self.daily_pnls) / self.equity_initial
         daily_rf = (1 + risk_free_rate) ** (1/252) - 1
 
-        if len(daily_returns) == 1:
+        if len(daily_returns) <= 1:
             return
 
         excess_mean = np.mean(daily_returns) - daily_rf
@@ -247,8 +253,8 @@ class Stats:
 
         excess_returns = daily_returns - daily_rf
         downside_returns = excess_returns[excess_returns < 0]
-
-        if len(downside_returns) == 1:
+        
+        if len(downside_returns) <= 1:
             return
 
         downside_std = np.std(downside_returns, ddof=1)
@@ -274,7 +280,14 @@ class Stats:
         total_seconds = self.duration.total_seconds()
         total_duration = 0
         time_weighted_exposure = 0
+        total_entry_slips = 0
+        total_exit_slips  = 0
+        total_theoretical_pnl = 0
+        total_actual_pnl = 0
         for trade in self.trade_history:
+            shares = trade["shares"]
+            direction = trade["direction"]
+
             entry_time = datetime.datetime.fromisoformat(trade["entry_time"])
             exit_time = datetime.datetime.fromisoformat(trade["exit_time"])
             duration_sec = (exit_time - entry_time).total_seconds()
@@ -282,10 +295,18 @@ class Stats:
             total_duration += duration_sec
             time_weighted_exposure += duration_sec * trade["position_size"]
 
+            total_entry_slips += direction * (trade["entry_price"] - trade["entry_fill"]) * shares
+            total_exit_slips += direction * (trade["exit_fill"] - trade["exit_price"]) * shares
+            total_theoretical_pnl += direction * (trade["exit_price"] - trade["entry_price"]) * shares
+            total_actual_pnl += trade["pnl"]
+
         self.total_trades = len(self.trade_history)
         self.avg_trade_duration = total_duration / 60 / self.total_trades
         self.avg_market_exposure = time_weighted_exposure / total_seconds
         self.time_in_market = total_duration / total_seconds
+        self.total_entry_slippage = total_entry_slips
+        self.total_exit_slippage = total_exit_slips
+        self.slippage_impact = (total_theoretical_pnl - total_actual_pnl) / total_theoretical_pnl
     
     def get_data_dict(self):
         data = {
@@ -327,6 +348,9 @@ class Stats:
             "Average Trade Duration": float(self.avg_trade_duration),
             "Average Market Exposure": float(self.avg_market_exposure),
             "Time in Market": float(self.time_in_market),
+            "Entry Slippage": float(self.total_entry_slippage),
+            "Exit Slippage": float(self.total_exit_slippage),
+            "Slippage Impact": float(self.slippage_impact),
 
             # --- Daily Performance ---
             "Daily Win Rate": float(self.daily_win_rate),
