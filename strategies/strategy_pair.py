@@ -58,7 +58,7 @@ class StrategyPair:
 
         self.features = None
 
-        self.history = []
+        self.data_history = []
         self.saved = False
 
         self.position_manager = PositionManager()
@@ -235,13 +235,13 @@ class StrategyPair:
 
         return pnl / position_value
     
-    def save_data(self, spread):
+    def save_data(self, data):
         if not self.saved:
-            self.history.append(spread)
+            self.data_history.append(data)
             end_time = ((18, 55)[0] * 3600 + (18, 55)[1] * 60) * 1000
             if self.s1["ts"] % (24 * 3600 * 1000) > end_time:
                 with open(f"{self.pair}_spread.json", "w") as f:
-                    json.dump(self.history, f, indent=2)
+                    json.dump(self.data_history, f, indent=2)
                 self.saved = True
 
     def compute_ema(self, prev_ema, new_value, window=10):

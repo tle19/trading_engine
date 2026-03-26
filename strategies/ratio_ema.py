@@ -27,7 +27,7 @@ class RatioEMA(StrategyPair):
         self.spread_std = 1
         self.spread_check = False
 
-        self.rolling_spread = deque(maxlen=self.spread_window)
+        self.spread_history = deque(maxlen=self.spread_window)
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
@@ -52,7 +52,7 @@ class RatioEMA(StrategyPair):
                 "z_score": self.z_score,
                 "spread_mean": self.spread_mean,
                 "spread_std": self.spread_std,
-                "spread_dist": abs(self.rolling_spread[-1] - self.spread_mean),
+                "spread_dist": abs(self.spread_history[-1] - self.spread_mean),
                 "latency": self.latency,
                 "time_diff": abs(self.s1["ts"] - self.s2["ts"]),
             }
@@ -75,7 +75,7 @@ class RatioEMA(StrategyPair):
         # elif direction and self.compute_position_value() > self.take_profit:
         #     return self.exit()
         elif direction and self.features:
-            anchored_z = (self.rolling_spread[-1] - self.features["spread_mean"]) / self.features["spread_std"]
+            anchored_z = (self.spread_history[-1] - self.features["spread_mean"]) / self.features["spread_std"]
             if abs(anchored_z) > 8.0:
                 return self.exit()
         return signal
@@ -90,14 +90,15 @@ class RatioEMA(StrategyPair):
             self.hedge_ratio = self.hedge_ratio_live
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
-        self.rolling_spread.append(spread)
+        self.spread_history.append(spread)
         self.save_data(spread)
-        if len(self.rolling_spread) == self.spread_window:
-            self.spread_mean = np.mean(self.rolling_spread)
-            self.spread_std = np.std(self.rolling_spread, ddof=1)
+        if len(self.spread_history) == self.spread_window:
+            self.spread_mean = np.mean(self.spread_history)
+            self.spread_std = np.std(self.spread_history, ddof=1)
             self.z_score = (spread - self.spread_mean) / self.spread_std
 
-        self.spread_check = self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread
+        self.spread_check = (self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and 
+                            self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread)
     
     def config(self):
         if self.pair == "SPY-QQQ":
@@ -106,7 +107,7 @@ class RatioEMA(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
-            self.position_size = 0.10
+            self.position_size = 0.20
         if self.pair == "IVV-IWM":
             # self.ema_window = 100
             # self.spread_window = 1000

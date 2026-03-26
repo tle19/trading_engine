@@ -30,7 +30,7 @@ class RatioEMA2(StrategyPair):
         self.frozen_mean = 0
         self.frozen_std = 1
 
-        self.rolling_spread = deque(maxlen=self.spread_window)
+        self.spread_history = deque(maxlen=self.spread_window)
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
@@ -70,7 +70,7 @@ class RatioEMA2(StrategyPair):
             self.frozen_mean = self.spread_mean
             self.frozen_std = self.spread_std
         
-        anchored_z = (self.rolling_spread[-1] - self.frozen_mean) / self.frozen_std
+        anchored_z = (self.spread_history[-1] - self.frozen_mean) / self.frozen_std
         if self.frozen_spread and anchored_z < -3.0:
             signal = self.buy_pair()
         elif self.frozen_spread and anchored_z > 3.0:
@@ -92,7 +92,7 @@ class RatioEMA2(StrategyPair):
         # elif direction and self.compute_position_value() > self.take_profit:
         #     return self.exit()
         # elif direction and self.features:
-        #     anchored_z = (self.rolling_spread[-1] - self.features["spread_mean"]) / self.features["spread_std"]
+        #     anchored_z = (self.spread_history[-1] - self.features["spread_mean"]) / self.features["spread_std"]
         #     if abs(anchored_z) > 8.0:
         #         self.frozen_spread = False
         #         return self.exit()
@@ -108,14 +108,15 @@ class RatioEMA2(StrategyPair):
             self.hedge_ratio = self.hedge_ratio_live
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
-        self.rolling_spread.append(spread)
+        self.spread_history.append(spread)
         self.save_data(spread)
-        if len(self.rolling_spread) == self.spread_window:
-            self.spread_mean = np.mean(self.rolling_spread)
-            self.spread_std = np.std(self.rolling_spread, ddof=1)
+        if len(self.spread_history) == self.spread_window:
+            self.spread_mean = np.mean(self.spread_history)
+            self.spread_std = np.std(self.spread_history, ddof=1)
             self.z_score = (spread - self.spread_mean) / self.spread_std
 
-        self.spread_check = self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread
+        self.spread_check = (self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and 
+                    self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread)
     
     def config(self):
         if self.pair == "SPY-QQQ":

@@ -1,4 +1,5 @@
 import numpy as np
+import statsmodels.api as sm
 from collections import deque
 
 from strategies import StrategyPair
@@ -26,7 +27,9 @@ class OLS(StrategyPair):
         self.spread_std = 1
         self.spread_check = False
 
-        self.rolling_spread = deque(maxlen=self.spread_window)
+        self.mid1_history = deque(maxlen=5000)
+        self.mid2_history = deque(maxlen=5000)
+        self.spread_history = deque(maxlen=self.spread_window)
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
@@ -67,20 +70,38 @@ class OLS(StrategyPair):
         self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
-        hedge_ratio = round(self.mid1 / self.mid2, 3)
+        self.mid1_history.append(self.mid1)
+        self.mid2_history.append(self.mid2)
+
+        y = np.array(self.mid1_history)
+        x = np.array(self.mid2_history)
+
+        # if len(self.spread_history) < self.spread_window:
+        #     hedge_ratio = round(self.mid1 / self.mid2, 1)
+        # else:
+        #     hedge_ratio = np.cov(y, x, ddof=1)[0,1] / np.var(x, ddof=1)
+
+        if not self.spread_history:
+            hedge_ratio = round(self.mid1 / self.mid2, 1)
+        else:
+            X = sm.add_constant(x)
+            model = sm.OLS(y, X).fit()
+            hedge_ratio = model.params[1]
+
         self.hedge_ratio_live = self.compute_ema(self.hedge_ratio_live, hedge_ratio, self.ema_window)
         if not self.position_manager.in_trade():
             self.hedge_ratio = self.hedge_ratio_live
-
-        spread = self.mid1 - (self.hedge_ratio * self.mid2)
-        self.rolling_spread.append(spread)
-        # self.save_data(spread)
-        if len(self.rolling_spread) == self.spread_window:
-            self.spread_mean = np.mean(self.rolling_spread)
-            self.spread_std = np.std(self.rolling_spread, ddof=1)
+        
+        spread = self.mid1 - (self.hedge_ratio_live * self.mid2)
+        self.spread_history.append(spread)
+        self.save_data(spread)
+        if len(self.spread_history) == self.spread_window:
+            self.spread_mean = np.mean(self.spread_history)
+            self.spread_std = np.std(self.spread_history, ddof=1)
             self.z_score = (spread - self.spread_mean) / self.spread_std
 
-        self.spread_check = self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread
+        self.spread_check = (self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and 
+                            self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread)
     
     def config(self):
         if self.pair == "SPY-QQQ":
