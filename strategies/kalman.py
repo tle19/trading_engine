@@ -8,7 +8,7 @@ class KalmanFilter(StrategyPair):
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
                  start_time=(15, 00), end_time=(19, 00), quote_delta_ms=1000, max_latency_ms=500, 
                  position_size=0.10, stop_loss=-0.005, take_profit=0.00005, 
-                 pnl_target=0.005, pnl_loss=-0.005, trade_max=800):
+                 pnl_target=0.005, pnl_loss=-0.005, trade_max=1000):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
                          position_size, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)

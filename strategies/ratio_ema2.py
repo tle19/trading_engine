@@ -8,7 +8,7 @@ class RatioEMA2(StrategyPair):
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
                  start_time=(15, 00), end_time=(19, 00), quote_delta_ms=1000, max_latency_ms=500, 
                  position_size=0.10, stop_loss=-0.005, take_profit=0.00005, 
-                 pnl_target=0.005, pnl_loss=-0.005, trade_max=800):
+                 pnl_target=0.005, pnl_loss=-0.005, trade_max=1000):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
                          position_size, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
@@ -89,13 +89,6 @@ class RatioEMA2(StrategyPair):
         elif direction and self.compute_position_value() < self.stop_loss:
             self.frozen_spread = False
             return self.exit()
-        # elif direction and self.compute_position_value() > self.take_profit:
-        #     return self.exit()
-        # elif direction and self.features:
-        #     anchored_z = (self.spread_history[-1] - self.features["spread_mean"]) / self.features["spread_std"]
-        #     if abs(anchored_z) > 8.0:
-        #         self.frozen_spread = False
-        #         return self.exit()
         return signal
 
     def compute_indicators(self):
@@ -120,15 +113,15 @@ class RatioEMA2(StrategyPair):
     
     def config(self):
         if self.pair == "SPY-QQQ":
-            # self.ema_window = 100
-            # self.spread_window = 1000
+            self.ema_window = 100
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "IVV-IWM":
-            # self.ema_window = 100
-            # self.spread_window = 1000
+            self.ema_window = 100
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03

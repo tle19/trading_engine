@@ -9,7 +9,7 @@ class RatioEMA(StrategyPair):
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
                  start_time=(15, 00), end_time=(19, 00), quote_delta_ms=1000, max_latency_ms=500, 
                  position_size=0.10, stop_loss=-0.005, take_profit=0.00005, 
-                 pnl_target=0.005, pnl_loss=-0.005, trade_max=800):
+                 pnl_target=0.005, pnl_loss=-0.005, trade_max=1000):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
                          position_size, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
@@ -91,7 +91,7 @@ class RatioEMA(StrategyPair):
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        self.save_data(spread)
+        # self.save_data(spread)
         if len(self.spread_history) == self.spread_window:
             self.spread_mean = np.mean(self.spread_history)
             self.spread_std = np.std(self.spread_history, ddof=1)
@@ -102,15 +102,15 @@ class RatioEMA(StrategyPair):
     
     def config(self):
         if self.pair == "SPY-QQQ":
-            # self.ema_window = 100
-            # self.spread_window = 1000
+            self.ema_window = 100
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
-            self.position_size = 0.20
+            self.position_size = 0.10
         if self.pair == "IVV-IWM":
-            # self.ema_window = 100
-            # self.spread_window = 1000
+            self.ema_window = 100
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
