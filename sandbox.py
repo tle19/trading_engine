@@ -9,15 +9,12 @@ from statsmodels.tsa.stattools import coint
 
 import schwabdev
 
-from symbols import SP500, PAIRS
+from symbols import *
 from core import *
 from metrics import *
 from strategies import *
 from models import *
 from utils import *
-
-sp500 = SP500
-pairs = PAIRS
 
 def test_order(symbol="AAPL"):
     eq = Equities(symbol, SMACrossover)
@@ -184,10 +181,10 @@ def find_pair_stats(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
     return {
         "intraday_corr": intraday_corr,
         "daily_corr": daily_corr,
-        "cointegration_p": pvalue,
-        "intraday_profit_cents": intraday_spread,
+        "coint_pvalue": pvalue,
+        "intraday_spread": intraday_spread,
         "intraday_moves": intraday_moves,
-        "daily_profit_cents": daily_spread,
+        "daily_spread": daily_spread,
         "daily_moves": daily_moves
     }
 
@@ -200,19 +197,55 @@ def find_pair_stats_combos(symbols):
             "symbol2": y,
             "intraday_corr": stats["intraday_corr"],
             "daily_corr": stats["daily_corr"],
-            "coint_pvalue": stats["cointegration_p"]
+            "coint_pvalue": stats["coint_pvalue"],
+            "intraday_spread": stats["intraday_spread"],
+            "intraday_moves": stats["intraday_moves"],
+            "daily_spread": stats["daily_spread"],
+            "daily_moves": stats["daily_moves"]
         })
 
     with open("pair_stats.json", "w") as f:
         json.dump(pair_corrs, f, indent=4)
 
-def top_pairs(top_n=20):
+def top_pairs(top_n=20, stat="intraday_corr"):
     with open("pair_stats.json", "r") as f:
         pair_stats = json.load(f)
-    pairs = sorted(pair_stats, key=lambda x: x["intraday_corr"], reverse=True)[:top_n]
+    pairs = sorted(pair_stats, key=lambda x: x[stat], reverse=True)[:top_n]
     for i, pair in enumerate(pairs, 1):
         print(f"{"=" * 10} {pair["symbol1"]}-{pair["symbol2"]} {"=" * 10}")
-        print(f"{i}. Intraday Corr: {pair['intraday_corr']}")
+        print(f"{i}. {stat}: {pair[stat]:.4f}")
+
+def exchange_latency(file_path="market_logs/market_logs_2026-03-19.jsonl"):
+    with open(file_path) as f:
+        trade_history = [json.loads(line) for line in f]
+
+    latencies = {}
+
+    for packet in trade_history:
+        receive_time = int(packet[0])
+
+        for quote in packet:
+            match = re.search(r"\[(\w+)\].*timestamp=(\d+)", quote)
+            if match:
+                symbol, ts = match.group(1), int(match.group(2))
+
+                if symbol not in latencies:
+                    latencies[symbol] = []
+
+                latency_ms = receive_time - ts
+                latencies[symbol].append(latency_ms)
+
+    for symbol, times in latencies.items():
+        print(f"{'='*10} {symbol} {'='*10}")
+        if times:
+            print(f"{'Packets received:':25} {len(times)}")
+            print(f"{'Min latency:':25} {min(times)} ms")
+            print(f"{'5th percentile latency:':25} {np.percentile(times, 5):.0f} ms")
+            print(f"{'Average latency:':25} {np.mean(times):.0f} ms")
+            print(f"{'95th percentile latency:':25} {np.percentile(times, 95):.0f} ms")
+            print(f"{'Max latency:':25} {max(times)} ms")
+        else:
+            print(f"No data for {symbol}")
 
 def check_packet_sync(symbol1, symbol2, log_file="market_logs/market_logs_2026-03-02.jsonl"):
     with open(log_file) as f:
@@ -337,37 +370,12 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
 #     symbol1, symbol2 = pair[0], pair[1]
 #     find_pair_stats(symbol1, symbol2)
 # find_pair_stats("SPY", "QQQ")
-# find_pair_stats_combos(symbols)
-# top_pairs(top_n=20)
+# find_pair_stats_combos(["VOO", "SCHX", "VTI", "VXUS", "ITOT", "IXUS", "VT", "TLT"])
+# top_pairs(top_n=20, stat="intraday_spread")
 
+# exchange_latency()
 # check_packet_sync("XLV", "XBI", log_file="market_logs/market_logs_2026-03-06.jsonl")
 # visualize_latency("XLV", "XBI")
 
 # visualize_bid_ask_spread("VTI")
-# visualize_spread("SPY", "QQQ")
-
-
-
-
-# from collections import Counter
-
-# with open("GLD-SLV_RatioEMA_grid_search.json") as f:
-#     grid = json.load(f)
-
-# # sort by profitability
-# sorted_grid = sorted(grid, key=lambda x: x["STATS"]["Net Profit"], reverse=True)
-
-# # take top 25%
-# top = sorted_grid[: len(sorted_grid)//4]
-
-# ema_vals = [x["PARAMS"]["ema_window"] for x in top]
-# spread_vals = [x["PARAMS"]["spread_window"] for x in top]
-
-# print("Top EMA counts:")
-# print(Counter(ema_vals))
-
-# print("\nTop Spread counts:")
-# print(Counter(spread_vals))
-
-# print("\nRobust EMA range:", min(ema_vals), "-", max(ema_vals))
-# print("Robust Spread range:", min(spread_vals), "-", max(spread_vals))
+visualize_spread("VOO", "VXUS")
