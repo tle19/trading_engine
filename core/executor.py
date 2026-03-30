@@ -226,8 +226,6 @@ class Instrument:
         order_id2 = self.get_order_id(response2)
         fill_price1 = self.get_fill_price(order_id1, shares1)
         fill_price2 = self.get_fill_price(order_id2, shares2)
-        self.debug_order(response1, order_id1) # DEBUG
-        self.debug_order(response2, order_id2) # DEBUG
 
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[BOT] +{shares1} {symbol1} @ {fill_price1}")
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[SOLD] -{shares2} {symbol2} @ {fill_price2}")
@@ -242,8 +240,6 @@ class Instrument:
         order_id2 = self.get_order_id(response2)
         fill_price1 = self.get_fill_price(order_id1, shares1)
         fill_price2 = self.get_fill_price(order_id2, shares2)
-        self.debug_order(response1, order_id1) # DEBUG
-        self.debug_order(response2, order_id2) # DEBUG
 
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[SOLD] -{shares1} {symbol1} @ {fill_price1}")
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[BOT] +{shares2} {symbol2} @ {fill_price2}")
@@ -304,6 +300,37 @@ class Instrument:
         response = self.client.place_order(self.hash, order)
         return response
     
+    # def market_order(self, symbol, quantity, instruction="BUY", timeout=1, polling_rate=0.2):
+    #     order = {
+    #         "session": "NORMAL",
+    #         "duration": "DAY",
+    #         "orderType": "MARKET",
+    #         "orderStrategyType": "SINGLE",
+    #         "orderLegCollection": [
+    #             {
+    #                 "instruction": instruction,
+    #                 "quantity": quantity,
+    #                 "instrument": {
+    #                     "symbol": symbol,
+    #                     "assetType": "EQUITY"
+    #                 }
+    #             }
+    #         ]
+    #     }
+        
+    #     start = time.time()
+    #     while True:
+    #         response = self.client.place_order(self.hash, order)
+    #         order_id = self.get_order_id(response)
+    #         status = self.get_order_details(order_id).get('status')
+
+    #         if status == "FILLED":
+    #             return response
+            
+    #         if time.time() - start > timeout:
+    #             return response
+    #         time.sleep(polling_rate)
+       
     def limit_order(self, symbol, price, quantity, instruction="BUY"):
         order = {
             "session": "NORMAL",
@@ -412,7 +439,7 @@ class Instrument:
                     None
                 )
 
-            if order_details and order_details.get('orderActivityCollection'):
+            if order_details and order_details.get('orderActivityCollection'): # order_details.get("status") == "FILLED"
                 legs = order_details['orderActivityCollection'][0]['executionLegs']
                 total_qty = sum(leg['quantity'] for leg in legs)
                 if total_qty == quantity:
