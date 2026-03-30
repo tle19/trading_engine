@@ -113,7 +113,7 @@ def find_pair_stats(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
         df = open_data(symbol, start_date=start, end_date=end, mode=mode)
         if mode == "intraday":
             df = df.set_index("timestamp").between_time("09:30", "16:00").reset_index()
-        return df[['timestamp', 'close']]
+        return df[['timestamp', 'open', 'high', 'low', 'close']]
 
     df_intraday1 = prepare_df(symbol1, "intraday")
     df_intraday2 = prepare_df(symbol2, "intraday")
@@ -157,11 +157,24 @@ def find_pair_stats(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
                     spread_moves.append(spread.iloc[i] - entry_price)
                     in_trade = False
 
-        return np.mean(spread_moves), len(spread_moves)
+        return np.mean(spread_moves) if spread_moves else 0.00, len(spread_moves)
     
-    intraday_corr = df_intraday.groupby(df_intraday['timestamp'].dt.date).apply(
-        lambda x: x['close_x'].pct_change().corr(x['close_y'].pct_change())).mean()
-    daily_corr = df_daily['close_x'].pct_change().corr(df_daily['close_y'].pct_change())
+    def intraday_group_corr(df, col_x, col_y):
+        return df.groupby(df['timestamp'].dt.date).apply(
+            lambda x: x[col_x].pct_change().corr(x[col_y].pct_change())
+        ).mean()
+    def daily_group_corr(df, col_x, col_y):
+        return df[col_x].pct_change().corr(df[col_y].pct_change())
+    intraday_open_corr = intraday_group_corr(df_intraday, 'open_x', 'open_y')
+    intraday_high_corr = intraday_group_corr(df_intraday, 'high_x', 'high_y')
+    intraday_low_corr = intraday_group_corr(df_intraday, 'low_x', 'low_y')
+    intraday_close_corr = intraday_group_corr(df_intraday, 'close_x', 'close_y')
+    intraday_corr = (intraday_open_corr + intraday_high_corr + intraday_low_corr + intraday_close_corr) / 4
+    daily_open_corr = daily_group_corr(df_daily, 'open_x', 'open_y')
+    daily_high_corr = daily_group_corr(df_daily, 'high_x', 'high_y')
+    daily_low_corr = daily_group_corr(df_daily, 'low_x', 'low_y')
+    daily_close_corr = daily_group_corr(df_daily, 'close_x', 'close_y')
+    daily_corr = (daily_open_corr + daily_high_corr + daily_low_corr + daily_close_corr) / 4
     _, pvalue, _ = coint(df_daily['close_x'], df_daily['close_y'])
     intraday_spread, intraday_moves = compute_spread_move(df_intraday, mode="intraday")
     daily_spread, daily_moves = compute_spread_move(df_daily, mode="daily")
@@ -170,22 +183,17 @@ def find_pair_stats(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
     print("INTRADAY STATS")
     print(f"Intraday Corr: {intraday_corr:.4f}")
     print(f"Average Spread Move: ${intraday_spread:.2f}")
-    print(f"Number of Signals: {intraday_moves}\n")
-
+    print()
     print("DAILY STATS")
     print(f"Daily Corr: {daily_corr:.4f}")
     print(f"Average Spread Move: ${daily_spread:.2f}")
-    print(f"Number of Signals: {daily_moves}")
-    print(f"Cointegration p-value: {pvalue:.4f}\n")
 
     return {
         "intraday_corr": intraday_corr,
         "daily_corr": daily_corr,
         "coint_pvalue": pvalue,
         "intraday_spread": intraday_spread,
-        "intraday_moves": intraday_moves,
         "daily_spread": daily_spread,
-        "daily_moves": daily_moves
     }
 
 def find_pair_stats_combos(symbols):
@@ -199,9 +207,7 @@ def find_pair_stats_combos(symbols):
             "daily_corr": stats["daily_corr"],
             "coint_pvalue": stats["coint_pvalue"],
             "intraday_spread": stats["intraday_spread"],
-            "intraday_moves": stats["intraday_moves"],
             "daily_spread": stats["daily_spread"],
-            "daily_moves": stats["daily_moves"]
         })
 
     with open("pair_stats.json", "w") as f:
@@ -277,7 +283,9 @@ def check_packet_sync(symbol1, symbol2, log_file="market_logs/market_logs_2026-0
     print(f"Synced packets: {synced_packets} ({synced_packets / total_packets:.2%})")
     print(f"Unsynced packets: {unsynced_packets} ({unsynced_packets / total_packets:.2%})")
     print(f"Average difference: {np.mean(time_diffs):.0f} ms")
-    print(f"Min difference: {min(time_diffs)} ms") 
+    print(f"5th percentile latency: {np.percentile(time_diffs, 5):.0f} ms")
+    print(f"Min difference: {min(time_diffs)} ms")
+    print(f"95th percentile latency: {np.percentile(time_diffs, 95):.0f} ms")
     print(f"Max difference: {max(time_diffs)} ms") 
 
 def visualize_latency(symbol1, symbol2):
@@ -369,13 +377,59 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
 # for pair in pairs:
 #     symbol1, symbol2 = pair[0], pair[1]
 #     find_pair_stats(symbol1, symbol2)
-# find_pair_stats("SPY", "QQQ")
+# find_pair_stats("SPY", "QQQ", start="2026-03-16", end="2026-03-27")
 # find_pair_stats_combos(["VOO", "SCHX", "VTI", "VXUS", "ITOT", "IXUS", "VT", "TLT"])
 # top_pairs(top_n=20, stat="intraday_spread")
 
 # exchange_latency()
-# check_packet_sync("XLV", "XBI", log_file="market_logs/market_logs_2026-03-06.jsonl")
+# check_packet_sync("SPY", "QQQ", log_file="market_logs/market_logs_2026-03-06.jsonl")
 # visualize_latency("XLV", "XBI")
 
 # visualize_bid_ask_spread("VTI")
-visualize_spread("VOO", "VXUS")
+visualize_spread("SPY", "QQQ")
+
+
+
+# with open("trade_logs/trade_logs_live_pt.json") as f:
+#     trade_history = json.load(f)["trade_history"]
+
+# latency = []
+# time_diffs = []
+# pnls = []
+
+# for trade in trade_history:
+#     time_diffs.append(trade['features']['time_diff'])
+#     latency.append(trade['features']['latency'])
+#     pnls.append(trade['pnl_pct'])
+
+# time_diffs = np.array(time_diffs)
+# latency = np.array(latency)
+# pnls = np.array(pnls)
+
+# time_bins = [0, 250, 500, 1000]
+# lat_bins  = [0, 100, 200, 300, 500]
+
+# def stats(mask, label):
+#     x = pnls[mask]
+#     if len(x) < 50:
+#         return
+
+#     mean = x.mean()
+#     std = x.std()
+#     sharpe = mean / std if std != 0 else 0
+
+#     print(f"{label}")
+#     print(f"  mean={mean:.6f}, sharpe={sharpe:.4f}, n={len(x)}\n")
+
+# for i in range(len(time_bins)-1):
+#     for j in range(len(lat_bins)-1):
+
+#         t_low, t_high = time_bins[i], time_bins[i+1]
+#         l_low, l_high = lat_bins[j], lat_bins[j+1]
+
+#         mask = (
+#             (time_diffs >= t_low) & (time_diffs < t_high) &
+#             (latency >= l_low) & (latency < l_high)
+#         )
+
+#         stats(mask, f"T[{t_low}-{t_high}] L[{l_low}-{l_high}]")
