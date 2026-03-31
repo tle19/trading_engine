@@ -135,7 +135,7 @@ class Stats:
         print("-" * 50)
 
     def _update_dates(self):
-        self.dates = pd.to_datetime(sorted(self.intraday_equity), format="ISO8601")
+        self.dates = pd.to_datetime(sorted(self.intraday_equity), format="ISO8601", utc=True)
         self.start_date = self.dates[0]
         self.end_date = self.dates[-1]
         self.duration = self.end_date - self.start_date

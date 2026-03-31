@@ -29,7 +29,7 @@ class Plotting:
         self.intraday_equity = np.array([v for k, v in sorted(self.intraday_equity.items())])
 
     def _update_dates(self):
-        self.dates = pd.to_datetime(sorted(self.intraday_equity), format="ISO8601")
+        self.dates = pd.to_datetime(sorted(self.intraday_equity), format="ISO8601", utc=True)
         self.start_date = self.dates[0]
         self.end_date = self.dates[-1]
 
