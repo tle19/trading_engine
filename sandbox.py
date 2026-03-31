@@ -324,6 +324,64 @@ def visualize_latency(symbol1, symbol2):
     plt.xlabel("Milliseconds")
     plt.ylabel("Count")
     plt.show()
+    
+def sync_and_latency_test(file="trade_logs/trade_logs_live_pt.json"):
+    with open(file) as f:
+        trade_history = json.load(f)["trade_history"]
+
+    latency = []
+    time_diffs = []
+    pnls = []
+
+    for trade in trade_history:
+        time_diffs.append(trade['features']['time_diff'])
+        latency.append(trade['features']['latency'])
+        pnls.append(trade['pnl_pct'])
+
+
+    time_diffs = np.array(time_diffs)
+    latency = np.array(latency)
+    pnls = np.array(pnls) * 100
+
+    time_bins = [0, 500, 1000]
+    lat_bins  = [0, 100, 200, 300, 500]
+
+    def stats(x):
+        n = len(x)
+        if n < 1:
+            return None
+
+        mean = x.mean()
+        std = x.std()
+        sharpe = mean / std if std > 1e-12 else 0
+
+        return mean, std, sharpe, n
+
+    for i in range(len(time_bins) - 1):
+
+        t_low, t_high = time_bins[i], time_bins[i + 1]
+        t_mask = (time_diffs >= t_low) & (time_diffs < t_high)
+
+        mean, std, sharpe, n = stats(pnls[t_mask]) or (0, 0, 0, 0)
+        if n < 50:
+            continue
+
+        print("========================================")
+        print(f"T[{t_low}-{t_high}] mean={mean:.4f}, std={std:.4f}, sharpe={sharpe:.4f}, n={n}")
+        print("========================================")
+
+        for j in range(len(lat_bins) - 1):
+            l_low, l_high = lat_bins[j], lat_bins[j + 1]
+            x = pnls[t_mask & (latency >= l_low) & (latency < l_high)]
+
+            m = stats(x)
+            if not m or m[3] < 50:
+                continue
+
+            mean, std, sharpe, n = m
+
+            print(f"  L[{l_low}-{l_high}]")
+            print(f"    mean={mean:.4f}, std={std:.4f}, sharpe={sharpe:.4f}, n={n}")
 
 def visualize_bid_ask_spread(symbol):
     try:
@@ -384,52 +442,7 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
 # exchange_latency()
 # check_packet_sync("SPY", "QQQ", log_file="market_logs/market_logs_2026-03-06.jsonl")
 # visualize_latency("XLV", "XBI")
+# sync_and_latency_test(file="trade_logs/trade_logs_live_pt.json")
 
 # visualize_bid_ask_spread("VTI")
-visualize_spread("SPY", "QQQ")
-
-
-
-# with open("trade_logs/trade_logs_live_pt.json") as f:
-#     trade_history = json.load(f)["trade_history"]
-
-# latency = []
-# time_diffs = []
-# pnls = []
-
-# for trade in trade_history:
-#     time_diffs.append(trade['features']['time_diff'])
-#     latency.append(trade['features']['latency'])
-#     pnls.append(trade['pnl_pct'])
-
-# time_diffs = np.array(time_diffs)
-# latency = np.array(latency)
-# pnls = np.array(pnls)
-
-# time_bins = [0, 250, 500, 1000]
-# lat_bins  = [0, 100, 200, 300, 500]
-
-# def stats(mask, label):
-#     x = pnls[mask]
-#     if len(x) < 50:
-#         return
-
-#     mean = x.mean()
-#     std = x.std()
-#     sharpe = mean / std if std != 0 else 0
-
-#     print(f"{label}")
-#     print(f"  mean={mean:.6f}, sharpe={sharpe:.4f}, n={len(x)}\n")
-
-# for i in range(len(time_bins)-1):
-#     for j in range(len(lat_bins)-1):
-
-#         t_low, t_high = time_bins[i], time_bins[i+1]
-#         l_low, l_high = lat_bins[j], lat_bins[j+1]
-
-#         mask = (
-#             (time_diffs >= t_low) & (time_diffs < t_high) &
-#             (latency >= l_low) & (latency < l_high)
-#         )
-
-#         stats(mask, f"T[{t_low}-{t_high}] L[{l_low}-{l_high}]")
+# visualize_spread("SPY", "QQQ")
