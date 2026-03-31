@@ -319,18 +319,21 @@ class BacktestPairs:
         self.train_wait = True
 
         self.ts = None
-        self.bid = None
-        self.ask = None
-        self.last = None
-        self.bid_size = None
-        self.ask_size = None
-        self.prev_bid = None
-        self.prev_ask = None
-        self.prev_last = None
-        self.prev_bid_size = None
-        self.prev_ask_size = None
+        self.ts1 = None
+        self.bid1 = None
+        self.ask1 = None
+        self.last1 = None
+        self.bid_size1 = None
+        self.ask_size1 = None
+        self.ts2 = None
+        self.bid2 = None
+        self.ask2 = None
+        self.last2 = None
+        self.bid_size2 = None
+        self.ask_size2 = None
 
-        self.level1_row = Level1Row()
+        self.row1 = Level1Row()
+        self.row2 = Level1Row()
 
     def run(self, start_date="2024-1-10", end_date="2026-1-10", 
             grid=False, train=False, display=True, show_trade=False):
@@ -347,13 +350,14 @@ class BacktestPairs:
             symbol1, symbol2 = pair.split("-")
             df1 = open_data(symbol1, start_date, end_date, mode="quote")
             df2 = open_data(symbol2, start_date, end_date, mode="quote")
-            df_merged = pd.merge_asof(df1, df2, on='timestamp', direction='nearest', tolerance=5000, suffixes=(f'_{symbol1}',f'_{symbol2}'))
-            df_merged.dropna(axis=0, inplace=True)
+            df1["symbol"] = symbol1
+            df2["symbol"] = symbol2
+            df = pd.concat([df1, df2]).sort_values("timestamp")
 
             if grid:
-                self.grid_search(pair, df_merged, train)
+                self.grid_search(pair, df, train)
             else:
-                self.run_simulation(pair, df_merged, train, display, display)
+                self.run_simulation(pair, df, train, display, display)
 
             self.trade_history.extend(self.trade_manager.trade_history)
             self.intraday_equity.append(self.trade_manager.intraday_equity)
@@ -381,43 +385,62 @@ class BacktestPairs:
 
     def run_simulation(self, pair, df, train, display_stats=True, display_plot=True):
         last_day = pd.Timestamp(self.start_date).date()
+        symbol1, symbol2 = pair.split("-")
         for row in df.itertuples(index=False):
-            for symbol in pair.split("-"):
-                level1_row = self.level1_row.update(
+            symbol = row.symbol
+            if symbol == symbol1:
+                level1_row = self.row1.update(
                     row.timestamp,
-                    getattr(row, f"bid_{symbol}"),
-                    getattr(row, f"ask_{symbol}"),
-                    getattr(row, f"last_{symbol}"),
-                    getattr(row, f"bid_size_{symbol}"),
-                    getattr(row, f"ask_size_{symbol}")
+                    row.bid,
+                    row.ask,
+                    row.last,
+                    row.bid_size,
+                    row.ask_size
                 )
 
-                self.prev_bid = self.bid
-                self.prev_ask = self.ask
-                self.prev_last = self.last
-                self.prev_bid_size = self.bid_size
-                self.prev_ask_size = self.ask_size
+            if symbol == symbol2:
+                level1_row = self.row2.update(
+                    row.timestamp,
+                    row.bid,
+                    row.ask,
+                    row.last,
+                    row.bid_size,
+                    row.ask_size
+                )
+            
+            self.ts1 = self.row1.timestamp
+            self.bid1 = self.row1.bid
+            self.ask1 = self.row1.ask
+            self.last1 = self.row1.last
+            self.bid_size1 = self.row1.bid_size
+            self.ask_size1 = self.row1.ask_size
 
-                self.ts = level1_row.timestamp
-                self.bid = level1_row.bid
-                self.ask = level1_row.ask
-                self.last = level1_row.last
-                self.bid_size = level1_row.bid_size
-                self.ask_size = level1_row.ask_size
+            self.ts2 = self.row2.timestamp
+            self.bid2 = self.row2.bid
+            self.ask2 = self.row2.ask
+            self.last2 = self.row2.last
+            self.bid_size2 = self.row2.bid_size
+            self.ask_size2 = self.row2.ask_size
 
-                current_day = convert_epoch_ms(self.ts).date() 
-                if current_day != last_day:
-                    self.risk_manager.reset()
-                    last_day = current_day
-                
-                signal = self.strategy.generate_signal(level1_row, symbol)
-                # self.dynamic_slippage(signal)
-                self.interpret_signal(signal, self.strategy)
-                self.update_equity(pair, symbol)
+            if self.ts1 and self.ts2:
+                self.ts = self.ts1 if self.ts1 >= self.ts2 else self.ts2
+            else:
+                self.ts = self.ts1 or self.ts2
 
-                if self.cash * self.margin < (self.bid + self.ask) / 2:
+            current_day = convert_epoch_ms(self.ts).date() 
+            if current_day != last_day:
+                self.risk_manager.reset()
+                last_day = current_day
+            
+            signal = self.strategy.generate_signal(level1_row, symbol)
+            # self.dynamic_slippage(signal)
+            self.interpret_signal(signal, self.strategy)
+            self.update_equity()
+            
+            if self.bid1 and self.bid2 and self.ask1 and self.ask2:
+                if self.cash * self.margin < (self.bid1 + self.ask1) / 2:
                     break
-        
+            
         self.stats.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
         self.stats.summary(display=display_stats)
 
@@ -467,12 +490,12 @@ class BacktestPairs:
         elif signal == 0:
             shares1, shares2 = position_manager.total_shares()
             if direction1 == 1:
-                exit_price1 = s1["bid"]
-                exit_price2 = s2["ask"]
+                exit_price1 = (s1["bid"] + s1["ask"]) / 2
+                exit_price2 = (s2["bid"] + s2["ask"]) / 2
                 fill_price1, fill_price2 = exit_price1 * self.slip_dn, exit_price2 * self.slip_up
             elif direction1 == -1:
-                exit_price1 = s1["ask"]
-                exit_price2 = s2["bid"]
+                exit_price1 = (s1["bid"] + s1["ask"]) / 2
+                exit_price2 = (s2["bid"] + s2["ask"]) / 2
                 fill_price1, fill_price2 = exit_price1 * self.slip_up, exit_price2 * self.slip_dn
 
             for leg1, leg2 in position_manager.pairs.copy():
@@ -519,25 +542,17 @@ class BacktestPairs:
         self.cash += pnl
         self.risk_manager.update_trade(pnl)
 
-    def update_equity(self, pair, symbol):
+    def update_equity(self):
         current_equity = self.cash
 
-        symbol1, symbol2 = pair.split("-")
-
-        def leg_pnl(leg, bid_price, ask_price):
-            current_price = bid_price if leg.direction > 0 else ask_price
-            return leg.direction * (current_price - leg.entry_price) * leg.shares * self.margin
-
         for leg1, leg2 in self.position_manager.pairs:
-            if symbol1 == symbol:
-                current_equity += leg_pnl(leg1, self.bid, self.ask)
-                current_equity += leg_pnl(leg2, self.prev_bid, self.prev_ask)
-            elif symbol2 == symbol:
-                current_equity += leg_pnl(leg1, self.prev_bid, self.prev_ask)
-                current_equity += leg_pnl(leg2, self.bid, self.ask)
+            p1 = self.bid1 if leg1.direction > 0 else self.ask1
+            p2 = self.bid2 if leg2.direction > 0 else self.ask2
+            current_equity += leg1.direction * (p1 - leg1.entry_price) * leg1.shares * self.margin
+            current_equity += leg2.direction * (p2 - leg2.entry_price) * leg2.shares * self.margin
                 
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
-    
+   
     def sort_trade_history(self, trade_history):
         trade_history.sort(key=lambda x: x["entry_time"])
         return trade_history

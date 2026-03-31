@@ -189,8 +189,8 @@ class Instrument:
 
         self.cash = self.get_cash_balance() * margin
         day_trading_power = self.get_day_trading_power()
-        if day_trading_power < self.cash and margin > 4.0:
-            raise ValueError(f"Insufficient day trading power: available ${day_trading_power}")
+        if day_trading_power < self.cash:
+            self.cash = day_trading_power
         
         if "-" in symbols[0]:
             self.symbols = [symbol for pair in symbols for symbol in pair.split("-")]
@@ -660,56 +660,5 @@ class EquityBook(Instrument):
         self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4", command="ADD"))
 
     def interpret_signal(self, signal, strategy):
-        return
-
         # TODO: finish book interpret
-        name = strategy.__class__.__name__
-        symbol = strategy.symbol
-        direction = strategy.direction
-        entry_price = strategy.entry_price
-        shares = strategy.shares
-        
-        # --- Enter Long ---
-        if signal == 1:
-            fill_price = self.buy(signal, symbol, shares)
-            self.exit_ids[leg] = self.sell_oco(symbol, shares, stop_price, target_price)
-            strategy.entry_price = fill_price
-            self.trade_manager.log_entry(name, leg, symbol, direction, 1.0, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
-
-        # --- Enter Short ---
-        elif signal == -1:
-            fill_price = self.sell(signal, symbol, shares)
-            self.exit_ids[leg] = self.buy_oco(symbol, shares, stop_price, target_price)
-            strategy.entry_price = fill_price
-            self.trade_manager.log_entry(name, leg, symbol, direction, 1.0, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
-
-        # --- Adjust Stops / Targets ---
-        elif signal == 9:
-            self.exit_ids[leg] = self.replace_order(self.exit_ids[leg], direction, symbol, shares, stop_price, target_price)
-                
-        # --- Exit Position --- 
-        elif signal == 0:
-
-            fill_price = self.get_fill_price(self.exit_ids[leg], shares, instruction="oco", timeout=1)
-
-            if fill_price is None:
-                self.cancel_order(self.exit_ids[leg])
-                # TODO: handle partial fills
-                # shares_remaining = shares - self.get_shares_owned(symbol)
-                if direction == 1:
-                    fill_price = self.sell(signal, symbol, shares)
-                elif direction == -1:
-                    fill_price = self.buy(signal, symbol, shares)
-                exit_price = strategy.close
-            else:
-                if direction == 1:
-                    self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[SOLD] -{shares} {symbol} @ {fill_price}")
-                elif direction == -1:
-                    self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[BOT] +{shares} {symbol} @ {fill_price}")
-                exit_price = min([stop_price, target_price], key=lambda x: abs(fill_price - x))
-            
-            fill_price = fill_price if fill_price is not None else exit_price
-            self.trade_manager.update_exit(leg, strategy.ts, exit_price, fill_price)
-            self.update_pnl(strategy, direction, entry_price, fill_price, shares)
-            self.exit_ids.pop(leg)
-            position_manager.remove_leg(leg)
+        return
