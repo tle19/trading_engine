@@ -60,6 +60,8 @@ class Stats:
     def update_data(self, trade_history, intraday_equity):
         self.trade_history = copy.deepcopy(trade_history)
         self.intraday_equity = intraday_equity.copy()
+        if not self.trade_history:
+            return
         if not self.intraday_equity:
             self.intraday_equity = {self.trade_history[0]["entry_time"]: 25000, 
                                     self.trade_history[-1]["exit_time"]: 25000}
@@ -67,6 +69,8 @@ class Stats:
         self.intraday_equity = np.array([v for k, v in sorted(self.intraday_equity.items())])
 
     def summary(self, display=True):
+        if not self.trade_history:
+            return print("No trade data available to display.")
         self._calculate_pnls()
         self._calculate_win_rates()
         self._calculate_streaks()
@@ -102,8 +106,8 @@ class Stats:
         print(f"Win Rate:                   {self.win_rate:.2%}")
         print(f"Consecutive Wins:           {self.win_streak} (${self.max_gain_streak:.2f})")
         print(f"Consecutive Losses:         {self.loss_streak} (${self.max_loss_streak:.2f})")
-        print(f"Long Trades:                {self.long_trades} (Win Rate: {self.long_win_rate:.2%})")
-        print(f"Short Trades:               {self.short_trades} (Win Rate: {self.short_win_rate:.2%})")
+        print(f"Long Trades:                {self.long_trades} (WR: {self.long_win_rate:.2%})")
+        print(f"Short Trades:               {self.short_trades} (WR: {self.short_win_rate:.2%})")
         print("-" * 50)
 
          # --- Risk-Adjusted Performance ---
@@ -135,7 +139,7 @@ class Stats:
         print("-" * 50)
 
     def _update_dates(self):
-        self.dates = pd.to_datetime(sorted(self.intraday_equity), format="ISO8601", utc=True)
+        self.dates = pd.to_datetime(sorted(self.intraday_equity), format="ISO8601")
         self.start_date = self.dates[0]
         self.end_date = self.dates[-1]
         self.duration = self.end_date - self.start_date

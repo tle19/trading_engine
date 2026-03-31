@@ -20,6 +20,8 @@ class Plotting:
     def update_data(self, trade_history, intraday_equity):
         self.trade_history = copy.deepcopy(trade_history)
         self.intraday_equity = intraday_equity.copy()
+        if not self.trade_history:
+            return
         if not self.intraday_equity:
             equity = 25000
             for trade in self.trade_history:
@@ -29,11 +31,13 @@ class Plotting:
         self.intraday_equity = np.array([v for k, v in sorted(self.intraday_equity.items())])
 
     def _update_dates(self):
-        self.dates = pd.to_datetime(sorted(self.intraday_equity), format="ISO8601", utc=True)
+        self.dates = pd.to_datetime(sorted(self.intraday_equity), format="ISO8601")
         self.start_date = self.dates[0]
         self.end_date = self.dates[-1]
 
     def overview(self, display=True):
+        if not self.intraday_equity:
+            return print("No trade data available to plot.")
         equity = self.intraday_equity
         if len(equity) <= ((self.end_date - self.start_date).days + 1) * 385:
             dates = self.dates
