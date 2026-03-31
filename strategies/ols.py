@@ -19,7 +19,6 @@ class OLS(StrategyPair):
         self.bid_ask_spread = bid_ask_spread
         self.config()
 
-        self.hedge_ratio = None
         self.z_score = 0
         self.spread_mean = 0
         self.spread_std = 1
@@ -93,7 +92,7 @@ class OLS(StrategyPair):
         
         spread = self.mid1 - (intercept + hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        self.save_data(spread)
+        # self.save_data(spread)
         if len(self.spread_history) == self.spread_window:
             self.spread_mean = np.mean(self.spread_history)
             self.spread_std = np.std(self.spread_history, ddof=1)
