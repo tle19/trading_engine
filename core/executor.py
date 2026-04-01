@@ -468,7 +468,7 @@ class Instrument:
         day_trading_power = details_json["securitiesAccount"]["currentBalances"]["dayTradingBuyingPower"]
         return day_trading_power
 
-    def get_shares_owned(self):
+    def get_shares_owned(self, symbol):
         raise NotImplementedError
 
 class Equities(Instrument):
@@ -510,14 +510,14 @@ class Equities(Instrument):
         if signal == 1:
             fill_price = self.buy(signal, symbol, shares)
             self.exit_ids[leg] = self.sell_oco(symbol, shares, stop_price, target_price)
-            leg.entry_price = fill_price
+            leg.entry_price = fill_price if fill_price is not None else entry_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
 
         # --- Enter Short ---
         elif signal == -1:
             fill_price = self.sell(signal, symbol, shares)
             self.exit_ids[leg] = self.buy_oco(symbol, shares, stop_price, target_price)
-            leg.entry_price = fill_price
+            leg.entry_price = fill_price if fill_price is not None else entry_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
 
         # --- Adjust Stops / Targets ---
@@ -600,16 +600,16 @@ class EquityPairs(Instrument):
         # --- Enter Long/Short ---
         if signal == 1:
             fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, shares1, shares2)
-            leg1.entry_price = fill_price1
-            leg2.entry_price = fill_price2
+            leg1.entry_price = fill_price1 if fill_price1 is not None else entry_price1
+            leg2.entry_price = fill_price2 if fill_price2 is not None else entry_price2
             self.trade_manager.log_entry(name, leg1, symbol1, direction1, position_size1, shares1, s1["ts"], entry_price1, fill_price1, None, None, strategy.features)
             self.trade_manager.log_entry(name, leg2, symbol2, direction2, position_size2, shares2, s2["ts"], entry_price2, fill_price2, None, None, strategy.features)
 
         # --- Enter Short/Long ---
         elif signal == -1:
             fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, shares1, shares2)
-            leg1.entry_price = fill_price1
-            leg2.entry_price = fill_price2
+            leg1.entry_price = fill_price1 if fill_price1 is not None else entry_price1
+            leg2.entry_price = fill_price2 if fill_price2 is not None else entry_price2
             self.trade_manager.log_entry(name, leg1, symbol1, direction1, position_size1, shares1, s1["ts"], entry_price1, fill_price1, None, None, strategy.features)
             self.trade_manager.log_entry(name, leg2, symbol2, direction2, position_size2, shares2, s2["ts"], entry_price2, fill_price2, None, None, strategy.features)
         
