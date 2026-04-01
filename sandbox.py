@@ -410,26 +410,58 @@ def visualize_bid_ask_spread(symbol):
 def visualize_spread(symbol1, symbol2, window=1000, z=2):
     with open(f"{symbol1}-{symbol2}_spread.json", "r") as f:
         spread = json.load(f)
-
+    with open("trade_logs/trade_logs.json") as f:
+        trade_history = json.load(f)["trade_history"]
+    
     spread = pd.Series(spread)
-    roll_mean = spread.rolling(window).mean()
-    roll_std = spread.rolling(window).std()
+    spread.index = pd.to_datetime(spread.index.astype(int), unit='ms', utc=True).tz_convert(timezone)
+
+    roll_mean = spread.shift(-1).rolling(window).mean()
+    roll_std = spread.shift(-1).rolling(window).std()
     upper_band = roll_mean + z * roll_std
     lower_band = roll_mean - z * roll_std
-
+    
     plt.figure(figsize=(10, 5))
     plt.plot(spread, label="Spread")
     plt.plot(roll_mean, linestyle="--", label="Mean", color="gray")
     plt.plot(upper_band, linestyle="--", label=f"+{z} Std", color="lightgray")
     plt.plot(lower_band, linestyle="--", label=f"-{z} Std", color="lightgray")
-    plt.legend()
-    plt.show()
 
+    for trade in trade_history:
+        if trade["symbol"] not in (symbol1, symbol2):
+            continue
+        entry_time = pd.to_datetime(trade["entry_time"], utc=True).tz_convert(timezone)
+        exit_time = pd.to_datetime(trade["exit_time"], utc=True).tz_convert(timezone)
+        entry_idx = spread.index.get_indexer([entry_time], method="nearest")[0]
+        exit_idx = spread.index.get_indexer([exit_time], method="nearest")[0]
+
+        entry_val = spread.iloc[entry_idx]
+        exit_val = spread.iloc[exit_idx]
+        entry_mean = roll_mean.iloc[entry_idx]
+        slope = exit_val - entry_val
+
+        if entry_val > entry_mean:
+            color = "green" if slope < 0 else "red"
+        else:
+            color = "green" if slope > 0 else "red"
+
+        plt.plot(
+            spread.index[[entry_idx, exit_idx]],
+            spread.iloc[[entry_idx, exit_idx]],
+            color=color,
+            linewidth=2,
+            alpha=0.8
+        )
+
+    plt.legend()
+    plt.gcf().autofmt_xdate()
+    plt.show()
+    
 # test_order("AAPL")
 # acc_latency()
 # find_num_orders(file="trade_logs/trade_logs_live_pt.json")
 
-# compute_share_split(674.23, 250.36, min_pct=0.85, cash=10000, top_n=5)
+# compute_share_split(580.93, 24.92, min_pct=0.85, cash=1200, top_n=5)
 # dca_plan(687.12, 602.37, min_pct=0.85, cash=30000)
 
 # for pair in pairs:
@@ -445,4 +477,29 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
 # sync_and_latency_test(file="trade_logs/trade_logs_live_pt.json")
 
 # visualize_bid_ask_spread("VTI")
-# visualize_spread("SPY", "QQQ")
+visualize_spread("SPY", "QQQ")
+
+
+
+
+
+
+# df = open_data("SPY", mode="quote")
+# df['date'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
+# mask = (df['date'].dt.date >= pd.to_datetime("2026-02-25").date()) & \
+#         (df['date'].dt.date <= pd.to_datetime("2026-03-08").date())
+# df_old = df.loc[~mask].copy().drop(columns=['date'])
+# df_fix = df.loc[mask].copy().drop(columns=['date'])
+
+# df_fix.loc[:, 'timestamp'] = df['timestamp'] - 3600000
+
+# print(df)
+# print(df_old)
+# print(df_fix)
+
+# df_new = pd.concat([df_old, df_fix]).sort_index()
+# print(df_new)
+# # df_new['timestamp'] = pd.to_datetime(df_new['timestamp'], unit='ms', utc=True)
+# # print(df_new)
+
+# save_data(df_new, "SPY", mode="quote")
