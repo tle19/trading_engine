@@ -74,7 +74,7 @@ class KalmanFilter(StrategyPair):
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
         self.rolling_spread.append(spread)
-        # self.save_data(spread)
+        # self.save_data(self.s1["ts"], spread)
         if len(self.rolling_spread) == self.spread_window:
             self.spread_mean = np.mean(self.rolling_spread)
             self.spread_std = np.std(self.rolling_spread, ddof=1)

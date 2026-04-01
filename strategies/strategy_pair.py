@@ -58,7 +58,7 @@ class StrategyPair:
 
         self.features = None
 
-        self.data_history = []
+        self.data_history = {}
         self.saved = False
 
         self.position_manager = PositionManager()
@@ -196,6 +196,9 @@ class StrategyPair:
         if self.pair == "GLD-SLV":
             shares1 = 9
             shares2 = 56
+        if self.pair == "VOO-SCHX":
+            shares1 = 1
+            shares2 = 23
 
         return shares1, shares2
     
@@ -235,9 +238,9 @@ class StrategyPair:
 
         return pnl / position_value
     
-    def save_data(self, data):
+    def save_data(self, ts, data):
         if not self.saved:
-            self.data_history.append(data)
+            self.data_history[ts] = data
             end_time = ((18, 55)[0] * 3600 + (18, 55)[1] * 60) * 1000
             if self.s1["ts"] % (24 * 3600 * 1000) > end_time:
                 with open(f"{self.pair}_spread.json", "w") as f:

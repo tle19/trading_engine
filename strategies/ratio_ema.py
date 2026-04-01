@@ -91,7 +91,7 @@ class RatioEMA(StrategyPair):
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        # self.save_data(spread)
+        # self.save_data(self.s1["ts"], spread)
         if len(self.spread_history) == self.spread_window:
             self.spread_mean = np.mean(self.spread_history)
             self.spread_std = np.std(self.spread_history, ddof=1)

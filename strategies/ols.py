@@ -80,7 +80,7 @@ class OLS(StrategyPair):
         self.mid1_history.append(self.mid1)
         self.mid2_history.append(self.mid2)
 
-        if len(self.spread_history) < 10:
+        if len(self.spread_history) < 100:
             hedge_ratio, intercept = self.mid1 / self.mid2, 0
         else:
             x = np.array(self.mid2_history)
@@ -92,7 +92,7 @@ class OLS(StrategyPair):
         
         spread = self.mid1 - (intercept + hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        # self.save_data(spread)
+        self.save_data(self.s1["ts"], spread)
         if len(self.spread_history) == self.spread_window:
             self.spread_mean = np.mean(self.spread_history)
             self.spread_std = np.std(self.spread_history, ddof=1)
@@ -122,6 +122,13 @@ class OLS(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
+            self.position_size = 0.10
+        if self.pair == "VOO-SCHX":
+            self.price_window = 10000
+            self.spread_window = 1000
+            self.entry_threshold = 1.75
+            self.exit_threshold = 2.0
+            self.bid_ask_spread = 0.03
             self.position_size = 0.10
 
     def param_grid(self):
