@@ -416,8 +416,8 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
     spread = pd.Series(spread)
     spread.index = pd.to_datetime(spread.index.astype(int), unit='ms', utc=True).tz_convert(timezone)
 
-    roll_mean = spread.shift(-1).rolling(window).mean()
-    roll_std = spread.shift(-1).rolling(window).std()
+    roll_mean = spread.shift().rolling(window).mean()
+    roll_std = spread.shift().rolling(window).std()
     upper_band = roll_mean + z * roll_std
     lower_band = roll_mean - z * roll_std
     
