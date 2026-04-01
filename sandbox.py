@@ -383,6 +383,17 @@ def sync_and_latency_test(file="trade_logs/trade_logs_live_pt.json"):
             print(f"  L[{l_low}-{l_high}]")
             print(f"    mean={mean:.4f}, std={std:.4f}, sharpe={sharpe:.4f}, n={n}")
 
+def bid_ask_size_impact(symbol, pct=0.10):
+    df = open_data(symbol, mode="quote")
+    bid_mean = df['bid_size'].mean()
+    ask_mean = df['ask_size'].mean()
+    bid_val = bid_mean * pct
+    ask_val = ask_mean * pct
+
+    print(f"{"=" * 10} {symbol} {"=" * 10}")
+    print(f"Bid mean: {bid_mean:.2f} | {pct:.0%}: {bid_val:.2f}")
+    print(f"Ask mean: {ask_mean:.2f} | {pct:.0%}: {ask_val:.2f}")
+
 def visualize_bid_ask_spread(symbol):
     try:
         df = open_data(symbol, mode="quote")
@@ -476,10 +487,11 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
 # visualize_latency("XLV", "XBI")
 # sync_and_latency_test(file="trade_logs/trade_logs_live_pt.json")
 
+for symbol in (s for pair in PAIRS for s in pair):
+    bid_ask_size_impact(symbol, pct=0.05)
 # visualize_bid_ask_spread("VTI")
-visualize_spread("SPY", "QQQ")
 
-
+# visualize_spread("SPY", "QQQ")
 
 
 
