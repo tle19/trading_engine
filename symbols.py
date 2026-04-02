@@ -80,6 +80,20 @@ PRECIOUS_METALS = [
     "PLTM"    # Platinum ETF
 ]
 
+ENERGY = [
+    "XLE",   # Energy ETF
+    "XOP",   # Oil & Gas ETF
+    "USO",   # WTI Oil ETF
+    "BNO",   # Brent Oil ETF
+    "UNG",   # Natural Gas ETF
+]
+
+COMMODITIES = [
+    "PDBC",   # Commodity ETF
+    "DBC",    # Commodity ETF
+    "GSG"     # Commodity ETF
+]
+
 CRYPTO = [
     "IBIT",   # Bitcoin ETF
     "FBTC",   # Bitcoin ETF
@@ -91,10 +105,11 @@ SYMBOL_MAP = {
     "SP500": SP500,
     "MACRO": MACRO,
     "SECTORS": SECTORS,
+    "ENERGY": ENERGY,
+    "COMMODITIES": COMMODITIES,
     "PRECIOUS_METALS": PRECIOUS_METALS,
     "CRYPTO": CRYPTO
 }
-
 
 PAIRS = [
     ["SPY", "QQQ"],   # S&P 500 vs Nasdaq 100 (Broad vs Tech)
