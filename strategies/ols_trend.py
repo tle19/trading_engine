@@ -94,8 +94,9 @@ class OLSTrend(StrategyPair):
         self.spread_history.append(spread)
         # self.save_data(self.s1["ts"], spread)
         if len(self.spread_history) == self.spread_window:
-            self.spread_mean = np.mean(self.spread_history)
-            self.spread_std = np.std(self.spread_history, ddof=1)
+            s = np.array(self.spread_history)
+            self.spread_mean = np.mean(s)
+            self.spread_std = np.std(s, ddof=1)
             self.z_score = (spread - self.spread_mean) / self.spread_std
 
         self.spread_check = (self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and 
