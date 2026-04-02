@@ -7,12 +7,12 @@ from .record_book import RecordBook
 from .example import SMACrossover
 from .stochastic import StochasticIndicator
 from .orb import ORBIndicator
-from .rsi_swing import RSISwing
 from .eod_reversion import EODReversion
 from .eod_reversion2 import EODReversion2
-from .ratio_ema import RatioEMA
-from .ratio_ema2 import RatioEMA2
+from .rsi_swing import RSISwing
+from .naive import Naive
 from .ols import OLS
+from .ols_trend import OLSTrend
 from .kalman import KalmanFilter
 
 __all__ = [
@@ -25,12 +25,12 @@ __all__ = [
     "SMACrossover",
     "StochasticIndicator",
     "ORBIndicator",
-    "RSISwing",
     "EODReversion",
     "EODReversion2",
-    "RatioEMA",
-    "RatioEMA2",
+    "RSISwing",
+    "Naive",
     "OLS",
+    "OLSTrend",
     "KalmanFilter",
     "strategy_map"
 ]
@@ -41,12 +41,12 @@ strategy_map = {
     "sma": SMACrossover,
     "stochastic": StochasticIndicator,
     "orb": ORBIndicator,
-    "rsi_swing": RSISwing,
     "eod_reversion": EODReversion,
     "eod_reversion2": EODReversion2,
-    "ratio_ema": RatioEMA,
-    "ratio_ema2": RatioEMA2,
+    "rsi_swing": RSISwing,
+    "naive": Naive,
     "ols": OLS,
+    "ols_trend": OLSTrend,
     "kalman": KalmanFilter,
 }
 

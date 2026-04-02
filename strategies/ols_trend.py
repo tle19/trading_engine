@@ -3,7 +3,7 @@ from collections import deque
 
 from strategies import StrategyPair
 
-class RatioEMA2(StrategyPair):
+class OLSTrend(StrategyPair):
     def __init__(self, pair, price_window=10000, ema_window=100, spread_window=1000, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
                  start_time=(15, 00), end_time=(19, 00), quote_delta_ms=500, max_latency_ms=500, 
