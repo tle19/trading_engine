@@ -1,5 +1,6 @@
 import json
 import time
+import numpy as np
 import pandas as pd
 import datetime
 import orjson
@@ -143,6 +144,9 @@ class DataHandler:
         print(f"Elapsed Data Fetch Time: {elapsed_time:.3f} seconds")
 
     def stream_data(self, symbols, service="level1", duration=300):
+        feed_latencies = []
+        internal_latencies = []
+        processing_latencies = []
         def response_handler(response):
             system_receive_time = int(time.time() * 1000)
             data = orjson.loads(response).get("data")
@@ -194,9 +198,18 @@ class DataHandler:
 
                     if service != "CHART_EQUITY":
                         ts = row.timestamp
-                        
-                    print(f"  QUOTE → API TIME: {timestamp - ts} ms")
-                    print(f"  COMPUTATION TIME: {round((time.time() * 1000) - system_receive_time, 3)} ms")
+
+                    feed_latency = timestamp - ts
+                    internal_latency = system_receive_time - timestamp
+                    processing_latency = (time.time() * 1000) - system_receive_time
+
+                    feed_latencies.append(feed_latency)
+                    internal_latencies.append(internal_latency)
+                    processing_latencies.append(processing_latency)
+
+                    print(f"  FEED LATENCY (Exchange → API): {feed_latency:.2f} ms")
+                    print(f"  INTERNAL LATENCY (API → System): {internal_latency:.2f} ms")
+                    print(f"  PROCESSING LATENCY (System → Output): {processing_latency:.2f} ms")
 
         self.stream.start(response_handler)
 
@@ -212,6 +225,9 @@ class DataHandler:
             raise ValueError("You must provide a service, e.g. --service chart/level1/level2/forex")
 
         time.sleep(duration)
+        print(f"AVERAGE FEED LATENCY (Exchange → API): {np.mean(feed_latencies):.2f} ms")
+        print(f"AVERAGE INTERNAL LATENCY (API → System): {np.mean(internal_latencies):.2f} ms")
+        print(f"AVERAGE PROCESSING LATENCY (System → Output): {np.mean(processing_latencies):.2f} ms")
         self.stream.stop()
     
     def get_quote(self, symbols):

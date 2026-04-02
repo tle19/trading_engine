@@ -34,7 +34,7 @@ class Backtest:
         self.train_time = 0
         self.train_wait = True
 
-    def run(self, start_date="2024-1-10", end_date="2026-1-10", 
+    def run(self, start_date="2024-1-10", end_date="2027-1-10", 
             grid=False, train=False, display=True, show_trade=False):
         start_time = time.perf_counter()
 
@@ -335,6 +335,8 @@ class BacktestPairs:
         self.row1 = Level1Row()
         self.row2 = Level1Row()
 
+        self.elapsed_times = []
+
     def run(self, start_date="2024-1-10", end_date="2026-1-10", 
             grid=False, train=False, display=True, show_trade=False):
         start_time = time.perf_counter()
@@ -382,11 +384,13 @@ class BacktestPairs:
         self.trade_manager.save_logs()
         
         print(f"Elapsed Backtest Time: {elapsed_time:.3f} seconds")
+        print(f"Average Compute Time: {np.mean(self.elapsed_times):.2f} ms/tick ({1000/np.mean(self.elapsed_times):.0f} ticks/s)")
 
     def run_simulation(self, pair, df, train, display_stats=True, display_plot=True):
         last_day = pd.Timestamp(self.start_date).date()
         symbol1, symbol2 = pair.split("-")
         for row in df.itertuples(index=False):
+            start_time = time.perf_counter()
             symbol = row.symbol
             if symbol == symbol1:
                 level1_row = self.row1.update(
@@ -440,6 +444,8 @@ class BacktestPairs:
             if self.bid1 and self.bid2 and self.ask1 and self.ask2:
                 if self.cash * self.margin < (self.bid1 + self.ask1) / 2:
                     break
+            
+            self.elapsed_times.append((time.perf_counter() - start_time) * 1000)
             
         self.stats.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
         self.stats.summary(display=display_stats)
