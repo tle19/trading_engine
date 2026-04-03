@@ -393,50 +393,31 @@ class BacktestPairs:
             start_time = time.perf_counter()
             symbol = row.symbol
             if symbol == symbol1:
-                level1_row = self.row1.update(
-                    row.timestamp,
-                    row.bid,
-                    row.ask,
-                    row.last,
-                    row.bid_size,
-                    row.ask_size
-                )
-
-            if symbol == symbol2:
-                level1_row = self.row2.update(
-                    row.timestamp,
-                    row.bid,
-                    row.ask,
-                    row.last,
-                    row.bid_size,
-                    row.ask_size
-                )
-            
-            self.ts1 = self.row1.timestamp
-            self.bid1 = self.row1.bid
-            self.ask1 = self.row1.ask
-            self.last1 = self.row1.last
-            self.bid_size1 = self.row1.bid_size
-            self.ask_size1 = self.row1.ask_size
-
-            self.ts2 = self.row2.timestamp
-            self.bid2 = self.row2.bid
-            self.ask2 = self.row2.ask
-            self.last2 = self.row2.last
-            self.bid_size2 = self.row2.bid_size
-            self.ask_size2 = self.row2.ask_size
+                self.ts1 = row.timestamp
+                self.bid1 = row.bid
+                self.ask1 = row.ask
+                self.last1 = row.last
+                self.bid_size1 = row.bid_size
+                self.ask_size1 = row.ask_size
+            elif symbol == symbol2:
+                self.ts2 = row.timestamp
+                self.bid2 = row.bid
+                self.ask2 = row.ask
+                self.last2 = row.last
+                self.bid_size2 = row.bid_size
+                self.ask_size2 = row.ask_size
 
             if self.ts1 and self.ts2:
                 self.ts = self.ts1 if self.ts1 >= self.ts2 else self.ts2
             else:
-                self.ts = self.ts1 or self.ts2
+                self.ts = row.timestamp
 
             current_day = convert_epoch_ms(self.ts).date() 
             if current_day != last_day:
                 self.risk_manager.reset()
                 last_day = current_day
             
-            signal = self.strategy.generate_signal(level1_row, symbol)
+            signal = self.strategy.generate_signal(row, symbol)
             # self.dynamic_slippage(signal)
             self.interpret_signal(signal, self.strategy)
             self.update_equity()
@@ -496,12 +477,12 @@ class BacktestPairs:
         elif signal == 0:
             shares1, shares2 = position_manager.total_shares()
             if direction1 == 1:
-                exit_price1 = (s1["bid"] + s1["ask"]) / 2
-                exit_price2 = (s2["bid"] + s2["ask"]) / 2
+                exit_price1 = (s1["bid"] + s1["ask"]) / 2  # s1["bid"]
+                exit_price2 = (s2["bid"] + s2["ask"]) / 2  # s2["ask"]
                 fill_price1, fill_price2 = exit_price1 * self.slip_dn, exit_price2 * self.slip_up
             elif direction1 == -1:
-                exit_price1 = (s1["bid"] + s1["ask"]) / 2
-                exit_price2 = (s2["bid"] + s2["ask"]) / 2
+                exit_price1 = (s1["bid"] + s1["ask"]) / 2  # s1["ask"]
+                exit_price2 = (s2["bid"] + s2["ask"]) / 2  # s2["bid"]
                 fill_price1, fill_price2 = exit_price1 * self.slip_up, exit_price2 * self.slip_dn
 
             for leg1, leg2 in position_manager.pairs.copy():
