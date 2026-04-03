@@ -76,24 +76,25 @@ class KalmanFilter(StrategyPair):
         self.rolling_spread.append(spread)
         # self.save_data(self.s1["ts"], spread)
         if len(self.rolling_spread) == self.spread_window:
-            self.spread_mean = np.mean(self.rolling_spread)
-            self.spread_std = np.std(self.rolling_spread, ddof=1)
+            s = np.array(self.spread_history)
+            self.spread_mean = np.mean(s)
+            self.spread_std = np.std(s, ddof=1)
             self.z_score = (spread - self.spread_mean) / self.spread_std
 
-        self.spread_check = (self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and 
-                            self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread)
+        self.spread_check = (self.s1["ask"] - self.s1["bid"] <= self.bid_ask_spread and 
+                            self.s2["ask"] - self.s2["bid"] <= self.bid_ask_spread)
     
     def config(self):
         if self.pair == "SPY-QQQ":
-            # self.ema_window = 100
-            # self.spread_window = 1000
+            self.ema_window = 100
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "IVV-IWM":
-            # self.ema_window = 100
-            # self.spread_window = 1000
+            self.ema_window = 100
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03

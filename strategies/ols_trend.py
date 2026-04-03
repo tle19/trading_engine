@@ -99,7 +99,7 @@ class OLSTrend(StrategyPair):
             self.spread_std = np.std(s, ddof=1)
             self.z_score = (spread - self.spread_mean) / self.spread_std
 
-        self.spread_check = (self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and 
+        self.spread_check = (self.s1["ask"] - self.s1["bid"] <= self.bid_ask_spread and 
                     self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread)
     
     def config(self):
