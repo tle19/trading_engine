@@ -37,7 +37,8 @@ class OLSTrend(StrategyPair):
 
         signal = None
         if self.activated:
-            self.compute_indicators()
+            if abs(self.s1["ts"] - self.s2["ts"]) <= self.quote_delta_ms:
+                self.compute_indicators()
             if self.latency_check and self.spread_check:
                 signal = self.exit_trade()
                 if signal is None:
