@@ -93,7 +93,7 @@ class OLS(StrategyPair):
         
         spread = self.mid1 - (intercept + hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], spread)
+        # self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], spread)
         if len(self.spread_history) == self.spread_window:
             s = np.array(self.spread_history)
             self.spread_mean = np.mean(s)
@@ -124,13 +124,6 @@ class OLS(StrategyPair):
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
-            self.position_size = 0.10
-        if self.pair == "VOO-SCHX":
-            self.price_window = 10000
-            self.spread_window = 1000
-            self.entry_threshold = 2.0
-            self.exit_threshold = 2.0
-            self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "IAU-SIVR":
             self.price_window = 10000
