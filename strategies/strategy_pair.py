@@ -241,7 +241,7 @@ class StrategyPair:
     def save_data(self, ts, data):
         if not self.saved:
             self.data_history[ts] = data
-            end_time = ((18, 55)[0] * 3600 + (18, 55)[1] * 60) * 1000
+            end_time = ((19, 55)[0] * 3600 + (19, 55)[1] * 60) * 1000
             if self.s1["ts"] % (24 * 3600 * 1000) > end_time:
                 with open(f"{self.pair}_spread.json", "w") as f:
                     json.dump(self.data_history, f, indent=2)

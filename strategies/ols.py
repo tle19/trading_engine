@@ -33,11 +33,9 @@ class OLS(StrategyPair):
 
         if self.risk_manager._day_pause: 
             return None
-        if not self.trade_window() and not self.position_manager.in_trade():
-            return None
 
         signal = None
-        if self.activated:
+        if self.activated: #  and abs(self.s1["ts"] - self.s2["ts"]) <= self.quote_delta_ms
             self.compute_indicators()
             if self.latency_check and self.spread_check:
                 signal = self.exit_trade()
@@ -46,12 +44,14 @@ class OLS(StrategyPair):
         return signal
    
     def enter_trade(self, signal=None):
+        if not self.trade_window() and not self.position_manager.in_trade():
+            return None
+
         if not self.position_manager.in_trade():
             self.features = {
                 "z_score": self.z_score,
                 "spread_mean": self.spread_mean,
                 "spread_std": self.spread_std,
-                "spread_dist": abs(self.spread_history[-1] - self.spread_mean),
                 "latency": self.latency,
                 "time_diff": abs(self.s1["ts"] - self.s2["ts"]),
             }
@@ -81,7 +81,7 @@ class OLS(StrategyPair):
         self.mid2_history.append(self.mid2)
 
         if len(self.spread_history) < 100:
-            hedge_ratio, intercept = self.mid1 / self.mid2, 0
+            hedge_ratio, intercept = round(self.mid1 / self.mid2, 2), 0
         else:
             x = np.array(self.mid2_history)
             y = np.array(self.mid1_history)
@@ -92,15 +92,15 @@ class OLS(StrategyPair):
         
         spread = self.mid1 - (intercept + hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        self.save_data(self.s1["ts"], spread)
+        self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], spread)
         if len(self.spread_history) == self.spread_window:
             s = np.array(self.spread_history)
             self.spread_mean = np.mean(s)
             self.spread_std = np.std(s, ddof=1)
             self.z_score = (spread - self.spread_mean) / self.spread_std
 
-        self.spread_check = (self.s1["ask"] - self.s1["bid"] < self.bid_ask_spread and 
-                            self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread)
+        self.spread_check = (self.s1["ask"] - self.s1["bid"] <= self.bid_ask_spread and 
+                            self.s2["ask"] - self.s2["bid"] <= self.bid_ask_spread)
     
     def config(self):
         if self.pair == "SPY-QQQ":
@@ -115,14 +115,14 @@ class OLS(StrategyPair):
             self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.05
+            self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "GLD-SLV":
             self.price_window = 10000
             self.spread_window = 1500
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.06
+            self.bid_ask_spread = 0.05
             self.position_size = 0.10
         if self.pair == "VOO-SCHX":
             self.price_window = 10000

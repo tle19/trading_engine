@@ -33,8 +33,6 @@ class Naive(StrategyPair):
 
         if self.risk_manager._day_pause: 
             return None
-        if not self.trade_window() and not self.position_manager.in_trade():
-            return None
 
         signal = None
         if self.activated:
@@ -46,6 +44,9 @@ class Naive(StrategyPair):
         return signal
    
     def enter_trade(self, signal=None):
+        if not self.trade_window() and not self.position_manager.in_trade():
+            return None
+        
         if not self.position_manager.in_trade():
             self.features = {
                 "z_score": self.z_score,
@@ -90,7 +91,7 @@ class Naive(StrategyPair):
 
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        # self.save_data(self.s1["ts"], spread)
+        # self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], spread)
         if len(self.spread_history) == self.spread_window:
             s = np.array(self.spread_history)
             self.spread_mean = np.mean(s)
