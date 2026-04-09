@@ -43,9 +43,9 @@ class Stats:
         self.profit_factor = 0
 
         self.total_trades = 0
-        self.avg_market_exposure = 0
         self.avg_trade_duration = 0
-        self.time_in_market = 0
+        self.session_market_exposure = 0
+        self.total_market_exposure = 0
         self.total_entry_slippage = 0
         self.total_exit_slippage = 0
         self.slippage_impact = 0
@@ -124,8 +124,8 @@ class Stats:
         # --- Trade Behavior ---
         print(f"Total Trades:               {self.total_trades}")
         print(f"Average Trade Duration:     {self.avg_trade_duration:.2f} minutes")
-        print(f"Average Market Exposure:    {self.avg_market_exposure:.2%}")
-        print(f"Time in Market:             {self.time_in_market:.2%}")
+        print(f"Session Market Exposure:    {self.session_market_exposure:.2%}")
+        print(f"Total Market Exposure:      {self.total_market_exposure:.2%}")
         print(f"Entry Slippage:             ${self.total_entry_slippage:.2f} (AVG: ${self.total_entry_slippage/self.total_trades:.3f})")
         print(f"Exit Slippage:              ${self.total_exit_slippage:.2f} (AVG: ${self.total_exit_slippage/self.total_trades:.3f})")
         print(f"Slippage Impact:            {self.slippage_impact:.2%}")
@@ -283,6 +283,7 @@ class Stats:
         self.cagr = (self.equity_final / self.equity_initial) ** (1 / years) - 1
     
     def _calculate_trade_behavior(self):
+        session_seconds = (self.duration.days + 1) * 6.5 * 3600
         total_seconds = self.duration.total_seconds()
         total_duration = 0
         time_weighted_exposure = 0
@@ -293,13 +294,15 @@ class Stats:
         for trade in self.trade_history:
             shares = trade["shares"]
             direction = trade["direction"]
-
+            
             entry_time = datetime.datetime.fromisoformat(trade["entry_time"])
             exit_time = datetime.datetime.fromisoformat(trade["exit_time"])
-            duration_sec = (exit_time - entry_time).total_seconds()
 
+            duration_sec = (exit_time - entry_time).total_seconds()
             total_duration += duration_sec
-            time_weighted_exposure += duration_sec * trade["position_size"]
+
+            exposure = (shares * trade["entry_fill"]) / self.equity_initial
+            time_weighted_exposure += exposure * duration_sec
 
             total_entry_slips += direction * (trade["entry_price"] - trade["entry_fill"]) * shares
             total_exit_slips += direction * (trade["exit_fill"] - trade["exit_price"]) * shares
@@ -308,8 +311,9 @@ class Stats:
 
         self.total_trades = len(self.trade_history)
         self.avg_trade_duration = total_duration / 60 / self.total_trades
-        self.avg_market_exposure = time_weighted_exposure / total_seconds
-        self.time_in_market = total_duration / total_seconds
+        self.session_market_exposure = time_weighted_exposure / session_seconds
+        self.total_market_exposure = time_weighted_exposure / total_seconds
+
         self.total_entry_slippage = total_entry_slips
         self.total_exit_slippage = total_exit_slips
         self.slippage_impact = (total_theoretical_pnl - total_actual_pnl) / total_theoretical_pnl
@@ -352,8 +356,8 @@ class Stats:
             # --- Trade Behavior ---
             "Total Trades": int(self.total_trades),
             "Average Trade Duration": float(self.avg_trade_duration),
-            "Average Market Exposure": float(self.avg_market_exposure),
-            "Time in Market": float(self.time_in_market),
+            "Session Market Exposure": float(self.session_market_exposure),
+            "Total Market Exposure": float(self.total_market_exposure),
             "Entry Slippage": float(self.total_entry_slippage),
             "Exit Slippage": float(self.total_exit_slippage),
             "Slippage Impact": float(self.slippage_impact),
