@@ -53,6 +53,7 @@ class StrategyPair:
         self.activated = False
         self.dca_plan = []
         self.dca_step = 0
+        self.sync_check = False
         self.latency_check = False
         self.latency = 0  # network latency in milliseconds
 
@@ -76,6 +77,9 @@ class StrategyPair:
     def compute_indicators(self):
         raise NotImplementedError
     
+    def reset_history(self, reset_time=(13, 31)):
+        raise NotImplementedError
+
     def config(self):
         raise NotImplementedError
     
@@ -102,7 +106,8 @@ class StrategyPair:
             self.dca_plan = self.compute_dca_plan(shares1, shares2)
         else:
             fresher_quote = self.s1 if self.s1["ts"] >= self.s2["ts"] else self.s2
-            self.latency_check = abs(self.s1["ts"] - self.s2["ts"]) <= self.quote_delta_ms and fresher_quote["latency"] < self.max_latency_ms
+            self.latency_check = fresher_quote["latency"] < self.max_latency_ms
+            self.sync_check = abs(self.s1["ts"] - self.s2["ts"]) <= self.quote_delta_ms
 
     def trade_window(self):
         ts = self.s1["ts"] or self.s2["ts"]
@@ -165,12 +170,27 @@ class StrategyPair:
         return HOLD
     
     def compute_share_split(self, min_pct=0.85):
-        cash = self.risk_manager.curr_cash / 2
+        cash = self.risk_manager.curr_cash
+
+        # FXIED CASH
+        if self.pair == "SPY-QQQ":
+            cash = 10000
+        if self.pair == "IVV-IWM":
+            cash = 10000
+        # if self.pair == "GLD-SLV":
+        #     cash = 20000
+        if self.pair == "IAU-SIVR":
+            cash = 3000
+        if self.pair == "USO-BNO":
+            cash = 3000
+        if self.pair == "VT-VXUS":
+            cash = 3000
+
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
-        max_s1 = int(cash // price1)
-        max_s2 = int(cash // price2)
+        max_s1 = int(cash / 2 // price1)
+        max_s2 = int(cash / 2 // price2)
         min_s1 = int(max_s1 * min_pct)
         min_s2 = int(max_s2 * min_pct)
 
@@ -186,41 +206,60 @@ class StrategyPair:
                     best_diff = diff
                     shares1, shares2 = s1, s2
 
-        # TEST MIN SHARES
-        if self.pair == "SPY-QQQ":
-            shares1 = 8
-            shares2 = 9
-        if self.pair == "IVV-IWM":
-            shares1 = 7
-            shares2 = 19
-        if self.pair == "GLD-SLV":
-            shares1 = 9
-            shares2 = 56
-
         return shares1, shares2
     
     def compute_dca_plan(self, shares1, shares2):
-        plan = []
+        price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
+        price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
         max_steps = max(1, int(1 / self.position_size))
-        num_passes = min(max_steps, min(shares1, shares2))
+        steps = min(max_steps, shares1, shares2)
 
-        for _ in range(num_passes):
-            plan.append([1, 1])
+        plan = [[1, 1] for _ in range(steps)]
 
-        rem1 = shares1 - num_passes
-        rem2 = shares2 - num_passes
+        rem1 = shares1 - steps
+        rem2 = shares2 - steps
 
-        for i in range(rem1):
-            plan[i % num_passes][0] += 1
-        for i in range(rem2):
-            plan[i % num_passes][1] += 1
+        def score(p):
+            ca = cb = 0
+            total = 0
+            for a, b in p:
+                ca += a * price1
+                cb += b * price2
+                total += abs(ca - cb)
+            return total
 
-        plan.reverse()
+        def full_pass(rem, side):
+            base = rem // steps
+            rem = rem % steps
+
+            for i in range(steps):
+                plan[i][side] += base
+            return rem
+
+        rem1 = full_pass(rem1, 0)
+        rem2 = full_pass(rem2, 1)
+
+        for rem, side in [(rem1, 0), (rem2, 1)]:
+            for _ in range(rem):
+                best_i = 0
+                best_score = None
+
+                for i in range(steps):
+                    plan[i][side] += 1
+                    s = score(plan)
+                    plan[i][side] -= 1
+
+                    if best_score is None or s < best_score:
+                        best_score = s
+                        best_i = i
+
+                plan[best_i][side] += 1
+
         plan = [tuple(p) for p in plan]
 
         return plan
-    
+       
     def compute_position_value(self):
         direction = self.position_manager.direction()
         shares1, shares2 = self.position_manager.total_shares()
@@ -235,10 +274,10 @@ class StrategyPair:
 
         return pnl / position_value
     
-    def save_data(self, ts, data):
+    def save_data(self, ts, data, save_time=(19, 30)):
         if not self.saved:
             self.data_history[ts] = data
-            end_time = ((19, 55)[0] * 3600 + (19, 55)[1] * 60) * 1000
+            end_time = (save_time[0] * 3600 + save_time[1] * 60) * 1000
             if ts % (24 * 3600 * 1000) > end_time:
                 with open(f"{self.pair}_spread.json", "w") as f:
                     json.dump(self.data_history, f, indent=2)

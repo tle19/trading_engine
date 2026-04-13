@@ -30,12 +30,13 @@ class Naive(StrategyPair):
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
+        self.reset_history()
 
         if self.risk_manager._day_pause: 
             return None
 
         signal = None
-        if self.activated:
+        if self.activated and self.sync_check:
             self.compute_indicators()
             if self.latency_check and self.spread_check:
                 signal = self.exit_trade()
@@ -100,7 +101,13 @@ class Naive(StrategyPair):
 
         self.spread_check = (self.s1["ask"] - self.s1["bid"] <= self.bid_ask_spread and 
                             self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread)
-    
+        
+    def reset_history(self, reset_time=(13, 31)):
+        ts = self.s1["ts"] or self.s2["ts"]
+        start_time = (reset_time[0] * 3600 + reset_time[1] * 60) * 1000
+        if ts % (24 * 3600 * 1000) < start_time:
+            self.spread_history.clear()
+
     def config(self):
         if self.pair == "SPY-QQQ":
             self.ema_window = 100

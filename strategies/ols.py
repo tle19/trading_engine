@@ -30,14 +30,14 @@ class OLS(StrategyPair):
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
+        self.reset_history()
 
         if self.risk_manager._day_pause: 
             return None
 
         signal = None
-        if self.activated:
-            if abs(self.s1["ts"] - self.s2["ts"]) <= self.quote_delta_ms:
-                self.compute_indicators()
+        if self.activated and self.sync_check:
+            self.compute_indicators()
             if self.latency_check and self.spread_check:
                 signal = self.exit_trade()
                 if signal is None:
@@ -93,7 +93,7 @@ class OLS(StrategyPair):
         
         spread = self.mid1 - (intercept + hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        # self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], spread)
+        self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], spread)
         if len(self.spread_history) == self.spread_window:
             s = np.array(self.spread_history)
             self.spread_mean = np.mean(s)
@@ -102,7 +102,15 @@ class OLS(StrategyPair):
 
         self.spread_check = (self.s1["ask"] - self.s1["bid"] <= self.bid_ask_spread and 
                             self.s2["ask"] - self.s2["bid"] <= self.bid_ask_spread)
-    
+        
+    def reset_history(self, reset_time=(13, 31)):
+        ts = self.s1["ts"] or self.s2["ts"]
+        start_time = (reset_time[0] * 3600 + reset_time[1] * 60) * 1000
+        if ts % (24 * 3600 * 1000) < start_time:
+            self.mid1_history.clear()
+            self.mid2_history.clear()
+            self.spread_history.clear()
+
     def config(self):
         if self.pair == "SPY-QQQ":
             self.price_window = 10000
@@ -135,6 +143,13 @@ class OLS(StrategyPair):
         if self.pair == "USO-BNO":
             self.price_window = 10000
             self.spread_window = 1500
+            self.entry_threshold = 2.0
+            self.exit_threshold = 0.0
+            self.bid_ask_spread = 0.03
+            self.position_size = 0.10
+        if self.pair == "VT-VXUS":
+            self.price_window = 10000
+            self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
