@@ -88,6 +88,12 @@ ENERGY = [
     "UNG",   # Natural Gas ETF
 ]
 
+AGRICULTURE = [
+    "DBA",   # Agriculture ETF
+    "WEAT",  # Wheat ETF
+    "CORN"   # Corn ETF
+]
+
 COMMODITIES = [
     "PDBC",   # Commodity ETF
     "DBC",    # Commodity ETF
