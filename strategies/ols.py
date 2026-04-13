@@ -72,6 +72,8 @@ class OLS(StrategyPair):
             return self.exit()
         elif direction and self.compute_position_value() < self.stop_loss:
             return self.exit()
+        elif direction and self.force_close:
+            return self.exit()
         return signal
 
     def compute_indicators(self):

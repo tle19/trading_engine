@@ -51,13 +51,14 @@ class StrategyPair:
         self.s2 = self.data[self.symbol2]
 
         self.activated = False
-        self.dca_plan = []
-        self.dca_step = 0
         self.sync_check = False
         self.latency_check = False
-        self.latency = 0  # network latency in milliseconds
-
+        self.force_close = False
         self.features = None
+        
+        self.dca_plan = []
+        self.dca_step = 0
+        self.latency = 0  # network latency in milliseconds
 
         self.data_history = {}
         self.saved = False
@@ -108,6 +109,12 @@ class StrategyPair:
             fresher_quote = self.s1 if self.s1["ts"] >= self.s2["ts"] else self.s2
             self.latency_check = fresher_quote["latency"] < self.max_latency_ms
             self.sync_check = abs(self.s1["ts"] - self.s2["ts"]) <= self.quote_delta_ms
+
+            force_close_time = ((19, 45)[0] * 3600 + (19, 45)[1] * 60) * 1000
+            if self.s1["ts"] % (24 * 3600 * 1000) > force_close_time:
+                self.force_close = True
+            else:
+                self.force_close = False
 
     def trade_window(self):
         ts = self.s1["ts"] or self.s2["ts"]

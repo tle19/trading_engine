@@ -79,6 +79,8 @@ class Naive(StrategyPair):
             anchored_z = (self.spread_history[-1] - self.features["spread_mean"]) / self.features["spread_std"]
             if abs(anchored_z) > 8.0:
                 return self.exit()
+        elif direction and self.force_close:
+            return self.exit()
         return signal
 
     def compute_indicators(self):
