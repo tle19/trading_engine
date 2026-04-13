@@ -34,6 +34,8 @@ class Backtest:
         self.train_time = 0
         self.train_wait = True
 
+        self.elapsed_times = []
+
     def run(self, start_date="2024-1-10", end_date="2027-1-10", 
             grid=False, train=False, display=True, show_trade=False):
         start_time = time.perf_counter()
@@ -75,9 +77,12 @@ class Backtest:
         self.trade_manager.save_logs()
         
         print(f"Elapsed Backtest Time: {elapsed_time:.3f} seconds")
+        print(f"Average Compute Time: {np.mean(self.elapsed_times):.2f} ms/tick ({1000/np.mean(self.elapsed_times):.0f} ticks/s)")
 
     def run_simulation(self, symbol, df, train, display_stats=True, display_plot=True):
         for row in df.itertuples(index=False):
+            start_time = time.perf_counter()
+
             self.ts = row.timestamp
             self.open = row.open
             self.high = row.high
@@ -94,6 +99,8 @@ class Backtest:
                 
             if self.cash * self.margin < self.close:
                 break
+
+            self.elapsed_times.append((time.perf_counter() - start_time) * 1000)
 
         self.stats.update_data(self.trade_manager.trade_history, self.trade_manager.intraday_equity)
         self.stats.summary(display=display_stats)

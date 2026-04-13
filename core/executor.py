@@ -224,8 +224,8 @@ class Instrument:
         response2 = self.market_order(symbol2, shares2, instruction2)
         order_id1 = self.get_order_id(response1)
         order_id2 = self.get_order_id(response2)
-        fill_price1 = self.get_fill_price(order_id1, shares1)
-        fill_price2 = self.get_fill_price(order_id2, shares2)
+        fill_price1 = self.get_fill_price(order_id1, shares1, timeout=0.3, polling_rate=0.1)
+        fill_price2 = self.get_fill_price(order_id2, shares2, timeout=0.3, polling_rate=0.1)
 
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[BOT] +{shares1} {symbol1} @ {fill_price1}")
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[SOLD] -{shares2} {symbol2} @ {fill_price2}")
@@ -238,8 +238,8 @@ class Instrument:
         response2 = self.market_order(symbol2, shares2, instruction2)
         order_id1 = self.get_order_id(response1)
         order_id2 = self.get_order_id(response2)
-        fill_price1 = self.get_fill_price(order_id1, shares1)
-        fill_price2 = self.get_fill_price(order_id2, shares2)
+        fill_price1 = self.get_fill_price(order_id1, shares1, timeout=0.3, polling_rate=0.1)
+        fill_price2 = self.get_fill_price(order_id2, shares2, timeout=0.3, polling_rate=0.1)
 
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[SOLD] -{shares1} {symbol1} @ {fill_price1}")
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[BOT] +{shares2} {symbol2} @ {fill_price2}")
@@ -318,7 +318,7 @@ class Instrument:
     #         ]
     #     }
         
-    #     start = time.time()
+    #     start = time.perf_counter()
     #     while True:
     #         response = self.client.place_order(self.hash, order)
     #         order_id = self.get_order_id(response)
@@ -327,7 +327,7 @@ class Instrument:
     #         if status == "FILLED":
     #             return response
             
-    #         if time.time() - start > timeout:
+    #         if time.perf_counter() - start > timeout:
     #             return response
     #         time.sleep(polling_rate)
        
@@ -398,7 +398,7 @@ class Instrument:
         return response
 
     def cancel_order(self, order_id, timeout=1, polling_rate=0.2, settle_delay=0.1):
-        start = time.time()
+        start = time.perf_counter()
         while True:
             self.debug_order(None, order_id) # DEBUG
             response = self.client.cancel_order(self.hash, order_id)
@@ -409,7 +409,7 @@ class Instrument:
                 time.sleep(settle_delay)
                 return status_code
             
-            if time.time() - start > timeout:
+            if time.perf_counter() - start > timeout:
                 return status_code
             time.sleep(polling_rate)
     
@@ -429,8 +429,8 @@ class Instrument:
         details_json = details.json()
         return details_json
             
-    def get_fill_price(self, order_id, quantity, instruction="single", timeout=10, polling_rate=0.25): 
-        start = time.time()
+    def get_fill_price(self, order_id, quantity, instruction="single", timeout=5, polling_rate=0.25): 
+        start = time.perf_counter()
         while True:
             order_details = self.get_order_details(order_id)
             if instruction == "oco":
@@ -446,7 +446,7 @@ class Instrument:
                     fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / total_qty
                     return round(fill_price, 2)
             
-            if time.time() - start > timeout:
+            if time.perf_counter() - start > timeout:
                 return None
             time.sleep(polling_rate)
 
