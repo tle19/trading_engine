@@ -114,5 +114,8 @@ SYMBOL_MAP = {
 PAIRS = [
     ["SPY", "QQQ"],   # S&P 500 vs Nasdaq 100 (Broad vs Tech)
     ["IVV", "IWM"],   # S&P 500 vs Russell 2000 (Large vs Small)
+    ["VT", "VXUS"],   # Total World vs Ex-US International (Global vs Ex-US International)
     ["GLD", "SLV"],   # Gold vs Silver (Precious Metals)
+    ["IAU", "SIVR"],  # Gold vs Silver (Precious Metals)
+    ["USO", "BNO"],   # WTI vs Brent (Crude Oils)
 ]
