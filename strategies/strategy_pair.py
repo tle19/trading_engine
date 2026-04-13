@@ -186,8 +186,8 @@ class StrategyPair:
             cash = 10000
         # if self.pair == "GLD-SLV":
         #     cash = 20000
-        if self.pair == "IAU-SIVR":
-            cash = 3000
+        # if self.pair == "IAU-SIVR":
+        #     cash = 20000
         if self.pair == "USO-BNO":
             cash = 3000
         if self.pair == "VT-VXUS":

@@ -30,18 +30,25 @@ def acc_latency():
     client = schwabdev.Client(config['app_key'], config['app_secret'])
     hash = client.linked_accounts().json()[0].get('hashValue')
 
-    start = time.perf_counter()
+    start = time.perf_counter() * 1000
     details = client.account_details(hash)
     details_json = details.json()
     cash_balance = details_json["securitiesAccount"]["currentBalances"]["cashBalance"]
-    end = time.perf_counter()
-    print(f"Execution time: {end - start:.6f} seconds")
-    print(cash_balance)
+    end = time.perf_counter() * 1000
+    print(f"Cash Balance: {cash_balance}")
+    print(f"Execution time: {end - start:.2f} ms")
 
-def find_num_orders(file="trade_logs/trade_logs.json"):
+def find_num_orders(start_date="2026-04-01", end_date="2026-04-01", file="trade_logs/trade_logs.json"):
     with open(file) as f:
         trade_history = json.load(f)["trade_history"]
-
+    
+    trade_history = [
+        t for t in trade_history
+        if (
+            start_date <= t["entry_time"].split("T")[0] <= end_date
+        )
+    ]
+    
     orders = 0
     seen_exits = set()
 
@@ -56,9 +63,8 @@ def find_num_orders(file="trade_logs/trade_logs.json"):
     print(f"TOTAL ORDERS: {orders}")
 
 def compute_share_split(price1, price2, min_pct=0.85, cash=25000, top_n=5):
-    cash = cash / 2
-    max_s1 = int(cash // price1)
-    max_s2 = int(cash // price2)
+    max_s1 = int(cash / 2 // price1)
+    max_s2 = int(cash / 2 // price2)
     min_s1 = int(max_s1 * min_pct)
     min_s2 = int(max_s2 * min_pct)
 
@@ -83,12 +89,12 @@ def compute_share_split(price1, price2, min_pct=0.85, cash=25000, top_n=5):
     
     return best_combos
 
-def dca_plan(price1, price2, min_pct=0.85, cash=30000):
-    top_combos = compute_share_split(price1, price2, min_pct=min_pct, cash=cash)
+def dca_plan(price1, price2, cash=30000, position_size=0.10):
+    top_combos = compute_share_split(price1, price2, min_pct=0.85, cash=cash)
     shares1, shares2 = top_combos[0][1], top_combos[0][2]
 
     plan = []
-    max_steps = max(1, int(1 / 0.10))
+    max_steps = max(1, int(1 / position_size))
     num_passes = min(max_steps, min(shares1, shares2))
 
     for _ in range(num_passes):
@@ -106,6 +112,87 @@ def dca_plan(price1, price2, min_pct=0.85, cash=30000):
     plan = [tuple(p) for p in plan]
 
     print(f"DCA Plan: {plan}")
+    print("DCA Plan Breakdown:")
+    ca = cb = 0
+
+    for i, (a, b) in enumerate(plan):
+        ca += a * price1
+        cb += b * price2
+        diff = ca - cb
+
+        print(
+            f"Step {i+1:02d}: "
+            f"CUM A=${ca:,.2f} | "
+            f"CUM B=${cb:,.2f} | "
+            f"Δ=${diff:,.2f}"
+        )
+    return plan
+
+def dca_plan(price1, price2, cash=30000, position_size=0.10):
+    top_combos = compute_share_split(price1, price2, min_pct=0.85, cash=cash)
+    shares1, shares2 = top_combos[0][1], top_combos[0][2]
+
+    max_steps = max(1, int(1 / position_size))
+    steps = min(max_steps, shares1, shares2)
+
+    plan = [[1, 1] for _ in range(steps)]
+
+    rem1 = shares1 - steps
+    rem2 = shares2 - steps
+
+    def score(p):
+        ca = cb = 0
+        total = 0
+        for a, b in p:
+            ca += a * price1
+            cb += b * price2
+            total += abs(ca - cb)
+        return total
+
+    def full_pass(rem, side):
+        base = rem // steps
+        rem = rem % steps
+
+        for i in range(steps):
+            plan[i][side] += base
+        return rem
+
+    rem1 = full_pass(rem1, 0)
+    rem2 = full_pass(rem2, 1)
+
+    for rem, side in [(rem1, 0), (rem2, 1)]:
+        for _ in range(rem):
+            best_i = 0
+            best_score = None
+
+            for i in range(steps):
+                plan[i][side] += 1
+                s = score(plan)
+                plan[i][side] -= 1
+
+                if best_score is None or s < best_score:
+                    best_score = s
+                    best_i = i
+
+            plan[best_i][side] += 1
+
+    plan = [tuple(p) for p in plan]
+
+    print(f"DCA Plan: {plan}")
+    print("DCA Plan Breakdown:")
+    ca = cb = 0
+
+    for i, (a, b) in enumerate(plan):
+        ca += a * price1
+        cb += b * price2
+        diff = ca - cb
+
+        print(
+            f"Step {i+1:02d}: "
+            f"CUM A=${ca:,.2f} | "
+            f"CUM B=${cb:,.2f} | "
+            f"Δ=${diff:,.2f}"
+        )
     return plan
 
 def find_pair_stats(symbol1, symbol2, start="2024-02-03", end="2026-02-03"):
@@ -385,14 +472,16 @@ def sync_and_latency_test(file="trade_logs/trade_logs_live_pt.json"):
 
 def bid_ask_size_impact(symbol, pct=0.10):
     df = open_data(symbol, mode="quote")
+    bid_price = df['bid'].mean()
+    ask_price = df['ask'].mean()
     bid_mean = df['bid_size'].mean()
     ask_mean = df['ask_size'].mean()
     bid_val = bid_mean * pct
     ask_val = ask_mean * pct
 
     print(f"{"=" * 10} {symbol} {"=" * 10}")
-    print(f"Bid mean: {bid_mean:.2f} | {pct:.0%}: {bid_val:.2f}")
-    print(f"Ask mean: {ask_mean:.2f} | {pct:.0%}: {ask_val:.2f}")
+    print(f"Bid size mean: {bid_mean:.2f} | {pct:.0%}: {bid_val:.2f} (~${bid_val * bid_price:,.2f})")
+    print(f"Ask size mean: {ask_mean:.2f} | {pct:.0%}: {ask_val:.2f} (~${ask_val * ask_price:,.2f})")
 
 def visualize_bid_ask_spread(symbol):
     try:
@@ -405,7 +494,8 @@ def visualize_bid_ask_spread(symbol):
     print(f"{"=" * 10} {symbol} {"=" * 10}")
     print(f"Average bid-ask spread: {spread.mean():.4f}")
     print(f"Min bid-ask spread: {max(0, min(spread)):.4f}") 
-    print(f"Max bid-ask spread: {max(spread):.4f}")   
+    print(f"Max bid-ask spread: {max(spread):.4f}")
+    print(f"95th percentile spread: {spread.quantile(0.95):.4f}")
 
     lower = spread.quantile(0.001)
     upper = spread.quantile(0.999)
@@ -470,29 +560,67 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
     
 # test_order("AAPL")
 # acc_latency()
-# find_num_orders(file="trade_logs/trade_logs_live_pt.json")
+# find_num_orders(start_date="2026-04-01", end_date="2026-04-01", file="trade_logs/trade_logs_live_pt.json")
 
-# compute_share_split(580.93, 24.92, min_pct=0.85, cash=1200, top_n=5)
-# dca_plan(687.12, 602.37, min_pct=0.85, cash=30000)
+# compute_share_split(144.98, 81.27, min_pct=0.85, cash=3000, top_n=5)
 
-# for pair in pairs:
-#     symbol1, symbol2 = pair[0], pair[1]
-#     find_pair_stats(symbol1, symbol2)
+# dca_plan(437.13, 69.08, cash=20000)
+
 # find_pair_stats("SPY", "QQQ", start="2026-03-16", end="2026-03-27")
-# find_pair_stats_combos(["VOO", "SCHX", "VTI", "VXUS", "ITOT", "IXUS", "VT", "TLT"])
+# find_pair_stats_combos(ENERGY)
 # top_pairs(top_n=20, stat="intraday_spread")
+# top_pairs(top_n=20, stat="intraday_corr")
 
 # exchange_latency()
-# check_packet_sync("SPY", "QQQ", log_file="market_logs/market_logs_2026-03-06.jsonl")
-# visualize_latency("XLV", "XBI")
+# check_packet_sync("GLD", "SLV", log_file="market_logs/market_logs_2026-03-31.jsonl")
+# visualize_latency("GLD", "SLV")
 # sync_and_latency_test(file="trade_logs/trade_logs_live_pt.json")
 
-for symbol in (s for pair in PAIRS for s in pair):
-    bid_ask_size_impact(symbol, pct=0.05)
-# visualize_bid_ask_spread("VTI")
+# for symbol in PRECIOUS_METALS[0:4]:
+#     bid_ask_size_impact(symbol, pct=0.05)
+# visualize_bid_ask_spread("VT")
+# visualize_bid_ask_spread("VXUS")
 
-# visualize_spread("SPY", "QQQ")
+visualize_spread("VT", "VXUS", window=1000, z=2)
 
+
+
+# with open("trade_logs/trade_logs_live_pt.json") as f:
+#     trade_history = json.load(f)["trade_history"]
+
+# trades_pnls = {}
+# trades_spreads = {}
+
+# for trade in trade_history:
+#     spread = trade.get("features", {}).get("spread_dist")
+#     if spread is None:
+#         continue
+
+#     exit_time = trade["exit_time"]
+#     if trade['symbol'] in ['IVV', 'IWM']:
+#         if exit_time not in trades_pnls:
+#             trades_pnls[exit_time] = trade["pnl_pct"]
+#         else:
+#             trades_pnls[exit_time] += trade["pnl_pct"]
+#         trades_spreads[exit_time] = spread
+
+# from scipy.stats import pearsonr, spearmanr
+# x = np.array([trades_spreads[t] for t in trades_spreads])
+# y = np.array([trades_pnls[t] for t in trades_spreads])
+
+# # correlations
+# pearson_corr, pearson_p = pearsonr(x, y)
+# spearman_corr, spearman_p = spearmanr(x, y)
+
+# print("N samples:", len(x))
+# print("Mean PnL:", y.mean())
+# print("Std PnL:", y.std())
+
+# print("\nPearson correlation (linear):", pearson_corr)
+# print("Pearson p-value:", pearson_p)
+
+# print("\nSpearman correlation (monotonic):", spearman_corr)
+# print("Spearman p-value:", spearman_p)
 
 
 
