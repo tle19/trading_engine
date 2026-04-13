@@ -51,7 +51,11 @@ class TradeManager:
         trade["exit_price"] = exit_price
         trade["exit_fill"] = exit_price if fill_price is None else round(fill_price, 2)
 
-        trade["pnl"] = round(trade["direction"] * (trade["exit_fill"] - trade["entry_fill"]) * trade["shares"], 2)
+        fee_rate = 0.0000206 # 20.60 per 1 000 000
+        fee_price = trade["exit_fill"] if trade["direction"] == 1 else trade["entry_fill"]
+        sec_fee = fee_price * trade["shares"] * fee_rate
+
+        trade["pnl"] = round((trade["direction"] * (trade["exit_fill"] - trade["entry_fill"]) * trade["shares"]) - sec_fee, 2)
         trade["pnl_pct"] = round(trade["pnl"] / (trade["entry_fill"] * trade["shares"]), 10)
 
         self.trade_history.append(trade)
