@@ -4,7 +4,7 @@ from collections import deque
 from strategies import StrategyPair
 
 class OLSTrend(StrategyPair):
-    def __init__(self, pair, price_window=10000, ema_window=100, spread_window=1000, 
+    def __init__(self, pair, price_window=10000, ema_window=10, spread_window=1000, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
                  start_time=(15, 00), end_time=(19, 00), quote_delta_ms=500, max_latency_ms=500, 
                  position_size=0.10, stop_loss=-0.005, take_profit=0.00005, 
@@ -24,6 +24,8 @@ class OLSTrend(StrategyPair):
         self.spread_mean = 0
         self.spread_std = 1
         self.spread_check = False
+
+        self.spread_ema = None
 
         self.mid1_history = deque(maxlen=price_window)
         self.mid2_history = deque(maxlen=price_window)
@@ -67,9 +69,9 @@ class OLSTrend(StrategyPair):
         
     def exit_trade(self, signal=None):
         direction = self.position_manager.direction()
-        if direction == 1 and self.z_score <= self.entry_threshold:
+        if direction == 1 and self.z_score <= self.exit_threshold:
             return self.exit()
-        elif direction == -1 and self.z_score >= -self.entry_threshold:
+        elif direction == -1 and self.z_score >= -self.exit_threshold:
             return self.exit()
         elif direction and self.compute_position_value() < self.stop_loss:
             return self.exit()
@@ -84,7 +86,7 @@ class OLSTrend(StrategyPair):
         self.mid1_history.append(self.mid1)
         self.mid2_history.append(self.mid2)
 
-        if len(self.spread_history) < 10:
+        if len(self.spread_history) < 100:
             hedge_ratio, intercept = self.mid1 / self.mid2, 0
         else:
             x = np.array(self.mid2_history)
@@ -94,8 +96,13 @@ class OLSTrend(StrategyPair):
             hedge_ratio = np.sum((x - x_mean)*(y - y_mean)) / np.sum((x - x_mean)**2)
             intercept = y_mean - hedge_ratio * x_mean
 
-        spread = self.mid1 - (hedge_ratio * self.mid2)
-        self.spread_history.append(spread)
+        spread = self.mid1 - (intercept + hedge_ratio * self.mid2)
+
+        self.spread_ema = self.compute_ema(self.spread_ema, spread, self.ema_window)
+        self.spread_history.append(self.spread_ema)
+        self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], self.spread_ema)
+
+        # self.spread_history.append(spread)
         # self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], spread)
         if len(self.spread_history) == self.spread_window:
             s = np.array(self.spread_history)
@@ -118,7 +125,7 @@ class OLSTrend(StrategyPair):
         if self.pair == "SPY-QQQ":
             self.ema_window = 100
             self.spread_window = 1000
-            self.entry_threshold = 2
+            self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
             self.position_size = 1.0
@@ -132,10 +139,10 @@ class OLSTrend(StrategyPair):
         if self.pair == "GLD-SLV":
             self.ema_window = 100
             self.spread_window = 1500
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
+            self.entry_threshold = 2.5
+            self.exit_threshold = 2.0
             self.bid_ask_spread = 0.05
-            self.position_size = 0.10
+            self.position_size = 1
 
     def param_grid(self):
         params = {
