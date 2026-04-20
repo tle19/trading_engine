@@ -105,7 +105,7 @@ class StrategyPair:
                 if self.s1[attr] is None or self.s2[attr] is None:
                     return
             self.activated = True
-            self.beta_distribution()
+            # self.beta_distribution() # FIX DIV BY 0 ERROR
         else:
             fresher_quote = self.s1 if self.s1["ts"] >= self.s2["ts"] else self.s2
             self.latency_check = fresher_quote["latency"] < self.max_latency_ms
@@ -186,19 +186,17 @@ class StrategyPair:
     def compute_share_split(self, min_pct=0.85):
         cash = self.risk_manager.curr_cash
 
-        # FXIED CASH
-        if self.pair == "SPY-QQQ":
-            cash = 3000
+        # FIXED CASH
         if self.pair == "IVV-IWM":
             cash = 5000
         # if self.pair == "GLD-SLV":
         #     cash = 20000
         # if self.pair == "IAU-SIVR":
         #     cash = 20000
-        if self.pair == "USO-BNO":
-            cash = 5000
+        # if self.pair == "USO-BNO":
+        #     cash = 20000
         if self.pair == "VT-VXUS":
-            cash = 3000
+            cash = 5000
 
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
@@ -223,57 +221,23 @@ class StrategyPair:
         return shares1, shares2
     
     def compute_dca_plan(self, shares1, shares2):
-        price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
-        price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
+        steps = max(1, int(1 / self.position_size))
+        steps = min(steps, shares1, shares2)
 
-        max_steps = max(1, int(1 / self.position_size))
-        steps = min(max_steps, shares1, shares2)
+        base1, rem1 = divmod(shares1, steps)
+        base2, rem2 = divmod(shares2, steps)
 
-        plan = [[1, 1] for _ in range(steps)]
+        plan = [[base1, base2] for _ in range(steps)]
 
-        rem1 = shares1 - steps
-        rem2 = shares2 - steps
+        for i in range(rem1):
+            plan[(i * steps) // rem1][0] += 1
 
-        def score(p):
-            ca = cb = 0
-            total = 0
-            for a, b in p:
-                ca += a * price1
-                cb += b * price2
-                total += abs(ca - cb)
-            return total
-
-        def full_pass(rem, side):
-            base = rem // steps
-            rem = rem % steps
-
-            for i in range(steps):
-                plan[i][side] += base
-            return rem
-
-        rem1 = full_pass(rem1, 0)
-        rem2 = full_pass(rem2, 1)
-
-        for rem, side in [(rem1, 0), (rem2, 1)]:
-            for _ in range(rem):
-                best_i = 0
-                best_score = None
-
-                for i in range(steps):
-                    plan[i][side] += 1
-                    s = score(plan)
-                    plan[i][side] -= 1
-
-                    if best_score is None or s < best_score:
-                        best_score = s
-                        best_i = i
-
-                plan[best_i][side] += 1
-
+        for i in range(rem2):
+            plan[(i * steps) // rem2][1] += 1
+        
         plan = [tuple(p) for p in plan]
-
         return plan
-       
+   
     def compute_position_value(self):
         direction = self.position_manager.direction()
         shares1, shares2 = self.position_manager.total_shares()

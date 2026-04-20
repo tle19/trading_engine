@@ -52,7 +52,7 @@ def open_data(symbol, start_date=None, end_date=None, mode="intraday"):
 def convert_epoch_ms(ts):
     return datetime.datetime.fromtimestamp(ts / 1000, tz=timezone)
 
-def resample_data(df, type="1D"):
+def resample_data(df, type="1D"): # 1min, 5min, 1H, 4H, 1D, 1W, 1M
     df = df.set_index("timestamp")
     df = (df.resample(
             type,
@@ -65,7 +65,9 @@ def resample_data(df, type="1D"):
             "low": "min",
             "close": "last",
             "volume": "sum"
-        }).dropna()
+        })
+        .dropna()
+        .reset_index()
     )
     return df
 

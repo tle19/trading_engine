@@ -121,9 +121,10 @@ class KalmanFilter(StrategyPair):
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
         
-        lower = self.beta_mean - self.beta_std*2
-        upper = self.beta_mean + self.beta_std*2
-        beta = np.clip(self.hedge_ratio, lower, upper)
+        # lower = self.beta_mean - self.beta_std*2
+        # upper = self.beta_mean + self.beta_std*2
+        # beta = np.clip(self.hedge_ratio, lower, upper)
+        beta = self.hedge_ratio
 
         denom = price1 + beta * price2
         if denom <= 0:
@@ -175,8 +176,8 @@ class KalmanFilter(StrategyPair):
 
     def param_grid(self):
         params = {
-            "q": [1e-6, 3e-6, 1e-5, 3e-5, 1e-4, 3e-4, 1e-3],
-            "r": [1e-5, 3e-5, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2],
-            "spread_window": [1000, 1500, 2000, 2500, 3000]
+            "q": [1e-6, 3e-6, 1e-5, 3e-5, 1e-4],
+            "r": [1e-5, 3e-5, 1e-4, 3e-4],
+            "spread_window": [1500] # 1000, 1500, 2000, 2500, 3000
         }
         return params
