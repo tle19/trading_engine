@@ -4,7 +4,7 @@ from collections import deque
 from strategies import StrategyPair
 
 class KalmanFilter(StrategyPair):
-    def __init__(self, pair, price_window=10000, spread_window=1000, 
+    def __init__(self, pair, q=1e-5, r=1e-2, spread_window=1000, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
                  start_time=(15, 00), end_time=(19, 00), quote_delta_ms=500, max_latency_ms=500, 
                  position_size=0.10, stop_loss=-0.0075, take_profit=0.00005, 
@@ -12,20 +12,26 @@ class KalmanFilter(StrategyPair):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
                          position_size, stop_loss, take_profit, 
                          pnl_target, pnl_loss, trade_max)
-        self.price_window = price_window
+        self.Q = q
+        self.R = r
         self.spread_window = spread_window
         self.entry_threshold = entry_threshold
         self.exit_threshold = exit_threshold
         self.bid_ask_spread = bid_ask_spread
         self.config()
 
+        self.hedge_ratio = 1.0
+        self.P = 1.0
+        self.mid1 = 1.0
+        self.mid2 = 1.0
+        self.prev_mid1 = 1.0
+        self.prev_mid2 = 1.0
+        
         self.z_score = 0
         self.spread_mean = 0
         self.spread_std = 1
         self.spread_check = False
 
-        self.mid1_history = deque(maxlen=price_window)
-        self.mid2_history = deque(maxlen=price_window)
         self.spread_history = deque(maxlen=self.spread_window)
     
     def generate_signal(self, row, symbol):
@@ -48,19 +54,20 @@ class KalmanFilter(StrategyPair):
         if not self.trade_window() and not self.position_manager.in_trade():
             return None
 
-        if not self.position_manager.in_trade():
+        if self.z_score < -self.entry_threshold:
+            signal = self.buy_pair()
+        elif self.z_score > self.entry_threshold:
+            signal = self.sell_pair()
+
+        if self.position_manager.in_trade():
             self.features = {
+                "hedge_ratio": self.hedge_ratio,
                 "z_score": self.z_score,
                 "spread_mean": self.spread_mean,
                 "spread_std": self.spread_std,
                 "latency": self.latency,
                 "time_diff": abs(self.s1["ts"] - self.s2["ts"]),
             }
-            
-        if self.z_score < -self.entry_threshold:
-            signal = self.buy_pair()
-        elif self.z_score > self.entry_threshold:
-            signal = self.sell_pair()
 
         return signal
         
@@ -77,25 +84,23 @@ class KalmanFilter(StrategyPair):
         return signal
 
     def compute_indicators(self):
+        self.prev_mid1 = self.mid1
+        self.prev_mid2 = self.mid2
+        
         self.mid1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         self.mid2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
-        self.mid1_history.append(self.mid1)
-        self.mid2_history.append(self.mid2)
+        x = np.log(self.mid2 / self.prev_mid2)
+        y = np.log(self.mid1 / self.prev_mid1)
 
-        if len(self.spread_history) < 100:
-            hedge_ratio, intercept = round(self.mid1 / self.mid2, 2), 0
-        else:
-            x = np.array(self.mid2_history)
-            y = np.array(self.mid1_history)
-            x_mean = np.mean(x)
-            y_mean = np.mean(y)
-            hedge_ratio = np.sum((x - x_mean)*(y - y_mean)) / np.sum((x - x_mean)**2)
-            intercept = y_mean - hedge_ratio * x_mean
+        P_pred = self.P + self.Q
+        k = (P_pred * x) / (x * P_pred * x + self.R)
+        self.hedge_ratio += k * (y - self.hedge_ratio * x)
+        self.P = (1 - k * x) * P_pred
         
-        spread = self.mid1 - (intercept + hedge_ratio * self.mid2)
+        spread = self.mid1 - (self.hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        # self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], spread)
+        self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], spread)
         if len(self.spread_history) == self.spread_window:
             s = np.array(self.spread_history)
             self.spread_mean = np.mean(s)
@@ -109,49 +114,60 @@ class KalmanFilter(StrategyPair):
         ts = self.s1["ts"] or self.s2["ts"]
         start_time = (reset_time[0] * 3600 + reset_time[1] * 60) * 1000
         if ts % (24 * 3600 * 1000) < start_time:
-            self.mid1_history.clear()
-            self.mid2_history.clear()
             self.spread_history.clear()
 
+    def compute_share_split(self):
+        cash = self.risk_manager.curr_cash
+        price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
+        price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
+        
+        lower = self.beta_mean - self.beta_std*2
+        upper = self.beta_mean + self.beta_std*2
+        beta = np.clip(self.hedge_ratio, lower, upper)
+
+        denom = price1 + beta * price2
+        if denom <= 0:
+            shares1 = max(1, int(cash / 2 // price1))
+            shares2 = max(1, int(cash / 2 // price2))
+
+        shares1 = max(1, int(cash // denom))
+        shares2 = max(1, int(beta * shares1))
+
+        return shares1, shares2
+    
     def config(self):
         if self.pair == "SPY-QQQ":
-            self.price_window = 10000
             self.spread_window = 1000
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
             self.position_size = 0.20
         if self.pair == "IVV-IWM":
-            self.price_window = 10000
-            self.spread_window = 1000
+            self.spread_window = 1500
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "GLD-SLV":
-            self.price_window = 10000
             self.spread_window = 1500
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.05
             self.position_size = 0.10
         if self.pair == "IAU-SIVR":
-            self.price_window = 10000
             self.spread_window = 1500
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "USO-BNO":
-            self.price_window = 10000
             self.spread_window = 1500
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
             self.position_size = 0.10
         if self.pair == "VT-VXUS":
-            self.price_window = 10000
-            self.spread_window = 1000
+            self.spread_window = 1500
             self.entry_threshold = 2.0
             self.exit_threshold = 0.0
             self.bid_ask_spread = 0.03
@@ -159,7 +175,8 @@ class KalmanFilter(StrategyPair):
 
     def param_grid(self):
         params = {
-            "price_window": [5000, 10000, 15000, 20000], 
-            "spread_window": [500, 1000, 1500, 2000]
+            "q": [1e-6, 3e-6, 1e-5, 3e-5, 1e-4, 3e-4, 1e-3],
+            "r": [1e-5, 3e-5, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2],
+            "spread_window": [1000, 1500, 2000, 2500, 3000]
         }
         return params

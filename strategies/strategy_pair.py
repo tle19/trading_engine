@@ -1,6 +1,8 @@
 import json
+import numpy as np
 
 from .risk import RiskManager
+from utils import open_data
 
 LONG = 1
 SHORT = -1
@@ -103,8 +105,7 @@ class StrategyPair:
                 if self.s1[attr] is None or self.s2[attr] is None:
                     return
             self.activated = True
-            shares1, shares2 = self.compute_share_split()
-            self.dca_plan = self.compute_dca_plan(shares1, shares2)
+            self.beta_distribution()
         else:
             fresher_quote = self.s1 if self.s1["ts"] >= self.s2["ts"] else self.s2
             self.latency_check = fresher_quote["latency"] < self.max_latency_ms
@@ -122,6 +123,9 @@ class StrategyPair:
     
     def buy_pair(self):
         direction = self.position_manager.direction()
+        if not direction:
+            shares1, shares2 = self.compute_share_split()
+            self.dca_plan = self.compute_dca_plan(shares1, shares2)
         if direction in (1, 0) and self.dca_step < len(self.dca_plan):
             shares1, shares2 = self.dca_plan[self.dca_step]
             pos_leg1 = PositionLeg(
@@ -147,6 +151,9 @@ class StrategyPair:
         
     def sell_pair(self):
         direction = self.position_manager.direction()
+        if not direction:
+            shares1, shares2 = self.compute_share_split()
+            self.dca_plan = self.compute_dca_plan(shares1, shares2)
         if direction in (-1, 0) and self.dca_step < len(self.dca_plan):
             shares1, shares2 = self.dca_plan[self.dca_step]
             pos_leg1 = PositionLeg(
@@ -181,25 +188,25 @@ class StrategyPair:
 
         # FXIED CASH
         if self.pair == "SPY-QQQ":
-            cash = 10000
+            cash = 3000
         if self.pair == "IVV-IWM":
-            cash = 10000
+            cash = 5000
         # if self.pair == "GLD-SLV":
         #     cash = 20000
         # if self.pair == "IAU-SIVR":
         #     cash = 20000
         if self.pair == "USO-BNO":
-            cash = 3000
+            cash = 5000
         if self.pair == "VT-VXUS":
             cash = 3000
 
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
-        max_s1 = int(cash / 2 // price1)
-        max_s2 = int(cash / 2 // price2)
-        min_s1 = int(max_s1 * min_pct)
-        min_s2 = int(max_s2 * min_pct)
+        max_s1 = max(1, int(cash / 2 // price1))
+        max_s2 = max(1, int(cash / 2 // price2))
+        min_s1 = max(1, int(max_s1 * min_pct))
+        min_s2 = max(1, int(max_s2 * min_pct))
 
         best_diff = float('inf')
         shares1, shares2 = max_s1, max_s2
@@ -281,6 +288,36 @@ class StrategyPair:
 
         return pnl / position_value
     
+    def beta_distribution(self, window=60):
+        df1 = open_data(self.symbol1, mode="intraday")
+        df2 = open_data(self.symbol2, mode="intraday")
+        df = (
+            df1[['timestamp', 'close']].rename(columns={'close': 'y'})
+            .merge(df2[['timestamp', 'close']].rename(columns={'close': 'x'}), on='timestamp')
+            .sort_values('timestamp')
+        )
+        df['date'] = df['timestamp'].dt.date
+
+        hr = []
+        for _, g in df.groupby('date'):
+            x = g['x'].to_numpy()
+            y = g['y'].to_numpy()
+
+            for i in range(window, len(x)):
+                hr.append(self.compute_beta(
+                    x[i-window:i],
+                    y[i-window:i]
+                ))
+
+        hr = np.array(hr)
+        self.beta_mean = np.mean(hr)
+        self.beta_std = np.std(hr, ddof=1)
+    
+    def compute_beta(self, x, y):
+        x_mean = np.mean(x)
+        y_mean = np.mean(y)
+        return np.sum((x - x_mean)*(y - y_mean)) / np.sum((x - x_mean)**2)
+
     def save_data(self, ts, data, save_time=(19, 30)):
         if not self.saved:
             self.data_history[ts] = data

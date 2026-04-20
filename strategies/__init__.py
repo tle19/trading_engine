@@ -12,7 +12,7 @@ from .eod_reversion2 import EODReversion2
 from .rsi_swing import RSISwing
 from .naive import Naive
 from .ols import OLS
-from .ols_trend import OLSTrend
+from .tls import TLS
 from .kalman import KalmanFilter
 
 __all__ = [
@@ -30,7 +30,7 @@ __all__ = [
     "RSISwing",
     "Naive",
     "OLS",
-    "OLSTrend",
+    "TLS",
     "KalmanFilter",
     "strategy_map"
 ]
@@ -46,7 +46,7 @@ strategy_map = {
     "rsi_swing": RSISwing,
     "naive": Naive,
     "ols": OLS,
-    "ols_trend": OLSTrend,
+    "tls": TLS,
     "kalman": KalmanFilter,
 }
 

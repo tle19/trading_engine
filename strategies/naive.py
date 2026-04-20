@@ -3,6 +3,8 @@ from collections import deque
 
 from strategies import StrategyPair
 
+import json
+
 class Naive(StrategyPair):
     def __init__(self, pair, ema_window=100, spread_window=1000, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
@@ -26,11 +28,15 @@ class Naive(StrategyPair):
         self.spread_std = 1
         self.spread_check = False
 
+        # self.file = open(f"{self.pair}_hedge_ratios.jsonl", "ab")
+
         self.spread_history = deque(maxlen=self.spread_window)
     
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
         self.reset_history()
+        
+        # self.file.write(json.dumps({"ts": self.s1["ts"], "hedge_ratio": self.hedge_ratio}).encode() + b"\n")
 
         if self.risk_manager._day_pause: 
             return None
@@ -47,8 +53,13 @@ class Naive(StrategyPair):
     def enter_trade(self, signal=None):
         if not self.trade_window() and not self.position_manager.in_trade():
             return None
+
+        if self.z_score < -self.entry_threshold:
+            signal = self.buy_pair()
+        elif self.z_score > self.entry_threshold:
+            signal = self.sell_pair()
         
-        if not self.position_manager.in_trade():
+        if self.position_manager.in_trade():
             self.features = {
                 "z_score": self.z_score,
                 "spread_mean": self.spread_mean,
@@ -57,11 +68,6 @@ class Naive(StrategyPair):
                 "latency": self.latency,
                 "time_diff": abs(self.s1["ts"] - self.s2["ts"]),
             }
-
-        if self.z_score < -self.entry_threshold:
-            signal = self.buy_pair()
-        elif self.z_score > self.entry_threshold:
-            signal = self.sell_pair()
 
         return signal
         
