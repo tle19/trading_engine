@@ -137,12 +137,6 @@ class KalmanFilter(StrategyPair):
         return shares1, shares2
     
     def config(self):
-        if self.pair == "SPY-QQQ":
-            self.spread_window = 1000
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.03
-            self.position_size = 0.20
         if self.pair == "IVV-IWM":
             self.spread_window = 1500
             self.entry_threshold = 2.0

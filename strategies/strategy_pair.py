@@ -188,7 +188,7 @@ class StrategyPair:
 
         # FIXED CASH
         if self.pair == "IVV-IWM":
-            cash = 5000
+            cash = 10000
         # if self.pair == "GLD-SLV":
         #     cash = 20000
         # if self.pair == "IAU-SIVR":
@@ -196,7 +196,7 @@ class StrategyPair:
         # if self.pair == "USO-BNO":
         #     cash = 20000
         if self.pair == "VT-VXUS":
-            cash = 5000
+            cash = 10000
 
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5

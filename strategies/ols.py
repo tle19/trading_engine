@@ -6,7 +6,7 @@ from strategies import StrategyPair
 class OLS(StrategyPair):
     def __init__(self, pair, price_window=10000, spread_window=1500, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
-                 start_time=(15, 00), end_time=(19, 00), quote_delta_ms=500, max_latency_ms=500, 
+                 start_time=(14, 30), end_time=(19, 00), quote_delta_ms=500, max_latency_ms=500, 
                  position_size=0.10, stop_loss=-0.0075, take_profit=0.00005, 
                  pnl_target=0.005, pnl_loss=-0.005, trade_max=1000):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
@@ -26,8 +26,7 @@ class OLS(StrategyPair):
         self.spread_std = 1
         self.spread_check = False
 
-        self.hedge_ratios = deque(maxlen=self.price_window)
-
+        self.hr = deque(maxlen=self.price_window)
         self.mid1_history = deque(maxlen=self.price_window)
         self.mid2_history = deque(maxlen=self.price_window)
         self.spread_history = deque(maxlen=self.spread_window)
@@ -97,9 +96,9 @@ class OLS(StrategyPair):
             x_mean = np.mean(x)
             y_mean = np.mean(y)
             self.hedge_ratio = np.sum((x - x_mean)*(y - y_mean)) / np.sum((x - x_mean)**2)
-            self.hedge_ratios.append(self.hedge_ratio)
-            if len(self.hedge_ratios) > 10:
-                hr = np.array(self.hedge_ratios)
+            self.hr.append(self.hedge_ratio)
+            if len(self.hr) > 10:
+                hr = np.array(self.hr)
                 hr_mean = np.mean(hr)
                 hr_std = np.std(hr, ddof=1)
                 self.hr_z = (self.hedge_ratio - hr_mean) / hr_std
@@ -130,7 +129,7 @@ class OLS(StrategyPair):
 
         # FIXED CASH
         if self.pair == "IVV-IWM":
-            cash = 5000
+            cash = 10000
         # if self.pair == "GLD-SLV":
         #     cash = 20000
         # if self.pair == "IAU-SIVR":
@@ -138,7 +137,7 @@ class OLS(StrategyPair):
         # if self.pair == "USO-BNO":
         #     cash = 20000
         if self.pair == "VT-VXUS":
-            cash = 5000
+            cash = 10000
 
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
@@ -159,13 +158,6 @@ class OLS(StrategyPair):
         return shares1, shares2
     
     def config(self):
-        if self.pair == "SPY-QQQ":
-            self.price_window = 10000
-            self.spread_window = 1000
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.03
-            self.position_size = 0.10
         if self.pair == "IVV-IWM":
             self.price_window = 10000
             self.spread_window = 1500
@@ -204,7 +196,7 @@ class OLS(StrategyPair):
 
     def param_grid(self):
         params = {
-            "price_window": [10000], # 500, 1000, 2500, 5000, 10000
-            "spread_window": [1000, 1500, 2000, 2500, 3000] # 1000, 1500, 2000, 2500, 3000
+            "price_window": [500, 1000, 2500, 5000, 10000], # 500, 1000, 2500, 5000, 10000
+            "spread_window": [1500] # 1000, 1500, 2000, 2500, 3000
         }
         return params
