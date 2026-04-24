@@ -196,7 +196,7 @@ class StrategyPair:
         # if self.pair == "USO-BNO":
         #     cash = 20000
         if self.pair == "VT-VXUS":
-            cash = 10000
+            cash = 3000
 
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
@@ -262,13 +262,18 @@ class StrategyPair:
         )
         df['date'] = df['timestamp'].dt.date
 
+        def compute_beta(x, y):
+            x_mean = np.mean(x)
+            y_mean = np.mean(y)
+            return np.sum((x - x_mean)*(y - y_mean)) / np.sum((x - x_mean)**2)
+        
         hr = []
         for _, g in df.groupby('date'):
             x = g['x'].to_numpy()
             y = g['y'].to_numpy()
 
             for i in range(window, len(x)):
-                hr.append(self.compute_beta(
+                hr.append(compute_beta(
                     x[i-window:i],
                     y[i-window:i]
                 ))
@@ -276,11 +281,6 @@ class StrategyPair:
         hr = np.array(hr)
         self.beta_mean = np.mean(hr)
         self.beta_std = np.std(hr, ddof=1)
-    
-    def compute_beta(self, x, y):
-        x_mean = np.mean(x)
-        y_mean = np.mean(y)
-        return np.sum((x - x_mean)*(y - y_mean)) / np.sum((x - x_mean)**2)
 
     def save_data(self, ts, data, save_time=(19, 30)):
         if not self.saved:

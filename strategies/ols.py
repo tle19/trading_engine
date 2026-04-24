@@ -2,6 +2,7 @@ import numpy as np
 from collections import deque
 
 from strategies import StrategyPair
+import json
 
 class OLS(StrategyPair):
     def __init__(self, pair, price_window=10000, spread_window=1500, 
@@ -26,6 +27,8 @@ class OLS(StrategyPair):
         self.spread_std = 1
         self.spread_check = False
 
+        # self.file = open(f"{self.pair}_hedge_ratios.jsonl", "ab")
+
         self.hr = deque(maxlen=self.price_window)
         self.mid1_history = deque(maxlen=self.price_window)
         self.mid2_history = deque(maxlen=self.price_window)
@@ -34,6 +37,8 @@ class OLS(StrategyPair):
     def generate_signal(self, row, symbol):
         self.update(row, symbol)
         self.reset_history()
+
+        # self.file.write(json.dumps({"ts": self.s1["ts"], "hedge_ratio": self.hedge_ratio}).encode() + b"\n")
 
         if self.risk_manager._day_pause: 
             return None
@@ -137,7 +142,7 @@ class OLS(StrategyPair):
         # if self.pair == "USO-BNO":
         #     cash = 20000
         if self.pair == "VT-VXUS":
-            cash = 10000
+            cash = 3000
 
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
