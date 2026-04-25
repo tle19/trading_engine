@@ -508,14 +508,14 @@ def visualize_bid_ask_spread(symbol):
     plt.ylabel("Count")
     plt.show()
 
-def visualize_spread(symbol1, symbol2, window=1000, z=2):
+def visualize_spread(symbol1, symbol2, window=1000, z=2, file="trade_logs/trade_logs.json"):
     with open(f"{symbol1}-{symbol2}_spread.json", "r") as f:
         spread = json.load(f)
-    with open("trade_logs/trade_logs.json") as f:
+    with open(file) as f:
         trade_history = json.load(f)["trade_history"]
     
     spread = pd.Series(spread)
-    spread.index = pd.to_datetime(spread.index.astype(int), unit='ms', utc=True).tz_convert(timezone)
+    spread.index = pd.to_datetime(spread.index, format="mixed", utc=True).tz_convert(timezone)
 
     roll_mean = spread.shift().rolling(window).mean()
     roll_std = spread.shift().rolling(window).std()
@@ -557,12 +557,103 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
     plt.legend()
     plt.gcf().autofmt_xdate()
     plt.show()
+
+def visualize_beta_distribution(symbol1, symbol2, window=15, z=2, start="2026-04-14", end="2026-04-14"):
+    df1 = open_data(symbol1, start_date=start, end_date=end, mode="intraday")
+    df2 = open_data(symbol2, start_date=start, end_date=end, mode="intraday")
+    df1 = resample_data(df1, type="1min")
+    df2 = resample_data(df2, type="1min")
+
+    df = (
+        df1[['timestamp', 'close']].rename(columns={'close': 'y'})
+        .merge(df2[['timestamp', 'close']].rename(columns={'close': 'x'}), on='timestamp')
+        .sort_values('timestamp')
+    )
+    df['date'] = df['timestamp'].dt.date
+
+    def compute_beta(x, y):
+        x_mean = np.mean(x)
+        y_mean = np.mean(y)
+        return np.sum((x - x_mean) * (y - y_mean)) / np.sum((x - x_mean) ** 2)
+
+    hr = []
+    ts = []
+
+    daily_beta = {}
+
+    for d, g in df.groupby('date'):
+        g = g.reset_index(drop=True)
+
+        x = g['x'].to_numpy()
+        y = g['y'].to_numpy()
+        t = g['timestamp'].to_numpy()
+
+        if len(x) >= window:
+            daily_beta[d.strftime("%Y-%m-%d")] = compute_beta(x, y)
+
+        for i in range(window, len(x)):
+            hr.append(
+                compute_beta(
+                    x[i-window:i],
+                    y[i-window:i]
+                )
+            )
+            ts.append(t[i])
+
+    ts = pd.to_datetime(ts)
+
+    roll_mean = np.array([
+        np.mean(hr[i-window:i]) for i in range(window, len(hr))
+    ])
+
+    roll_std = np.array([
+        np.std(hr[i-window:i]) for i in range(window, len(hr))
+    ])
+
+    upper_band = roll_mean + z * roll_std
+    lower_band = roll_mean - z * roll_std
+
+    ts_trim = ts[window:]
+
+    for k, v in daily_beta.items():
+        print(f"{k}: {v}")
     
+    print(f"Beta Mean: {np.nanmean(hr)}")
+    print(f"Beta Median: {np.nanmedian(hr)}")
+    print(f"Beta Std: {np.nanstd(hr, ddof=1)}")
+
+    plt.figure(figsize=(12, 5))
+    plt.plot(ts, hr, linewidth=1, label="Beta")
+    plt.plot(ts_trim, upper_band, linestyle="--", label=f"+{z} Std", color="lightgray")
+    plt.plot(ts_trim, lower_band, linestyle="--", label=f"-{z} Std", color="lightgray")
+    plt.title("Rolling Hedge Ratio (Covariance Beta) Over Time")
+    plt.xlabel("Time")
+    plt.ylabel("Beta")
+    plt.grid(True)
+    plt.show()
+
+def visualize_hedge_ratios(symbol1, symbol2):
+    times = []
+    hrs = []
+    with open(f"{symbol1}-{symbol2}_hedge_ratios.jsonl") as f:
+        for line in f:
+            row = json.loads(line)
+            times.append(row["ts"])
+            hrs.append(row["hedge_ratio"])
+
+    plt.plot(times, hrs)
+    plt.xlabel("Time")
+    plt.ylabel("Hedge Ratio")
+    plt.title(f"{symbol1}-{symbol2} Hedge Ratio Over Time")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()  
+
 # test_order("AAPL")
 # acc_latency()
 # find_num_orders(start_date="2026-04-01", end_date="2026-04-01", file="trade_logs/trade_logs_live_pt.json")
 
-# compute_share_split(144.98, 81.27, min_pct=0.85, cash=3000, top_n=5)
+# compute_share_split(445.09, 72.04, min_pct=0.85, cash=20000, top_n=5)
 
 # dca_plan(437.13, 69.08, cash=20000)
 
@@ -572,74 +663,139 @@ def visualize_spread(symbol1, symbol2, window=1000, z=2):
 # top_pairs(top_n=20, stat="intraday_corr")
 
 # exchange_latency()
-# check_packet_sync("GLD", "SLV", log_file="market_logs/market_logs_2026-03-31.jsonl")
-# visualize_latency("GLD", "SLV")
+# check_packet_sync("USO", "BNO", log_file="market_logs/market_logs_2026-04-21.jsonl")
+# visualize_latency("USO", "BNO")
 # sync_and_latency_test(file="trade_logs/trade_logs_live_pt.json")
 
-# for symbol in PRECIOUS_METALS[0:4]:
+# for symbol in COMMODITIES:
 #     bid_ask_size_impact(symbol, pct=0.05)
-# visualize_bid_ask_spread("VT")
-# visualize_bid_ask_spread("VXUS")
+# visualize_bid_ask_spread("GLD")
+# visualize_bid_ask_spread("SLV")
 
-visualize_spread("VT", "VXUS", window=1000, z=2)
+visualize_spread("USO", "BNO", window=1500, z=2, file="trade_logs/trade_logs.json")
+# visualize_beta_distribution("GLD", "SLV", window=10, z=2, start="2026-04-22", end="2026-04-22")
+visualize_hedge_ratios("USO", "BNO")
 
 
 
-# with open("trade_logs/trade_logs_live_pt.json") as f:
+# from datetime import datetime
+
+# with open("trade_logs/trade_logs.json") as f:
 #     trade_history = json.load(f)["trade_history"]
 
-# trades_pnls = {}
-# trades_spreads = {}
+# with open("trade_logs/trade_logs_live_pt.json") as f:
+#     trade_history_live = json.load(f)["trade_history"]
+
+# symbols = ["GLD", "SLV"]
+# date = "2026-04-20"
+# TOL_MS = 10000
+
+# def parse(t):
+#     return datetime.fromisoformat(t["entry_time"])
+
+# def keep(t):
+#     return (
+#         date <= t["entry_time"].split("T")[0] <= date
+#         and (not symbols or t["symbol"] in symbols)
+#     )
+
+# bt = sorted([t for t in trade_history if keep(t)], key=lambda x: x["entry_time"])
+# live = sorted([t for t in trade_history_live if keep(t)], key=lambda x: x["entry_time"])
+
+# used_live = set()
+# matches = []
+# missing_in_live = []
+
+# # --- MATCH ---
+# for bt_trade in bt:
+#     bt_time = parse(bt_trade)
+#     best_i = None
+#     best_dt = float("inf")
+
+#     for i, live_trade in enumerate(live):
+#         if i in used_live:
+#             continue
+#         if bt_trade["symbol"] != live_trade["symbol"]:
+#             continue
+#         if bt_trade.get("side") != live_trade.get("side"):
+#             continue
+
+#         dt = abs((parse(live_trade) - bt_time).total_seconds() * 1000)
+
+#         if dt < best_dt:
+#             best_dt = dt
+#             best_i = i
+
+#     if best_i is not None and best_dt <= TOL_MS:
+#         used_live.add(best_i)
+#         matches.append((bt_trade, live[best_i], best_dt))
+#     else:
+#         missing_in_live.append(bt_trade)
+
+# extra_in_live = [t for i, t in enumerate(live) if i not in used_live]
+
+# # --- OUTPUT ---
+# print("Backtest trades:", len(bt))
+# print("Live trades    :", len(live))
+# print("Matched        :", len(matches))
+# print("Missing in live:", len(missing_in_live))
+# print("Extra in live  :", len(extra_in_live))
+
+# # sanity check
+# print("\nSanity check:")
+# print("BT =", len(matches) + len(missing_in_live))
+# print("LV =", len(matches) + len(extra_in_live))
+
+
+
+# with open("trade_logs/trade_logs.json") as f:
+#     trade_history = json.load(f)["trade_history"]
+
+# hr = []
+# pnl = []
 
 # for trade in trade_history:
-#     spread = trade.get("features", {}).get("spread_dist")
-#     if spread is None:
-#         continue
+#     if trade.get("features") and trade["features"].get("hr_z") is not None:
+#         hr.append(trade["features"]["hr_z"])
+#         pnl.append(trade.get("pnl_pct", 0))
 
-#     exit_time = trade["exit_time"]
-#     if trade['symbol'] in ['IVV', 'IWM']:
-#         if exit_time not in trades_pnls:
-#             trades_pnls[exit_time] = trade["pnl_pct"]
-#         else:
-#             trades_pnls[exit_time] += trade["pnl_pct"]
-#         trades_spreads[exit_time] = spread
+# hr = np.array(hr)
+# pnl = np.array(pnl)
 
-# from scipy.stats import pearsonr, spearmanr
-# x = np.array([trades_spreads[t] for t in trades_spreads])
-# y = np.array([trades_pnls[t] for t in trades_spreads])
+# bin_width = 0.5
 
-# # correlations
-# pearson_corr, pearson_p = pearsonr(x, y)
-# spearman_corr, spearman_p = spearmanr(x, y)
+# min_b = np.floor(hr.min() / bin_width) * bin_width
+# max_b = np.ceil(hr.max() / bin_width) * bin_width
 
-# print("N samples:", len(x))
-# print("Mean PnL:", y.mean())
-# print("Std PnL:", y.std())
+# bins = np.arange(min_b, max_b + bin_width, bin_width)
 
-# print("\nPearson correlation (linear):", pearson_corr)
-# print("Pearson p-value:", pearson_p)
+# idx = np.digitize(hr, bins) - 1
 
-# print("\nSpearman correlation (monotonic):", spearman_corr)
-# print("Spearman p-value:", spearman_p)
+# x = []
+# y = []
+# counts = []
 
+# for i in range(len(bins) - 1):
+#     mask = idx == i
+#     if np.sum(mask) > 0:
+#         x.append((bins[i] + bins[i+1]) / 2)
+#         y.append(np.mean(pnl[mask]))
+#         counts.append(np.sum(mask))
 
+# x = np.array(x)
+# y = np.array(y)
+# counts = np.array(counts)
 
-# df = open_data("SPY", mode="quote")
-# df['date'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
-# mask = (df['date'].dt.date >= pd.to_datetime("2026-02-25").date()) & \
-#         (df['date'].dt.date <= pd.to_datetime("2026-03-08").date())
-# df_old = df.loc[~mask].copy().drop(columns=['date'])
-# df_fix = df.loc[mask].copy().drop(columns=['date'])
+# fig, ax1 = plt.subplots(figsize=(10,5))
 
-# df_fix.loc[:, 'timestamp'] = df['timestamp'] - 3600000
+# ax1.plot(x, y, marker='o', label="mean pnl")
+# ax1.axhline(0, color='black', linewidth=1)
+# ax1.set_xlabel("hr_z bucket")
+# ax1.set_ylabel("mean pnl_pct")
+# ax1.set_title("PnL vs hr_z (0.5 bins)")
 
-# print(df)
-# print(df_old)
-# print(df_fix)
+# ax2 = ax1.twinx()
+# ax2.bar(x, counts, alpha=0.2, width=0.3, label="count")
+# ax2.set_ylabel("trade count")
 
-# df_new = pd.concat([df_old, df_fix]).sort_index()
-# print(df_new)
-# # df_new['timestamp'] = pd.to_datetime(df_new['timestamp'], unit='ms', utc=True)
-# # print(df_new)
-
-# save_data(df_new, "SPY", mode="quote")
+# plt.show()
