@@ -3,7 +3,7 @@ from collections import deque
 
 from strategies import StrategyPair
 
-# import json
+import json
 
 class OLS(StrategyPair):
     def __init__(self, pair, price_window=10000, spread_window=1500, 

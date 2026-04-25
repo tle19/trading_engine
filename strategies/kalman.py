@@ -100,7 +100,7 @@ class KalmanFilter(StrategyPair):
         
         spread = self.mid1 - (self.hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], spread)
+        self.save_data(max(self.s1["ts"], self.s2["ts"]), spread)
         if len(self.spread_history) == self.spread_window:
             s = np.array(self.spread_history)
             self.spread_mean = np.mean(s)
