@@ -62,7 +62,6 @@ class StrategyPair:
         self.hedge_ratio = None
         self.curr_steps = 0
         self.max_steps = int(1 / self.position_size)
-        
         self.latency = 0  # network latency in milliseconds
 
         self.data_history = {}
@@ -108,6 +107,7 @@ class StrategyPair:
                 if self.s1[attr] is None or self.s2[attr] is None:
                     return
             self.activated = True
+            self.compute_max_steps()
             # self.hedge_ratio_distribution() # FIX DIV BY 0 ERROR
         else:
             fresher_quote = self.s1 if self.s1["ts"] > self.s2["ts"] else self.s2
@@ -183,6 +183,25 @@ class StrategyPair:
             return EXIT
         return HOLD
     
+    def compute_max_steps(self):
+        price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
+        price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
+
+        total_cash = self.risk_manager.curr_cash
+        # FIXED CASH
+        if self.pair == "IVV-IWM":
+            total_cash = 10000
+        if self.pair == "VT-VXUS":
+            total_cash = 3000
+
+        expensive = max(price1, price2)
+        cheaper = min(price1, price2)
+
+        k = int(expensive / cheaper) + 1
+        min_cash_per_step = expensive + (cheaper * k)
+        feasible_steps = int(total_cash // min_cash_per_step)
+        self.max_steps = max(1, min(self.max_steps, feasible_steps))
+    
     def compute_share_split(self):
         curr_cash = self.risk_manager.curr_cash - self.position_manager.cost_basis()
         curr_s1, curr_s2 = self.position_manager.total_shares()
@@ -240,7 +259,7 @@ class StrategyPair:
 
         return pnl / position_value
     
-    def beta_distribution(self, window=60):
+    def beta_distribution(self, window=15):
         df1 = open_data(self.symbol1, mode="intraday")
         df2 = open_data(self.symbol2, mode="intraday")
         df = (
@@ -270,9 +289,9 @@ class StrategyPair:
         self.hedge_ratio_mean = np.mean(hr)
         self.hedge_ratio_std = np.std(hr, ddof=1)
 
-    def save_data(self, ts, data, save_time=(19, 30)):
+    def save_data(self, ts, data, save_time=(15, 30)):
         if not self.saved:
-            self.data_history[ts] = data
+            self.data_history[ts.isoformat()] = data
             if self.trade_window(save_time, save_time):
                 with open(f"{self.pair}_spread.json", "w") as f:
                     json.dump(self.data_history, f, indent=2)

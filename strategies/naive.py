@@ -36,13 +36,12 @@ class Naive(StrategyPair):
         self.update(row, symbol)
         self.reset_history()
         
-        # self.file.write(json.dumps({"ts": self.s1["ts"], "hedge_ratio": self.hedge_ratio}).encode() + b"\n")
-
         if self.risk_manager._day_pause: 
             return None
 
         signal = None
         if self.activated and self.sync_check:
+            # self.file.write(json.dumps({"ts": self.s1["ts"].isoformat(), "hedge_ratio": self.hedge_ratio}).encode() + b"\n")
             self.compute_indicators()
             if self.latency_check and self.spread_check:
                 signal = self.exit_trade()

@@ -2,7 +2,8 @@ import numpy as np
 from collections import deque
 
 from strategies import StrategyPair
-import json
+
+# import json
 
 class OLS(StrategyPair):
     def __init__(self, pair, price_window=10000, spread_window=1500, 
@@ -37,13 +38,12 @@ class OLS(StrategyPair):
         self.update(row, symbol)
         self.reset_history()
 
-        # self.file.write(json.dumps({"ts": self.s1["ts"], "hedge_ratio": self.hedge_ratio}).encode() + b"\n")
-
         if self.risk_manager._day_pause: 
             return None
 
         signal = None
         if self.activated and self.sync_check:
+            # self.file.write(json.dumps({"ts": self.s1["ts"].isoformat(), "hedge_ratio": self.hedge_ratio}).encode() + b"\n")
             self.compute_indicators()
             if self.latency_check and self.spread_check:
                 signal = self.exit_trade()
@@ -110,7 +110,7 @@ class OLS(StrategyPair):
         
         spread = self.mid1 - (intercept + self.hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        # self.save_data(self.s1["ts"] if self.s1["ts"] > self.s2["ts"] else self.s2["ts"], spread)
+        # self.save_data(max(self.s1["ts"], self.s2["ts"]), spread)
         if len(self.spread_history) == self.spread_window:
             s = np.array(self.spread_history)
             self.spread_mean = np.mean(s)
