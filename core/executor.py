@@ -49,8 +49,9 @@ class DataFeedController:
                             item.get("6")
                         )
                     elif service == "LEVELONE_EQUITIES":
+                        ts = item.get('34') or item.get('37') or item.get('38') or item.get('35') or timestamp
                         row = self.level1_row.update(
-                            item.get('34') or item.get('37') or item.get('38') or item.get('35') or timestamp,
+                            convert_epoch_ms(ts),
                             item.get("1"),
                             item.get("2"),
                             item.get("3"),
@@ -58,15 +59,13 @@ class DataFeedController:
                             item.get("5")
                         )
                     elif service == "NASDAQ_BOOK" or service == "NYSE_BOOK":
+                        ts = item.get("1") or timestamp
                         row = self.level2_row.update(
-                            item.get("1") or timestamp,
+                            convert_epoch_ms(ts),
                             item.get("2"),
                             item.get("3")
                         )
                     self.log_buffer.append(f"[{symbol}] {row}")
-
-                    if service != "CHART_EQUITY":
-                        ts = row.timestamp
 
                     feed = self.strategy_dict[symbol]
                     strategy = feed.strategies[symbol]
@@ -92,7 +91,7 @@ class DataFeedController:
         for feed in self.feeds:
             feed.trade_manager.save_logs()
         self.log_file.close() 
-        self.construct_quote()
+        # self.construct_quote() # FIX: timestamp
     
     def await_market_open(self):
         print("[PENDING] Market open pending")

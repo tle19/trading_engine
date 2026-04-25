@@ -1,5 +1,6 @@
 import json
 import numpy as np
+from datetime import timedelta
 
 from .risk import RiskManager
 from utils import open_data
@@ -13,15 +14,15 @@ HOLD = None
 
 class StrategyPair:
     def __init__(self, pair, 
-                 start_time=(14, 00), end_time=(20, 00), quote_delta_ms=500, max_latency_ms=500, 
+                 start_time=(10, 00), end_time=(15, 00), quote_delta_ms=500, max_latency_ms=500, 
                  position_size=1.0, stop_loss=0.0001, take_profit=0.0001, 
                  pnl_target=0.01, pnl_loss=-0.01, trade_max=100):
         if "-" not in pair:
             raise ValueError(f"Invalid pair format: '{pair}'. Expected format 'SYMBOL1-SYMBOL2'.")
         self.pair = pair
         self.symbol1, self.symbol2 = pair.split("-")
-        self.start_time = (start_time[0] * 3600 + start_time[1] * 60) * 1000
-        self.end_time = (end_time[0] * 3600 + end_time[1] * 60) * 1000
+        self.start_time = start_time
+        self.end_time = end_time
         self.quote_delta_ms = quote_delta_ms
         self.max_latency_ms = max_latency_ms
         self.position_size = position_size
@@ -109,19 +110,18 @@ class StrategyPair:
             self.activated = True
             # self.hedge_ratio_distribution() # FIX DIV BY 0 ERROR
         else:
-            fresher_quote = self.s1 if self.s1["ts"] >= self.s2["ts"] else self.s2
+            fresher_quote = self.s1 if self.s1["ts"] > self.s2["ts"] else self.s2
             self.latency_check = fresher_quote["latency"] < self.max_latency_ms
-            self.sync_check = abs(self.s1["ts"] - self.s2["ts"]) <= self.quote_delta_ms
+            self.sync_check = abs(self.s1["ts"] - self.s2["ts"]) <= timedelta(milliseconds=self.quote_delta_ms)
 
-            force_close_time = ((19, 45)[0] * 3600 + (19, 45)[1] * 60) * 1000
-            if self.s1["ts"] % (24 * 3600 * 1000) > force_close_time:
+            if self.trade_window((15, 45), (15, 45)):
                 self.force_close = True
             else:
                 self.force_close = False
 
-    def trade_window(self):
-        ts = self.s1["ts"] or self.s2["ts"]
-        return self.start_time <= (ts % (24 * 3600 * 1000)) <= self.end_time
+    def trade_window(self, start=(9, 30), end=(16, 00)):
+        ts = self.s1['ts'] or self.s2['ts']
+        return start <= (ts.hour, ts.minute) <= end
     
     def buy_pair(self):
         direction = self.position_manager.direction()
@@ -273,8 +273,7 @@ class StrategyPair:
     def save_data(self, ts, data, save_time=(19, 30)):
         if not self.saved:
             self.data_history[ts] = data
-            end_time = (save_time[0] * 3600 + save_time[1] * 60) * 1000
-            if ts % (24 * 3600 * 1000) > end_time:
+            if self.trade_window(save_time, save_time):
                 with open(f"{self.pair}_spread.json", "w") as f:
                     json.dump(self.data_history, f, indent=2)
                 self.saved = True

@@ -170,8 +170,9 @@ class DataHandler:
                             item.get("6")
                         )
                     elif service == "LEVELONE_EQUITIES":
+                        ts = item.get('34') or item.get('37') or item.get('38') or item.get('35') or timestamp
                         row = self.level1_row.update(
-                            item.get('34') or item.get('37') or item.get('38') or item.get('35') or timestamp,
+                            convert_epoch_ms(ts),
                             item.get("1"),
                             item.get("2"),
                             item.get("3"),
@@ -179,14 +180,16 @@ class DataHandler:
                             item.get("5")
                         )
                     elif service == "NASDAQ_BOOK" or service == "NYSE_BOOK":
+                        ts = item.get("1") or timestamp
                         row = self.level2_row.update(
-                            item.get("1") or timestamp,
+                            convert_epoch_ms(ts),
                             item.get("2"),
                             item.get("3")
                         )
                     elif service == "LEVELONE_FOREX":
+                        ts = item.get('8') or timestamp
                         row = self.level1_row.update(
-                            item.get('8') or timestamp,
+                            convert_epoch_ms(ts),
                             item.get("1"),
                             item.get("2"),
                             item.get("3"),
@@ -195,9 +198,6 @@ class DataHandler:
                         )
 
                     print(f"[{symbol}] {row}")
-
-                    if service != "CHART_EQUITY":
-                        ts = row.timestamp
 
                     feed_latency = timestamp - ts
                     internal_latency = system_receive_time - timestamp

@@ -415,11 +415,11 @@ class BacktestPairs:
                 self.ask_size2 = row.ask_size
 
             if self.ts1 and self.ts2:
-                self.ts = self.ts1 if self.ts1 >= self.ts2 else self.ts2
+                self.ts = max(self.ts1, self.ts2)
             else:
                 self.ts = row.timestamp
 
-            current_day = convert_epoch_ms(self.ts).date() 
+            current_day = self.ts.date() 
             if current_day != last_day:
                 self.risk_manager.reset()
                 last_day = current_day

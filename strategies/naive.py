@@ -8,7 +8,7 @@ import json
 class Naive(StrategyPair):
     def __init__(self, pair, ema_window=100, spread_window=1000, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
-                 start_time=(15, 00), end_time=(19, 00), quote_delta_ms=500, max_latency_ms=500, 
+                 start_time=(10, 00), end_time=(15, 00), quote_delta_ms=500, max_latency_ms=500, 
                  position_size=0.10, stop_loss=-0.005, take_profit=0.00005, 
                  pnl_target=0.005, pnl_loss=-0.005, trade_max=1000):
         super().__init__(pair, start_time, end_time, quote_delta_ms, max_latency_ms,
@@ -66,7 +66,7 @@ class Naive(StrategyPair):
                 "spread_std": self.spread_std,
                 "spread_dist": abs(self.spread_history[-1] - self.spread_mean),
                 "latency": self.latency,
-                "time_diff": abs(self.s1["ts"] - self.s2["ts"]),
+                "time_diff": abs(self.s1["ts"] - self.s2["ts"]).total_seconds() * 1000,
             }
 
         return signal
@@ -110,10 +110,8 @@ class Naive(StrategyPair):
         self.spread_check = (self.s1["ask"] - self.s1["bid"] <= self.bid_ask_spread and 
                             self.s2["ask"] - self.s2["bid"] < self.bid_ask_spread)
         
-    def reset_history(self, reset_time=(13, 31)):
-        ts = self.s1["ts"] or self.s2["ts"]
-        start_time = (reset_time[0] * 3600 + reset_time[1] * 60) * 1000
-        if ts % (24 * 3600 * 1000) < start_time:
+    def reset_history(self, reset_time=(9, 30)):
+        if self.trade_window(reset_time, reset_time):
             self.spread_history.clear()
 
     def config(self):

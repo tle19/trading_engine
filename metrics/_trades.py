@@ -1,8 +1,6 @@
 import os
 import json
 
-from utils import convert_epoch_ms
-
 class TradeManager:
     def __init__(self, log_file="trade_logs.json", live=False):
         file_path = os.path.join("trade_logs", log_file)
@@ -20,8 +18,7 @@ class TradeManager:
         self.intraday_equity = intraday_equity
 
     def update_intraday_equity(self, ts, equity):
-        ts = convert_epoch_ms(ts).isoformat() if isinstance(ts, int) else ts.isoformat()
-        self.intraday_equity[ts] = equity
+        self.intraday_equity[ts.isoformat()] = equity
 
     def log_entry(self, name, leg, symbol, direction, position_size, shares, entry_time, entry_price, fill_price, stop_price, target_price, features=None):
         trade = {
@@ -46,8 +43,8 @@ class TradeManager:
     
     def update_exit(self, leg, exit_time, exit_price, fill_price):
         trade = self.open_trades.pop(leg)
-        trade["entry_time"] = convert_epoch_ms(trade["entry_time"]).isoformat() if isinstance(trade["entry_time"], int) else trade["entry_time"].isoformat()
-        trade["exit_time"] = convert_epoch_ms(exit_time).isoformat() if isinstance(exit_time, int) else exit_time.isoformat()
+        trade["entry_time"] = trade["entry_time"].isoformat()
+        trade["exit_time"] = exit_time.isoformat()
         trade["exit_price"] = exit_price
         trade["exit_fill"] = exit_price if fill_price is None else round(fill_price, 2)
 

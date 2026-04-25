@@ -13,10 +13,8 @@ def load_config(config_path="configs/api_config.json"):
     return config
 
 def save_data(df, symbol, mode="intraday"):
-    if mode == "intraday" or mode == "daily":
-        df = df.drop_duplicates(subset=["timestamp"])
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
-        df["timestamp"] = df["timestamp"].dt.tz_convert(timezone)
+    df = df.drop_duplicates(subset=["timestamp"])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True).dt.tz_convert(timezone)
 
     folder = os.path.join(data_path, mode)
     os.makedirs(folder, exist_ok=True)
@@ -33,19 +31,11 @@ def open_data(symbol, start_date=None, end_date=None, mode="intraday"):
     
     df = pd.read_csv(file_path)
 
-    if mode == "intraday" or mode == "daily":
-        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert(timezone)
-        if start_date is not None and end_date is not None:
-            mask = (df['timestamp'].dt.date >= pd.to_datetime(start_date).date()) & \
-                    (df['timestamp'].dt.date <= pd.to_datetime(end_date).date())
-            df = df.loc[mask]
-    elif mode == "quote" or mode == "book":
-        df['date'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True).dt.tz_convert(timezone) 
-        if start_date is not None and end_date is not None:
-            mask = (df['date'].dt.date >= pd.to_datetime(start_date).date()) & \
-                    (df['date'].dt.date <= pd.to_datetime(end_date).date())
-            df = df.loc[mask]
-        df = df.drop(columns=['date'])
+    df["timestamp"] = pd.to_datetime(df["timestamp"], format="mixed", utc=True).dt.tz_convert(timezone)
+    if start_date is not None and end_date is not None:
+        mask = (df['timestamp'].dt.date >= pd.to_datetime(start_date).date()) & \
+                (df['timestamp'].dt.date <= pd.to_datetime(end_date).date())
+        df = df.loc[mask]
 
     return df
 
