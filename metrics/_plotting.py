@@ -22,7 +22,9 @@ class Plotting:
         self.intraday_equity = intraday_equity.copy()
         if not self.trade_history:
             return
-        if not self.intraday_equity:
+        if self.intraday_equity:
+            self._fix_equity()
+        else:
             equity = 25000
             for trade in self.trade_history:
                 equity += trade.get("pnl", 0)
@@ -35,9 +37,26 @@ class Plotting:
         self.start_date = self.dates[0]
         self.end_date = self.dates[-1]
 
+    def _fix_equity(self):
+        raw = [(t["entry_time"], t["exit_time"]) for t in self.trade_history]
+
+        active = []
+        for start, end in raw:
+            if not active or start > active[-1][1]:
+                active.append([start, end])
+            else:
+                active[-1][1] = max(active[-1][1], end)
+
+        last_equity = None
+        for ts, val in list(self.intraday_equity.items()):
+            if any(start <= ts <= end for start, end in active):
+                last_equity = val
+            else:
+                self.intraday_equity[ts] = last_equity if last_equity is not None else val
+
     def overview(self, display=True):
         if len(self.intraday_equity) == 0:
-            return print("No trade data available to plot.")
+            return print("No plot data available.")
         equity = self.intraday_equity
         if len(equity) <= ((self.end_date - self.start_date).days + 1) * 385:
             dates = self.dates

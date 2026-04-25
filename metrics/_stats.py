@@ -64,15 +64,19 @@ class Stats:
         self.intraday_equity = intraday_equity.copy()
         if not self.trade_history:
             return
-        if not self.intraday_equity:
-            self.intraday_equity = {self.trade_history[0]["entry_time"]: 25000, 
-                                    self.trade_history[-1]["exit_time"]: 25000}
+        if self.intraday_equity:
+            self._fix_equity()
+        else:
+            equity = 25000
+            for trade in self.trade_history:
+                equity += trade.get("pnl", 0)
+                self.intraday_equity[trade["exit_time"]] = equity
         self._update_dates()
         self.intraday_equity = np.array([v for k, v in sorted(self.intraday_equity.items())])
 
     def summary(self, display=True):
         if not self.trade_history:
-            return print("No trade data available to display.")
+            return print("No trade statistics available.")
         self._calculate_pnls()
         self._calculate_win_rates()
         self._calculate_streaks()
@@ -145,6 +149,23 @@ class Stats:
         self.start_date = self.dates[0]
         self.end_date = self.dates[-1]
         self.duration = self.end_date - self.start_date
+
+    def _fix_equity(self):
+        raw = [(t["entry_time"], t["exit_time"]) for t in self.trade_history]
+
+        active = []
+        for start, end in raw:
+            if not active or start > active[-1][1]:
+                active.append([start, end])
+            else:
+                active[-1][1] = max(active[-1][1], end)
+
+        last_equity = None
+        for ts, val in list(self.intraday_equity.items()):
+            if any(start <= ts <= end for start, end in active):
+                last_equity = val
+            else:
+                self.intraday_equity[ts] = last_equity if last_equity is not None else val
 
     def _calculate_pnls(self):
         self.gross_profit = sum(trade["pnl"] for trade in self.trade_history if trade["pnl"] > 0)
@@ -236,16 +257,9 @@ class Stats:
         self.short_win_rate = short_wins / self.short_trades if self.short_trades > 0 else 0
 
     def _calculate_drawdown(self):
-        equity = self.equity_initial
-        intraday_equity = {}
-        for trade in self.trade_history:
-            equity += trade.get("pnl", 0)
-            intraday_equity[trade["exit_time"]] = equity
-
-        equity_series = list(intraday_equity.values())
-        if len(equity_series) > 2:
-            cum_max = np.maximum.accumulate(equity_series)
-            self.max_drawdown = np.max((cum_max - equity_series) / cum_max)
+        if len(self.intraday_equity) > 2:
+            cum_max = np.maximum.accumulate(self.intraday_equity)
+            self.max_drawdown = np.max((cum_max - self.intraday_equity) / cum_max)
 
     def _calculate_sharpe_ratio(self, risk_free_rate=0.05):
         daily_returns = np.array(self.daily_pnls) / self.equity_initial
