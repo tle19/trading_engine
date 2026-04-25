@@ -57,9 +57,11 @@ class StrategyPair:
         self.latency_check = False
         self.force_close = False
         self.features = None
+
+        self.hedge_ratio = None
+        self.curr_steps = 0
+        self.max_steps = int(1 / self.position_size)
         
-        self.dca_plan = []
-        self.dca_step = 0
         self.latency = 0  # network latency in milliseconds
 
         self.data_history = {}
@@ -105,7 +107,7 @@ class StrategyPair:
                 if self.s1[attr] is None or self.s2[attr] is None:
                     return
             self.activated = True
-            # self.beta_distribution() # FIX DIV BY 0 ERROR
+            # self.hedge_ratio_distribution() # FIX DIV BY 0 ERROR
         else:
             fresher_quote = self.s1 if self.s1["ts"] >= self.s2["ts"] else self.s2
             self.latency_check = fresher_quote["latency"] < self.max_latency_ms
@@ -123,11 +125,10 @@ class StrategyPair:
     
     def buy_pair(self):
         direction = self.position_manager.direction()
-        if not direction:
+        if direction in (1, 0) and self.curr_steps < self.max_steps:
             shares1, shares2 = self.compute_share_split()
-            self.dca_plan = self.compute_dca_plan(shares1, shares2)
-        if direction in (1, 0) and self.dca_step < len(self.dca_plan):
-            shares1, shares2 = self.dca_plan[self.dca_step]
+            if shares1 == 0 or shares2 == 0:
+                return HOLD
             pos_leg1 = PositionLeg(
                 direction=1,
                 timestamp=self.s1["ts"],
@@ -143,7 +144,7 @@ class StrategyPair:
                 shares=shares2
             )
             if self.position_manager.add_pair(pos_leg1, pos_leg2):
-                self.dca_step += 1
+                self.curr_steps += 1
                 return LONG
             return HOLD
         elif direction == -1:
@@ -151,11 +152,10 @@ class StrategyPair:
         
     def sell_pair(self):
         direction = self.position_manager.direction()
-        if not direction:
+        if direction in (-1, 0) and self.curr_steps < self.max_steps:
             shares1, shares2 = self.compute_share_split()
-            self.dca_plan = self.compute_dca_plan(shares1, shares2)
-        if direction in (-1, 0) and self.dca_step < len(self.dca_plan):
-            shares1, shares2 = self.dca_plan[self.dca_step]
+            if shares1 == 0 or shares2 == 0:
+                return HOLD
             pos_leg1 = PositionLeg(
                 direction=-1,
                 timestamp=self.s1["ts"],
@@ -171,7 +171,7 @@ class StrategyPair:
                 shares=shares2
             )
             if self.position_manager.add_pair(pos_leg1, pos_leg2):
-                self.dca_step += 1
+                self.curr_steps += 1
                 return SHORT
             return HOLD
         elif direction == 1:
@@ -179,69 +179,57 @@ class StrategyPair:
           
     def exit(self):
         if self.position_manager.direction():
-            self.dca_step = 0
+            self.curr_steps = 0
             return EXIT
         return HOLD
     
-    def compute_share_split(self, min_pct=0.85):
-        cash = self.risk_manager.curr_cash
+    def compute_share_split(self):
+        curr_cash = self.risk_manager.curr_cash - self.position_manager.cost_basis()
+        curr_s1, curr_s2 = self.position_manager.total_shares()
 
         # FIXED CASH
         if self.pair == "IVV-IWM":
-            cash = 10000
+            curr_cash = 10000
         # if self.pair == "GLD-SLV":
-        #     cash = 20000
+        #     curr_cash = 20000
         # if self.pair == "IAU-SIVR":
-        #     cash = 20000
+        #     curr_cash = 20000
         # if self.pair == "USO-BNO":
-        #     cash = 20000
+        #     curr_cash = 20000
         if self.pair == "VT-VXUS":
-            cash = 3000
+            curr_cash = 3000
 
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
-        max_s1 = max(1, int(cash / 2 // price1))
-        max_s2 = max(1, int(cash / 2 // price2))
-        min_s1 = max(1, int(max_s1 * min_pct))
-        min_s2 = max(1, int(max_s2 * min_pct))
+        alloc_cash = curr_cash / (self.max_steps - self.curr_steps)
+        target_value = curr_s1 * price1 + curr_s2 * price2 + alloc_cash
 
-        best_diff = float('inf')
-        shares1, shares2 = max_s1, max_s2
+        denom = price1 + self.hedge_ratio * price2
+        if denom <= 0:
+            return 0, 0
 
-        for s1 in range(min_s1, max_s1 + 1):
-            cash1 = s1 * price1
-            for s2 in range(min_s2, max_s2 + 1):
-                cash2 = s2 * price2
-                diff = abs(cash1 - cash2)
-                if diff < best_diff:
-                    best_diff = diff
-                    shares1, shares2 = s1, s2
+        target_s1 = max(1, int(target_value // denom))
+        target_s2 = max(1, int(self.hedge_ratio * target_s1))
+        cost = target_s1 * price1 + target_s2 * price2
+        remaining_cash = target_value - cost
+
+        best_s2 = target_s2
+        max_adj = int(remaining_cash // price2)
+        for i in range(1, max_adj):
+            adj_s2 = target_s2 + i
+            if abs(self.hedge_ratio - (adj_s2 / target_s1)) < abs(self.hedge_ratio - (best_s2 / target_s1)):
+                best_s2 = adj_s2
+        target_s2 = best_s2
+
+        shares1 = target_s1 - curr_s1
+        shares2 = target_s2 - curr_s2
 
         return shares1, shares2
-    
-    def compute_dca_plan(self, shares1, shares2):
-        steps = max(1, int(1 / self.position_size))
-        steps = min(steps, shares1, shares2)
-
-        base1, rem1 = divmod(shares1, steps)
-        base2, rem2 = divmod(shares2, steps)
-
-        plan = [[base1, base2] for _ in range(steps)]
-
-        for i in range(rem1):
-            plan[(i * steps) // rem1][0] += 1
-
-        for i in range(rem2):
-            plan[(i * steps) // rem2][1] += 1
-        
-        plan = [tuple(p) for p in plan]
-        return plan
    
     def compute_position_value(self):
         direction = self.position_manager.direction()
         shares1, shares2 = self.position_manager.total_shares()
-
         entry1, entry2 = self.position_manager.average_entry()
 
         exit1 = self.s1["bid"] if direction > 0 else self.s1["ask"]
@@ -279,8 +267,8 @@ class StrategyPair:
                 ))
 
         hr = np.array(hr)
-        self.beta_mean = np.mean(hr)
-        self.beta_std = np.std(hr, ddof=1)
+        self.hedge_ratio_mean = np.mean(hr)
+        self.hedge_ratio_std = np.std(hr, ddof=1)
 
     def save_data(self, ts, data, save_time=(19, 30)):
         if not self.saved:
@@ -343,12 +331,18 @@ class PositionManager:
     def average_entry(self):
         total1 = total2 = 0
         weighted_sum1 = weighted_sum2 = 0
+
         for leg1, leg2 in self.pairs:
-            weighted_sum1 += leg1.entry_price * leg1.position_size
-            total1 += leg1.position_size
-            weighted_sum2 += leg2.entry_price * leg2.position_size
-            total2 += leg2.position_size
-        return weighted_sum1 / total1 if total1 > 0 else 0, weighted_sum2 / total2 if total2 > 0 else 0
+            weighted_sum1 += leg1.entry_price * leg1.shares
+            total1 += leg1.shares
+
+            weighted_sum2 += leg2.entry_price * leg2.shares
+            total2 += leg2.shares
+
+        avg1 = weighted_sum1 / total1 if total1 > 0 else 0
+        avg2 = weighted_sum2 / total2 if total2 > 0 else 0
+
+        return avg1, avg2
     
     def total_shares(self):
         shares1 = shares2 = 0
@@ -356,7 +350,14 @@ class PositionManager:
             shares1 += leg1.shares
             shares2 += leg2.shares
         return shares1, shares2
-
+    
+    def cost_basis(self):
+        value = 0
+        for leg1, leg2 in self.pairs:
+            value += leg1.shares * leg1.entry_price
+            value += leg2.shares * leg2.entry_price
+        return value
+    
     def reset(self):
         self.pairs = []
     

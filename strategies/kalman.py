@@ -115,26 +115,6 @@ class KalmanFilter(StrategyPair):
         start_time = (reset_time[0] * 3600 + reset_time[1] * 60) * 1000
         if ts % (24 * 3600 * 1000) < start_time:
             self.spread_history.clear()
-
-    def compute_share_split(self):
-        cash = self.risk_manager.curr_cash
-        price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
-        price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
-        
-        # lower = self.beta_mean - self.beta_std*2
-        # upper = self.beta_mean + self.beta_std*2
-        # beta = np.clip(self.hedge_ratio, lower, upper)
-        beta = self.hedge_ratio
-
-        denom = price1 + beta * price2
-        if denom <= 0:
-            shares1 = max(1, int(cash / 2 // price1))
-            shares2 = max(1, int(cash / 2 // price2))
-
-        shares1 = max(1, int(cash // denom))
-        shares2 = max(1, int(beta * shares1))
-
-        return shares1, shares2
     
     def config(self):
         if self.pair == "IVV-IWM":

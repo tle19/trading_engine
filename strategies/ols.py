@@ -20,7 +20,6 @@ class OLS(StrategyPair):
         self.bid_ask_spread = bid_ask_spread
         self.config()
 
-        self.hedge_ratio = None
         self.hr_z = 0
         self.z_score = 0
         self.spread_mean = 0
@@ -128,39 +127,6 @@ class OLS(StrategyPair):
             self.mid1_history.clear()
             self.mid2_history.clear()
             self.spread_history.clear()
-
-    def compute_share_split(self):
-        cash = self.risk_manager.curr_cash
-
-        # FIXED CASH
-        if self.pair == "IVV-IWM":
-            cash = 10000
-        # if self.pair == "GLD-SLV":
-        #     cash = 20000
-        # if self.pair == "IAU-SIVR":
-        #     cash = 20000
-        # if self.pair == "USO-BNO":
-        #     cash = 20000
-        if self.pair == "VT-VXUS":
-            cash = 3000
-
-        price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
-        price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
-        
-        # lower = self.beta_mean - self.beta_std
-        # upper = self.beta_mean + self.beta_std
-        # beta = np.clip(self.hedge_ratio, lower, upper)
-        beta = self.hedge_ratio
-
-        denom = price1 + beta * price2
-        if denom <= 0:
-            shares1 = max(1, int(cash / 2 // price1))
-            shares2 = max(1, int(cash / 2 // price2))
-
-        shares1 = max(1, int(cash // denom))
-        shares2 = max(1, int(beta * shares1))
-
-        return shares1, shares2
     
     def config(self):
         if self.pair == "IVV-IWM":
