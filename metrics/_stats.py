@@ -236,10 +236,16 @@ class Stats:
         self.short_win_rate = short_wins / self.short_trades if self.short_trades > 0 else 0
 
     def _calculate_drawdown(self):
-        if len(self.intraday_equity) > 2:
-            cum_max = np.maximum.accumulate(self.intraday_equity)
-            drawdowns = (cum_max - self.intraday_equity) / cum_max
-            self.max_drawdown = np.max(drawdowns)
+        equity = self.equity_initial
+        intraday_equity = {}
+        for trade in self.trade_history:
+            equity += trade.get("pnl", 0)
+            intraday_equity[trade["exit_time"]] = equity
+
+        equity_series = list(intraday_equity.values())
+        if len(equity_series) > 2:
+            cum_max = np.maximum.accumulate(equity_series)
+            self.max_drawdown = np.max((cum_max - equity_series) / cum_max)
 
     def _calculate_sharpe_ratio(self, risk_free_rate=0.05):
         daily_returns = np.array(self.daily_pnls) / self.equity_initial
