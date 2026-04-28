@@ -4,6 +4,8 @@ import pandas as pd
 import datetime
 import zoneinfo
 
+SEC_FEE_RATE = 0.0000206 # 20.60 per 1 000 000
+
 data_path = "data"
 timezone = zoneinfo.ZoneInfo("America/New_York")
 

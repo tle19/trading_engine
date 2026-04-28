@@ -197,7 +197,10 @@ class Instrument:
             self.symbols = symbols
         
         self.log_buffer = log_buffer if log_buffer is not None else []
+
         self.trade_manager = TradeManager(log_file=log_file, live=True)
+        self.strategies = {}
+        self.exit_ids = {}
 
         self.ohlcv_row = OHLCVRow()
         self.level1_row = Level1Row()
@@ -223,8 +226,8 @@ class Instrument:
         response2 = self.market_order(symbol2, shares2, instruction2)
         order_id1 = self.get_order_id(response1)
         order_id2 = self.get_order_id(response2)
-        fill_price1 = self.get_fill_price(order_id1, shares1, timeout=0.3, polling_rate=0.1)
-        fill_price2 = self.get_fill_price(order_id2, shares2, timeout=0.3, polling_rate=0.1)
+        fill_price1 = self.get_fill_price(order_id1, timeout=0.3, polling_rate=0.1)
+        fill_price2 = self.get_fill_price(order_id2, timeout=0.3, polling_rate=0.1)
 
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[BOT] +{shares1} {symbol1} @ {fill_price1}")
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[SOLD] -{shares2} {symbol2} @ {fill_price2}")
@@ -237,8 +240,8 @@ class Instrument:
         response2 = self.market_order(symbol2, shares2, instruction2)
         order_id1 = self.get_order_id(response1)
         order_id2 = self.get_order_id(response2)
-        fill_price1 = self.get_fill_price(order_id1, shares1, timeout=0.3, polling_rate=0.1)
-        fill_price2 = self.get_fill_price(order_id2, shares2, timeout=0.3, polling_rate=0.1)
+        fill_price1 = self.get_fill_price(order_id1, timeout=0.3, polling_rate=0.1)
+        fill_price2 = self.get_fill_price(order_id2, timeout=0.3, polling_rate=0.1)
 
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[SOLD] -{shares1} {symbol1} @ {fill_price1}")
         self.log_buffer.append(f"{' ' * (len(symbol1) + 3)}[BOT] +{shares2} {symbol2} @ {fill_price2}")
@@ -249,7 +252,7 @@ class Instrument:
         
         response = self.market_order(symbol, shares, instruction)  
         order_id = self.get_order_id(response)
-        fill_price = self.get_fill_price(order_id, shares)
+        fill_price = self.get_fill_price(order_id)
 
         self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[BOT] +{shares} {symbol} @ {fill_price}")
         return fill_price
@@ -259,7 +262,7 @@ class Instrument:
 
         response = self.market_order(symbol, shares, instruction)
         order_id = self.get_order_id(response)
-        fill_price = self.get_fill_price(order_id, shares)
+        fill_price = self.get_fill_price(order_id)
 
         self.log_buffer.append(f"{' ' * (len(symbol) + 3)}[SOLD] -{shares} {symbol} @ {fill_price}")
         return fill_price
@@ -268,14 +271,14 @@ class Instrument:
         response = self.oco_order(symbol, quantity, stop_price, target_price, "BUY_TO_COVER")
         order_id = self.get_order_id(response)
 
-        self.log_buffer.append(f"{' ' * (len(symbol) + 4)}STP={stop_price} | LMT={target_price}")  
+        self.log_buffer.append(f"{' ' * (len(symbol) + 4)}STP @ {stop_price} | LMT @ {target_price}")  
         return order_id
 
     def sell_oco(self, symbol, quantity, stop_price, target_price):
         response = self.oco_order(symbol, quantity, stop_price, target_price, "SELL")
         order_id = self.get_order_id(response)
 
-        self.log_buffer.append(f"{' ' * (len(symbol) + 4)}STP={stop_price} | LMT={target_price}")  
+        self.log_buffer.append(f"{' ' * (len(symbol) + 4)}STP @ {stop_price} | LMT @ {target_price}")  
         return order_id
     
     def market_order(self, symbol, quantity, instruction="BUY"):
@@ -428,7 +431,7 @@ class Instrument:
         details_json = details.json()
         return details_json
             
-    def get_fill_price(self, order_id, quantity, instruction="single", timeout=5, polling_rate=0.25): 
+    def get_fill_price(self, order_id, instruction="single", timeout=5, polling_rate=0.25): 
         start = time.perf_counter()
         while True:
             order_details = self.get_order_details(order_id)
@@ -438,13 +441,17 @@ class Instrument:
                     None
                 )
 
-            if order_details and order_details.get('orderActivityCollection'): # order_details.get("status") == "FILLED"
+            if order_details and order_details.get("status") == "FILLED":
                 legs = order_details['orderActivityCollection'][0]['executionLegs']
+                quantity = order_details['orderActivityCollection']["quantity"]
                 total_qty = sum(leg['quantity'] for leg in legs)
                 if total_qty == quantity:
                     fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / total_qty
                     return round(fill_price, 2)
-            
+                
+            if order_details and order_details.get("status") == "REJECTED":
+                return "REJECTED"
+                             
             if time.perf_counter() - start > timeout:
                 return None
             time.sleep(polling_rate)
@@ -476,7 +483,6 @@ class Equities(Instrument):
         self.initialize(symbols, strategy_class)
     
     def initialize(self, symbols, strategy_class):
-        self.strategies = {}
         self.exit_ids = {}
 
         for symbol in symbols:
@@ -508,6 +514,9 @@ class Equities(Instrument):
         # --- Enter Long ---
         if signal == 1:
             fill_price = self.buy(signal, symbol, shares)
+            if fill_price == "REJECTED":
+                position_manager.remove_leg(leg)
+                return
             self.exit_ids[leg] = self.sell_oco(symbol, shares, stop_price, target_price)
             leg.entry_price = fill_price if fill_price is not None else entry_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
@@ -515,6 +524,9 @@ class Equities(Instrument):
         # --- Enter Short ---
         elif signal == -1:
             fill_price = self.sell(signal, symbol, shares)
+            if fill_price == "REJECTED":
+                position_manager.remove_leg(leg)
+                return
             self.exit_ids[leg] = self.buy_oco(symbol, shares, stop_price, target_price)
             leg.entry_price = fill_price if fill_price is not None else entry_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
@@ -532,7 +544,7 @@ class Equities(Instrument):
                     target_price = leg.target_price
                     shares = leg.shares
 
-                    fill_price = self.get_fill_price(self.exit_ids[leg], shares, instruction="oco", timeout=1)
+                    fill_price = self.get_fill_price(self.exit_ids[leg], instruction="oco", timeout=1)
 
                     if fill_price is None:
                         self.cancel_order(self.exit_ids[leg])
@@ -563,8 +575,6 @@ class EquityPairs(Instrument):
         self.initialize(pairs, strategy_class)
  
     def initialize(self, pairs, strategy_class):
-        self.strategies = {}
-
         for pair in pairs:
             strat = strategy_class(pair)
             cash_allocation = round(self.cash / len(pairs), 2)
@@ -599,6 +609,15 @@ class EquityPairs(Instrument):
         # --- Enter Long/Short ---
         if signal == 1:
             fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, shares1, shares2)
+            if fill_price1 == "REJECTED" or fill_price2 == "REJECTED":
+                position_manager.remove_pair(leg1, leg2)
+                if fill_price1 == "REJECTED" and fill_price2 == "REJECTED":
+                    return
+                if fill_price1 == "REJECTED":
+                    self.buy(0, symbol2, shares2)
+                if fill_price2 == "REJECTED":
+                    self.sell(0, symbol1, shares1)
+                return
             leg1.entry_price = fill_price1 if fill_price1 is not None else entry_price1
             leg2.entry_price = fill_price2 if fill_price2 is not None else entry_price2
             self.trade_manager.log_entry(name, leg1, symbol1, direction1, position_size1, shares1, s1["ts"], entry_price1, fill_price1, None, None, strategy.features)
@@ -607,6 +626,15 @@ class EquityPairs(Instrument):
         # --- Enter Short/Long ---
         elif signal == -1:
             fill_price1, fill_price2 = self.sell_pair(signal, symbol1, symbol2, shares1, shares2)
+            if fill_price1 == "REJECTED" or fill_price2 == "REJECTED":
+                position_manager.remove_pair(leg1, leg2)
+                if fill_price1 == "REJECTED" and fill_price2 == "REJECTED":
+                    return
+                if fill_price1 == "REJECTED":
+                    self.sell(0, symbol2, shares2)
+                if fill_price2 == "REJECTED":
+                    self.buy(0, symbol1, shares1)
+                return
             leg1.entry_price = fill_price1 if fill_price1 is not None else entry_price1
             leg2.entry_price = fill_price2 if fill_price2 is not None else entry_price2
             self.trade_manager.log_entry(name, leg1, symbol1, direction1, position_size1, shares1, s1["ts"], entry_price1, fill_price1, None, None, strategy.features)
@@ -642,9 +670,6 @@ class EquityBook(Instrument):
         self.initialize(symbols, strategy_class)
     
     def initialize(self, symbols, strategy_class):
-        self.strategies = {}
-        self.exit_ids = {}
-
         for symbol in symbols:
             strat = strategy_class(symbol)
             cash_allocation = round(self.cash / len(symbols), 2)
@@ -659,5 +684,5 @@ class EquityBook(Instrument):
         self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4", command="ADD"))
 
     def interpret_signal(self, signal, strategy):
-        # TODO: finish book interpret
+        # TODO: complete this
         return

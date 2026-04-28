@@ -60,8 +60,7 @@ class StrategyPair:
         self.features = None
 
         self.hedge_ratio = 1.0
-        self.curr_steps = 0
-        self.max_steps = 1
+        self.max_positions = 1
         self.latency = 0  # network latency in milliseconds
 
         self.data_history = {}
@@ -107,7 +106,7 @@ class StrategyPair:
                 if self.s1[attr] is None or self.s2[attr] is None:
                     return
             self.activated = True
-            self.compute_max_steps()
+            self.compute_max_positions()
             # self.hedge_ratio_distribution() # FIX DIV BY 0 ERROR
         else:
             fresher_quote = self.s1 if self.s1["ts"] > self.s2["ts"] else self.s2
@@ -125,7 +124,7 @@ class StrategyPair:
     
     def buy_pair(self):
         direction = self.position_manager.direction()
-        if direction in (1, 0) and self.curr_steps < self.max_steps:
+        if direction in (1, 0) and len(self.position_manager.pairs) < self.max_positions:
             shares1, shares2 = self.compute_share_split()
             if shares1 == 0 or shares2 == 0:
                 return HOLD
@@ -144,7 +143,6 @@ class StrategyPair:
                 shares=shares2
             )
             if self.position_manager.add_pair(pos_leg1, pos_leg2):
-                self.curr_steps += 1
                 return LONG
             return HOLD
         elif direction == -1:
@@ -152,7 +150,7 @@ class StrategyPair:
         
     def sell_pair(self):
         direction = self.position_manager.direction()
-        if direction in (-1, 0) and self.curr_steps < self.max_steps:
+        if direction in (-1, 0) and len(self.position_manager.pairs) < self.max_positions:
             shares1, shares2 = self.compute_share_split()
             if shares1 == 0 or shares2 == 0:
                 return HOLD
@@ -171,7 +169,6 @@ class StrategyPair:
                 shares=shares2
             )
             if self.position_manager.add_pair(pos_leg1, pos_leg2):
-                self.curr_steps += 1
                 return SHORT
             return HOLD
         elif direction == 1:
@@ -179,11 +176,10 @@ class StrategyPair:
           
     def exit(self):
         if self.position_manager.direction():
-            self.curr_steps = 0
             return EXIT
         return HOLD
     
-    def compute_max_steps(self):
+    def compute_max_positions(self):
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
@@ -194,8 +190,8 @@ class StrategyPair:
         k = int(expensive / cheaper) + 1
         min_cash_per_step = expensive + (cheaper * k)
         feasible_steps = int(total_cash // min_cash_per_step)
-        max_steps = 1 / self.position_size
-        self.max_steps = max(1, min(max_steps, feasible_steps))
+        max_positions = 1 / self.position_size
+        self.max_positions = max(1, min(max_positions, feasible_steps))
     
     def compute_share_split(self):
         curr_cash = self.risk_manager.curr_cash - self.position_manager.cost_basis()
@@ -204,7 +200,7 @@ class StrategyPair:
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
-        alloc_cash = curr_cash / (self.max_steps - self.curr_steps)
+        alloc_cash = curr_cash / (self.max_positions - len(self.position_manager.pairs))
         target_value = curr_s1 * price1 + curr_s2 * price2 + alloc_cash
 
         denom = price1 + self.hedge_ratio * price2

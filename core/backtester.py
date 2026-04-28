@@ -9,8 +9,6 @@ from strategies import *
 from models import *
 from utils import *
 
-SEC_FEE_RATE = 0.0000206 # 20.60 per 1 000 000
-
 def create_backtest(symbols, strategy_class, pairs=False, **kwargs):
     if pairs:
         return BacktestPairs(symbols, strategy_class, **kwargs)
