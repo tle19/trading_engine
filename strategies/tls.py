@@ -88,27 +88,30 @@ class TLS(StrategyPair):
         self.mid1_history.append(self.mid1)
         self.mid2_history.append(self.mid2)
 
-        if len(self.spread_history) < 100:
-            self.hedge_ratio, intercept = round(self.mid1 / self.mid2, 2), 0
+        x = np.array(self.mid2_history)
+        y = np.array(self.mid1_history)
+        x_mean = np.mean(x)
+        y_mean = np.mean(y)
+        x_c = x - x_mean
+        y_c = y - y_mean
+        Sxx = np.sum(x_c * x_c)
+        Syy = np.sum(y_c * y_c)
+        Sxy = np.sum(x_c * y_c)
+        denom = (2 * Sxy)
+        if denom == 0:
+            self.hedge_ratio = getattr(self, "hedge_ratio", 1.0)
         else:
-            x = np.array(self.mid2_history)
-            y = np.array(self.mid1_history)
-            x_mean = np.mean(x)
-            y_mean = np.mean(y)
-            x_c = x - x_mean
-            y_c = y - y_mean
-            Sxx = np.sum(x_c * x_c)
-            Syy = np.sum(y_c * y_c)
-            Sxy = np.sum(x_c * y_c)
-            self.hedge_ratio = (Syy - Sxx + np.sqrt((Syy - Sxx)**2 + 4 * Sxy**2)) / (2 * Sxy)
-            self.hr.append(self.hedge_ratio)
-            if len(self.hr) > 10:
-                hr = np.array(self.hr)
-                hr_mean = np.mean(hr)
-                hr_std = np.std(hr, ddof=1)
-                self.hr_z = (self.hedge_ratio - hr_mean) / hr_std
-            intercept = y_mean - self.hedge_ratio * x_mean
-        
+            self.hedge_ratio = (Syy - Sxx + np.sqrt((Syy - Sxx)**2 + 4 * Sxy**2)) / denom
+        intercept = y_mean - self.hedge_ratio * x_mean
+
+        self.hr.append(self.hedge_ratio)
+        if min(self.hr) != max(self.hr):
+            hr = np.array(self.hr)
+            hr_mean = np.mean(hr)
+            hr_std = np.std(hr, ddof=1)
+            if hr_std != 0:
+                self.hr_z = (self.hedge_ratio - hr_mean) / hr_std  
+
         spread = self.mid1 - (intercept + self.hedge_ratio * self.mid2)
         self.spread_history.append(spread)
         # self.save_data(max(self.s1["ts"], self.s2["ts"]), spread)
@@ -117,6 +120,7 @@ class TLS(StrategyPair):
             self.spread_mean = np.mean(s)
             self.spread_std = np.std(s, ddof=1)
             self.z_score = (spread - self.spread_mean) / self.spread_std
+            # self.save_data(max(self.s1["ts"], self.s2["ts"]), self.z_score)
 
         self.spread_check = (self.s1["ask"] - self.s1["bid"] <= self.bid_ask_spread and 
                             self.s2["ask"] - self.s2["bid"] <= self.bid_ask_spread)

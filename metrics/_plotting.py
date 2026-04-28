@@ -13,6 +13,7 @@ class Plotting:
         self.symbol = symbol
         self.img_path = img_path
         
+        self.trade_history = []
         self.intraday_equity = {}
         self.start_date = None
         self.end_date = None
@@ -55,7 +56,7 @@ class Plotting:
                 self.intraday_equity[ts] = last_equity if last_equity is not None else val
 
     def overview(self, display=True):
-        if len(self.intraday_equity) == 0:
+        if len(self.intraday_equity) == 0 or len(self.trade_history) == 0:
             return print("No plot data available.")
         equity = self.intraday_equity
         if len(equity) <= ((self.end_date - self.start_date).days + 1) * 385:

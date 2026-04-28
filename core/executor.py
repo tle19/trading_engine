@@ -91,7 +91,7 @@ class DataFeedController:
         for feed in self.feeds:
             feed.trade_manager.save_logs()
         self.log_file.close() 
-        # self.construct_quote() # FIX: timestamp
+        self.construct_quote()
     
     def await_market_open(self):
         print("[PENDING] Market open pending")
@@ -138,7 +138,7 @@ class DataFeedController:
 
         quote_pattern = re.compile(
             r"\[(?P<symbol>[A-Z]+)\]\s*"
-            r"timestamp=(?P<timestamp>\d+),\s*"
+            r"timestamp=(?P<timestamp>[^,]+),\s*"
             r"bid=(?P<bid>[\d\.]+|None),\s*"
             r"ask=(?P<ask>[\d\.]+|None),\s*"
             r"last=(?P<last>[\d\.]+|None),\s*"
@@ -153,7 +153,7 @@ class DataFeedController:
                 continue
 
             quote = data.groupdict()
-            quote["timestamp"] = None if quote["timestamp"] == "None" else int(quote["timestamp"])
+            quote["timestamp"] = None if quote["timestamp"] == "None" else datetime.datetime.fromisoformat(quote["timestamp"])
             for key in ["bid", "ask", "last"]:
                 quote[key] = None if quote[key] == "None" else float(quote[key])
             for key in ["bid_size", "ask_size"]:

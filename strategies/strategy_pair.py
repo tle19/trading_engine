@@ -59,9 +59,9 @@ class StrategyPair:
         self.force_close = False
         self.features = None
 
-        self.hedge_ratio = None
+        self.hedge_ratio = 1.0
         self.curr_steps = 0
-        self.max_steps = int(1 / self.position_size)
+        self.max_steps = 1
         self.latency = 0  # network latency in milliseconds
 
         self.data_history = {}
@@ -188,35 +188,18 @@ class StrategyPair:
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
 
         total_cash = self.risk_manager.curr_cash
-        # FIXED CASH
-        if self.pair == "IVV-IWM":
-            total_cash = 10000
-        if self.pair == "VT-VXUS":
-            total_cash = 3000
-
         expensive = max(price1, price2)
         cheaper = min(price1, price2)
 
         k = int(expensive / cheaper) + 1
         min_cash_per_step = expensive + (cheaper * k)
         feasible_steps = int(total_cash // min_cash_per_step)
-        self.max_steps = max(1, min(self.max_steps, feasible_steps))
+        max_steps = 1 / self.position_size
+        self.max_steps = max(1, min(max_steps, feasible_steps))
     
     def compute_share_split(self):
         curr_cash = self.risk_manager.curr_cash - self.position_manager.cost_basis()
         curr_s1, curr_s2 = self.position_manager.total_shares()
-
-        # FIXED CASH
-        if self.pair == "IVV-IWM":
-            curr_cash = 10000
-        # if self.pair == "GLD-SLV":
-        #     curr_cash = 20000
-        # if self.pair == "IAU-SIVR":
-        #     curr_cash = 20000
-        # if self.pair == "USO-BNO":
-        #     curr_cash = 20000
-        if self.pair == "VT-VXUS":
-            curr_cash = 3000
 
         price1 = (self.s1["bid"] + self.s1["ask"]) * 0.5
         price2 = (self.s2["bid"] + self.s2["ask"]) * 0.5
