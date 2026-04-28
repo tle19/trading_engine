@@ -9,6 +9,8 @@ from strategies import *
 from models import *
 from utils import *
 
+SEC_FEE_RATE = 0.0000206 # 20.60 per 1 000 000
+
 def create_backtest(symbols, strategy_class, pairs=False, **kwargs):
     if pairs:
         return BacktestPairs(symbols, strategy_class, **kwargs)
@@ -484,12 +486,12 @@ class BacktestPairs:
         elif signal == 0:
             shares1, shares2 = position_manager.total_shares()
             if direction1 == 1:
-                exit_price1 = (s1["bid"] + s1["ask"]) / 2  # s1["bid"]
-                exit_price2 = (s2["bid"] + s2["ask"]) / 2  # s2["ask"]
+                exit_price1 = s1["bid"]
+                exit_price2 = s2["ask"]
                 fill_price1, fill_price2 = exit_price1 * self.slip_dn, exit_price2 * self.slip_up
             elif direction1 == -1:
-                exit_price1 = (s1["bid"] + s1["ask"]) / 2  # s1["ask"]
-                exit_price2 = (s2["bid"] + s2["ask"]) / 2  # s2["bid"]
+                exit_price1 = s1["ask"]
+                exit_price2 = s2["bid"]
                 fill_price1, fill_price2 = exit_price1 * self.slip_up, exit_price2 * self.slip_dn
 
             for leg1, leg2 in position_manager.pairs.copy():
@@ -497,9 +499,11 @@ class BacktestPairs:
                 entry_price2 = leg2.entry_price
                 shares1 = leg1.shares * self.margin
                 shares2 = leg2.shares * self.margin
-
-                pnl1 = direction1 * (fill_price1 - entry_price1) * shares1
-                pnl2 = direction2 * (fill_price2 - entry_price2) * shares2
+                
+                sec_fee1 = entry_price1 * shares1 * SEC_FEE_RATE
+                sec_fee2 = entry_price2 * shares1 * SEC_FEE_RATE
+                pnl1 = (direction1 * (fill_price1 - entry_price1) * shares1) - sec_fee1
+                pnl2 = (direction2 * (fill_price2 - entry_price2) * shares2) - sec_fee2
 
                 self.trade_manager.update_exit(leg1, self.ts, exit_price1, fill_price1)
                 self.trade_manager.update_exit(leg2, self.ts, exit_price2, fill_price2)
@@ -542,8 +546,10 @@ class BacktestPairs:
         for leg1, leg2 in self.position_manager.pairs:
             p1 = self.bid1 if leg1.direction > 0 else self.ask1
             p2 = self.bid2 if leg2.direction > 0 else self.ask2
-            current_equity += leg1.direction * (p1 - leg1.entry_price) * leg1.shares * self.margin
-            current_equity += leg2.direction * (p2 - leg2.entry_price) * leg2.shares * self.margin
+            sec_fee1 = leg1.entry_price * leg1.shares * SEC_FEE_RATE
+            sec_fee2 = leg2.entry_price * leg2.shares * SEC_FEE_RATE
+            current_equity += (leg1.direction * (p1 - leg1.entry_price) * leg1.shares * self.margin) - sec_fee1
+            current_equity += (leg2.direction * (p2 - leg2.entry_price) * leg2.shares * self.margin) - sec_fee2
                 
         self.trade_manager.update_intraday_equity(self.ts, current_equity)
    
