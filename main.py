@@ -20,6 +20,7 @@ def main():
     parser.add_argument("--stats", action="store_true")
     parser.add_argument("--backup", action="store_true")
     parser.add_argument("--sync", action="store_true")
+    parser.add_argument("--order_details", type=int, nargs="?", const=1006189047513)
 
     parser.add_argument("--strategy", nargs="+", type=str, default=None, help="'eod_reversion stochastic' or 'eod_reversion:SPY spread_diff:SPY-QQQ'")
     parser.add_argument("--symbols", nargs="+", type=str, default=None, help="'QQQ AAPL MSFT' or 'SPY-QQQ GOOG-GOOGL'")
@@ -42,14 +43,14 @@ def main():
     parser.add_argument("--file", type=str, default="trade_logs.json")
     args = parser.parse_args()
 
-    if not args.live and not args.backtest and not args.fetch and not args.stream and not args.quote and not args.stats and not args.backup and not args.sync:
+    if not args.live and not args.backtest and not args.fetch and not args.stream and not args.quote and not args.stats and not args.backup and not args.sync and not args.order_details:
         raise ValueError("You must provide one of the following arguments: --live, --backtest, --fetch, --stream, --quote, --stats, --backup, --sync")
     if not args.strategy and (args.live or args.backtest):
         raise ValueError(f"You must provide a strategy, e.g., --strategy eod_reversion or eod_reversion:AAPL,MSFT or spread_diff:SPY-QQQ,GOOG-GOOGL")
     colon_used = any(":" in s for s in args.strategy) if args.strategy else None
     if colon_used and args.symbols:
         raise ValueError("Cannot mix colon syntax with --symbol arguments")
-    if not colon_used and not args.symbols and not args.stats and not args.backup and not args.sync:
+    if not colon_used and not args.symbols and not args.stats and not args.backup and not args.sync and not args.order_details:
         raise ValueError("Either use colon syntax in --strategy or provide --symbol")
     if args.symbols and len(args.symbols) == 1 and args.symbols[0] in SYMBOL_MAP:
         args.symbols = SYMBOL_MAP[args.symbols[0]]
@@ -104,6 +105,8 @@ def main():
         dh.stream_data(args.symbols, args.service, args.duration)
     elif args.quote:
         dh.get_quote(args.symbols)
+    elif args.order_details:
+        dh.get_order_details(args.order_details)
     elif args.stats:
         trade_manager = TradeManager(log_file=args.file, live=True)
         trade_manager.load_logs()

@@ -17,6 +17,7 @@ class DataHandler:
         self.polygon_client = polygon.RESTClient(config['api_key'])
         self.client = schwabdev.Client(config['app_key'], config['app_secret'])
         self.stream = schwabdev.Stream(self.client)
+        self.hash = self.client.linked_accounts().json()[0].get('hashValue')
         
         self.ohlcv_row = OHLCVRow()
         self.level1_row = Level1Row()
@@ -237,7 +238,9 @@ class DataHandler:
             return
 
         for symbol in symbols:
-            quote = data.get(symbol, {}).get("quote", {})
+            content = data[symbol]
+            quote = content["quote"]
+            reference = content["reference"]
 
             row = self.level1_row.update(
                 convert_epoch_ms(quote['quoteTime']),
@@ -248,8 +251,13 @@ class DataHandler:
                 quote['askSize']
             )
 
-            print(f"[{symbol}] {row}")
+            print(f"[{symbol}] {row}, {"HTB" if reference.get('isHardToBorrow') else "ETB"}")
 
+    def get_order_details(self, order_id):
+        details = self.client.order_details(self.hash, order_id)
+        details_json = details.json()
+        print(details_json)
+    
 class OHLCVRow:
     __slots__ = ("timestamp", "open", "high", "low", "close", "volume")
 
@@ -298,7 +306,7 @@ class Level1Row:
     
     def __repr__(self):
         return (f"timestamp={self.timestamp}, bid={self.bid}, ask={self.ask}, "
-                f"last={self.last}, bid_size={self.bid_size}, ask_size={self.ask_size})"
+                f"last={self.last}, bid_size={self.bid_size}, ask_size={self.ask_size}"
             )
 
 class Level2Row:

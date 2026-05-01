@@ -109,6 +109,7 @@ class DataFeedController:
 
     def initialize(self, strategy_dict, margin):
         self.strategy_dict = {}
+        self.htb_check = {}
         self.log_buffer = []
         self.feeds = []
 
@@ -118,6 +119,7 @@ class DataFeedController:
                 self.feeds.append(eq)
                 for symbol in items:
                     self.strategy_dict[symbol] = eq
+                    self.htb_check[symbol] = "HTB" if self.is_hard_to_borrow(symbol) else "ETB"
             elif issubclass(strategy_cl, StrategyPair):
                 ep = EquityPairs(items, strategy_cl, margin=margin, log_buffer=self.log_buffer, client=self.client, stream=self.stream)
                 self.feeds.append(ep)
@@ -125,11 +127,23 @@ class DataFeedController:
                     symbol1, symbol2 = pair.split("-")
                     self.strategy_dict[symbol1] = ep
                     self.strategy_dict[symbol2] = ep
+                    self.htb_check[symbol1] = "HTB" if self.is_hard_to_borrow(symbol1) else "ETB"
+                    self.htb_check[symbol2] = "HTB" if self.is_hard_to_borrow(symbol2) else "ETB"
             elif issubclass(strategy_cl, StrategyBook):
                 eb = EquityBook(items, strategy_cl, margin=margin, log_buffer=self.log_buffer, client=self.client, stream=self.stream)
                 self.feeds.append(eb)
                 for symbol in items:
                     self.strategy_dict[symbol] = eb
+                    self.htb_check[symbol] = "HTB" if self.is_hard_to_borrow(symbol) else "ETB"
+            
+    def is_hard_to_borrow(self, symbol):
+        response = self.client.quote(symbol)
+        data = response.json()
+        if not data:
+            return
+        content = data[symbol]
+        reference = content["reference"]
+        return reference.get('isHardToBorrow')
 
     def construct_quote(self):
         with open(f"market_logs/market_logs_{datetime.datetime.now(timezone).date()}.jsonl") as f:
@@ -301,37 +315,6 @@ class Instrument:
         response = self.client.place_order(self.hash, order)
         return response
 
-    # def market_order(self, symbol, quantity, instruction="BUY", timeout=1, polling_rate=0.2):
-    #     order = {
-    #         "session": "NORMAL",
-    #         "duration": "DAY",
-    #         "orderType": "MARKET",
-    #         "orderStrategyType": "SINGLE",
-    #         "orderLegCollection": [
-    #             {
-    #                 "instruction": instruction,
-    #                 "quantity": quantity,
-    #                 "instrument": {
-    #                     "symbol": symbol,
-    #                     "assetType": "EQUITY"
-    #                 }
-    #             }
-    #         ]
-    #     }
-
-    #     start = time.perf_counter()
-    #     while True:
-    #         response = self.client.place_order(self.hash, order)
-    #         order_id = self.get_order_id(response)
-    #         status = self.get_order_details(order_id).get('status')
-
-    #         if status == "FILLED":
-    #             return response
-
-    #         if time.perf_counter() - start > timeout:
-    #             return response
-    #         time.sleep(polling_rate)
-
     def limit_order(self, symbol, price, quantity, instruction="BUY"):
         order = {
             "session": "NORMAL",
@@ -446,10 +429,11 @@ class Instrument:
                 if total_qty == quantity:
                     fill_price = sum(leg['price'] * leg['quantity'] for leg in legs) / total_qty
                     return round(fill_price, 2)
+                
+            if order_details and order_details.get("status") == "REJECTED":
+                return "REJECTED"
 
             if time.perf_counter() - start > timeout:
-                if order_details and order_details.get("status") == "REJECTED":
-                    return "REJECTED"
                 return None
             time.sleep(polling_rate)
 
@@ -512,6 +496,8 @@ class Equities(Instrument):
         # --- Enter Long ---
         if signal == 1:
             fill_price = self.buy(signal, symbol, shares)
+            if fill_price == "REJECTED":
+                fill_price = None
             self.exit_ids[leg] = self.sell_oco(symbol, shares, stop_price, target_price)
             leg.entry_price = fill_price if fill_price is not None else entry_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
@@ -519,6 +505,8 @@ class Equities(Instrument):
         # --- Enter Short ---
         elif signal == -1:
             fill_price = self.sell(signal, symbol, shares)
+            if fill_price == "REJECTED":
+                fill_price = None
             self.exit_ids[leg] = self.buy_oco(symbol, shares, stop_price, target_price)
             leg.entry_price = fill_price if fill_price is not None else entry_price
             self.trade_manager.log_entry(name, leg, symbol, direction, position_size, shares, strategy.ts, entry_price, fill_price, stop_price, target_price, strategy.features)
@@ -607,6 +595,15 @@ class EquityPairs(Instrument):
             if fill_price2 == "REJECTED":
                 self.log_buffer.append(f"REJECTED {signal} {symbol2}")
                 fill_price2 = None
+            # if fill_price1 == "REJECTED" or fill_price2 == "REJECTED":
+            #     position_manager.remove_pair(leg1, leg2)
+            #     if fill_price1 == "REJECTED" and fill_price2 == "REJECTED":
+            #         return
+            #     if fill_price1 == "REJECTED":
+            #         self.buy(0, symbol2, shares2)
+            #     if fill_price2 == "REJECTED":
+            #         self.sell(0, symbol1, shares1)
+            #     return
             leg1.entry_price = fill_price1 if fill_price1 is not None else entry_price1
             leg2.entry_price = fill_price2 if fill_price2 is not None else entry_price2
             self.trade_manager.log_entry(name, leg1, symbol1, direction1, position_size1, shares1, s1["ts"], entry_price1, fill_price1, None, None, strategy.features)
@@ -621,6 +618,15 @@ class EquityPairs(Instrument):
             if fill_price2 == "REJECTED":
                 self.log_buffer.append(f"REJECTED {signal} {symbol2}")
                 fill_price2 = None
+            # if fill_price1 == "REJECTED" or fill_price2 == "REJECTED":
+            #     position_manager.remove_pair(leg1, leg2)
+            #     if fill_price1 == "REJECTED" and fill_price2 == "REJECTED":
+            #         return
+            #     if fill_price1 == "REJECTED":
+            #         self.sell(0, symbol2, shares2)
+            #     if fill_price2 == "REJECTED":
+            #         self.buy(0, symbol1, shares1)
+            #     return
             leg1.entry_price = fill_price1 if fill_price1 is not None else entry_price1
             leg2.entry_price = fill_price2 if fill_price2 is not None else entry_price2
             self.trade_manager.log_entry(name, leg1, symbol1, direction1, position_size1, shares1, s1["ts"], entry_price1, fill_price1, None, None, strategy.features)
@@ -635,7 +641,22 @@ class EquityPairs(Instrument):
             elif direction1 == -1:
                 fill_price1, fill_price2 = self.buy_pair(signal, symbol1, symbol2, shares1, shares2)
                 exit_price1, exit_price2 = s1["ask"], s2["bid"]
-
+                
+            if fill_price1 == "REJECTED":
+                self.log_buffer.append(f"REJECTED {signal} {symbol1}")
+                fill_price1 = None
+            if fill_price2 == "REJECTED":
+                self.log_buffer.append(f"REJECTED {signal} {symbol2}")
+                fill_price2 = None
+            # if fill_price1 == "REJECTED" or fill_price2 == "REJECTED":
+            #     position_manager.remove_pair(leg1, leg2)
+            #     if fill_price1 == "REJECTED" and fill_price2 == "REJECTED":
+            #         return
+            #     if fill_price1 == "REJECTED":
+            #         self.buy(0, symbol2, shares2)
+            #     if fill_price2 == "REJECTED":
+            #         self.sell(0, symbol1, shares1)
+            #     return
             for leg1, leg2 in position_manager.pairs.copy():
                 entry_price1 = leg1.entry_price
                 entry_price2 = leg2.entry_price
