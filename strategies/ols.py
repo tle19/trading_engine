@@ -3,8 +3,6 @@ from collections import deque
 
 from strategies import StrategyPair
 
-import json
-
 class OLS(StrategyPair):
     def __init__(self, pair, price_window=10000, spread_window=1500, 
                  entry_threshold=2.0, exit_threshold=0.0, bid_ask_spread=0.03,
@@ -27,8 +25,6 @@ class OLS(StrategyPair):
         self.spread_std = 1
         self.spread_check = False
 
-        # self.file = open(f"{self.pair}_hedge_ratios.jsonl", "ab")
-
         self.hr = deque(maxlen=self.price_window)
         self.mid1_history = deque(maxlen=self.price_window)
         self.mid2_history = deque(maxlen=self.price_window)
@@ -43,11 +39,10 @@ class OLS(StrategyPair):
 
         signal = None
         if self.activated and self.sync_check:
-            # self.file.write(json.dumps({"ts": self.s1["ts"].isoformat(), "hedge_ratio": self.hedge_ratio}).encode() + b"\n")
             self.compute_indicators()
-            if self.latency_check and self.spread_check: #  and self.spread_check
+            if self.latency_check and self.spread_check:
                 signal = self.exit_trade()
-                if signal is None: #  and self.spread_check
+                if signal is None:
                     signal = self.enter_trade()
         return signal
    
@@ -104,13 +99,11 @@ class OLS(StrategyPair):
 
         spread = self.mid1 - (intercept + self.hedge_ratio * self.mid2)
         self.spread_history.append(spread)
-        # self.save_data(max(self.s1["ts"], self.s2["ts"]), spread)
         if len(self.spread_history) == self.spread_window:
             s = np.array(self.spread_history)
             self.spread_mean = np.mean(s)
             self.spread_std = np.std(s, ddof=1)
             self.z_score = (spread - self.spread_mean) / self.spread_std
-            # self.save_data(max(self.s1["ts"], self.s2["ts"]), self.z_score)
 
         self.spread_check = (self.s1["ask"] - self.s1["bid"] <= self.bid_ask_spread and 
                             self.s2["ask"] - self.s2["bid"] <= self.bid_ask_spread)
@@ -122,35 +115,7 @@ class OLS(StrategyPair):
             self.spread_history.clear()
     
     def config(self):
-        if self.pair == "IVV-IWM":
-            self.price_window = 10000
-            self.spread_window = 1500
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.03
-            self.position_size = 0.10
-        if self.pair == "GLD-SLV":
-            self.price_window = 10000
-            self.spread_window = 1500
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.05
-            self.position_size = 0.10
-        if self.pair == "IAU-SIVR":
-            self.price_window = 10000
-            self.spread_window = 1500
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.03
-            self.position_size = 0.10
         if self.pair == "USO-BNO":
-            self.price_window = 10000
-            self.spread_window = 1500
-            self.entry_threshold = 2.0
-            self.exit_threshold = 0.0
-            self.bid_ask_spread = 0.03
-            self.position_size = 0.10
-        if self.pair == "VT-VXUS":
             self.price_window = 10000
             self.spread_window = 1500
             self.entry_threshold = 2.0
@@ -160,7 +125,7 @@ class OLS(StrategyPair):
 
     def param_grid(self):
         params = {
-            "price_window": [1000, 2500, 5000], # 500, 1000, 2500, 5000, 10000
-            "spread_window": [500, 1000, 1500] # 1000, 1500, 2000, 2500, 3000
+            "price_window": [1000, 2500, 5000],
+            "spread_window": [500, 1000, 1500]
         }
         return params

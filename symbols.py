@@ -45,17 +45,12 @@ SP500 = [
 
 MACRO = [
     "SPY",    # S&P 500 ETF
-    "IVV",    # S&P 500 ETF
-    "VOO",    # S&P 500 ETF
     "DIA",    # Dow Jones 30 ETF
     "QQQ",    # Nasdaq 100 ETF
-    "QQQM",   # Nasdaq 100 ETF
     "SCHX",   # Schwab 750 ETF
     "IWM",    # Russell 2000 ETF
     "VTI",    # Total US Market ETF
-    "ITOT",   # Total US Market ETF
     "VXUS",   # Total International Market ETF
-    "IXUS",   # Total International Market ETF
     "VT",     # Total World Market ETF
     "TLT"     # 20+ Year Treasury Bond ETF
 ]
@@ -73,9 +68,7 @@ SECTORS = [
 
 PRECIOUS_METALS = [
     "GLD",    # Gold ETF
-    "IAU",    # Gold ETF
     "SLV",    # Silver ETF
-    "SIVR",   # Silver ETF
     "PALL",   # Palladium ETF
     "PLTM"    # Platinum ETF
 ]
@@ -116,12 +109,3 @@ SYMBOL_MAP = {
     "PRECIOUS_METALS": PRECIOUS_METALS,
     "CRYPTO": CRYPTO
 }
-
-PAIRS = [
-    ["SPY", "QQQ"],   # S&P 500 vs Nasdaq 100 (Broad vs Tech)
-    ["IVV", "IWM"],   # S&P 500 vs Russell 2000 (Large vs Small)
-    ["VT", "VXUS"],   # Total World vs Ex-US International (Global vs Ex-US International)
-    ["GLD", "SLV"],   # Gold vs Silver (Precious Metals)
-    ["IAU", "SIVR"],  # Gold vs Silver (Precious Metals)
-    ["USO", "BNO"],   # WTI vs Brent (Crude Oils)
-]

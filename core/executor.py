@@ -6,7 +6,7 @@ import orjson
 
 import schwabdev
 
-from strategies import Strategy, StrategyPair, StrategyBook
+from strategies import Strategy, StrategyPair
 from core import OHLCVRow, Level1Row, Level2Row
 from metrics import TradeManager
 from utils import *
@@ -129,12 +129,6 @@ class DataFeedController:
                     self.strategy_dict[symbol2] = ep
                     self.htb_check[symbol1] = "HTB" if self.is_hard_to_borrow(symbol1) else "ETB"
                     self.htb_check[symbol2] = "HTB" if self.is_hard_to_borrow(symbol2) else "ETB"
-            elif issubclass(strategy_cl, StrategyBook):
-                eb = EquityBook(items, strategy_cl, margin=margin, log_buffer=self.log_buffer, client=self.client, stream=self.stream)
-                self.feeds.append(eb)
-                for symbol in items:
-                    self.strategy_dict[symbol] = eb
-                    self.htb_check[symbol] = "HTB" if self.is_hard_to_borrow(symbol) else "ETB"
             
     def is_hard_to_borrow(self, symbol):
         response = self.client.quote(symbol)
@@ -670,26 +664,3 @@ class EquityPairs(Instrument):
                 self.update_pnl(strategy, direction1, entry_price1, fill_price1, shares1)
                 self.update_pnl(strategy, direction2, entry_price2, fill_price2, shares2)
                 position_manager.remove_pair(leg1, leg2)
-
-class EquityBook(Instrument):
-    def __init__(self, symbols, strategy_class, margin=1.0, log_buffer=None, client=None, stream=None, log_file="trade_logs_live_eb.json"):
-        super().__init__(symbols, strategy_class, margin, log_buffer, client, stream, log_file)
-        self.initialize(symbols, strategy_class)
-
-    def initialize(self, symbols, strategy_class):
-        for symbol in symbols:
-            strat = strategy_class(symbol)
-            cash_allocation = round(self.cash / len(symbols), 2)
-            strat.risk_manager.start_cash = cash_allocation
-            self.strategies[symbol] = strat
-            print(
-                f"[INIT] {strat.__class__.__name__:15} | "
-                f"symbol={symbol:10} | cash=${cash_allocation}"
-            )
-
-    def subscribe_symbols(self):
-        self.stream.send(self.stream.nasdaq_book(self.symbols, "0,1,2,3,4", command="ADD"))
-
-    def interpret_signal(self, signal, strategy):
-        # TODO: finish
-        return
