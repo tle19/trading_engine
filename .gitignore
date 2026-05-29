@@ -11,11 +11,8 @@ trade_logs/
 pkl_files/
 
 # --- Test files ---
-sample_order.json
-pair_stats.json
-*_grid_search.json
-*_spread.json
-*_hedge_ratios.jsonl
+*.json
+*.jsonl
 
 # --- Python build/cache files ---
 __pycache__/
